@@ -270,6 +270,7 @@ export default function VocabularyApp() {
   const ignoreNextQueryUpdate = useRef(false);
   const [viewingFolderId, setViewingFolderId] = useState(null);
   const [returnFolderId, setReturnFolderId] = useState(null);
+  const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
 
   // --- State: Review & Story ---
   const [reviewQueue, setReviewQueue] = useState([]);
@@ -972,9 +973,9 @@ export default function VocabularyApp() {
             {searchError && <div className="text-red-500 text-center p-4 bg-red-50 rounded-lg">{searchError}</div>}
 
             {searchResult && !isSearching && (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
-                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
-                  <div className="flex justify-between items-start">
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
+                  <div className="flex justify-between items-start gap-4">
                     <div>
                       <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
                         {searchResult.word}
@@ -1014,15 +1015,23 @@ export default function VocabularyApp() {
                         {searchResult.source === 'Groq AI' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3"/> Groq AI</span>}
                       </div>
                     </div>
-                    <div className="relative group">
-                      <button className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm">
+                    <div className="relative shrink-0">
+                      <button 
+                        onClick={() => setIsSaveMenuOpen(!isSaveMenuOpen)}
+                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
+                      >
                         <Save className="w-4 h-4" /> 儲存
                       </button>
-                      <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 hidden group-hover:block z-10 p-1">
-                        {folders.map(f => (
-                          <button key={f.id} onClick={() => saveWord(f.id)} className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg text-sm">{f.name}</button>
-                        ))}
-                      </div>
+                      
+                      {isSaveMenuOpen && <div className="fixed inset-0 z-10" onClick={() => setIsSaveMenuOpen(false)} />}
+                      
+                      {isSaveMenuOpen && (
+                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
+                          {folders.map(f => (
+                            <button key={f.id} onClick={() => { saveWord(f.id); setIsSaveMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg text-sm">{f.name}</button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>

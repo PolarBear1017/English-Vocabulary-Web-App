@@ -1,11 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Book, Brain, Volume2, Save, Plus, 
   Folder, Trash2, X, RefreshCw, Mic, Sparkles, 
-  Settings, ArrowRight, Key, Loader2
+  Settings, ArrowRight, ArrowLeft, Key, Loader2
 } from 'lucide-react';
 // [Supabase] 引入 Supabase 功能
 import { supabase } from './supabase';
+import { FSRS, Rating, generatorParameters, createEmptyCard } from 'ts-fsrs';
 
 /**
  * ------------------------------------------------------------------
@@ -161,21 +162,41 @@ const normalizeEntries = (data) => {
   return [];
 };
 
-const calculateSM2 = (quality, prevInterval, prevRepetitions, prevEf) => {
-  let interval, repetitions, ef;
-  if (quality >= 3) {
-    if (prevRepetitions === 0) interval = 1;
-    else if (prevRepetitions === 1) interval = 6;
-    else interval = Math.round(prevInterval * prevEf);
-    repetitions = prevRepetitions + 1;
-    ef = prevEf + (0.1 - (5 - quality) * (0.08 + (5 - quality) * 0.02));
-  } else {
-    repetitions = 0;
-    interval = 1;
-    ef = prevEf;
-  }
-  if (ef < 1.3) ef = 1.3;
-  return { interval, repetitions, ef };
+const fsrsParams = generatorParameters({ enable_fuzzing: true });
+const fsrs = new FSRS(fsrsParams);
+
+const buildFsrsCard = (data = {}) => {
+  const card = createEmptyCard();
+  if (data.due) card.due = new Date(data.due);
+  if (!data.due && data.nextReview) card.due = new Date(data.nextReview);
+  if (data.stability !== undefined && data.stability !== null) card.stability = data.stability;
+  if (data.difficulty !== undefined && data.difficulty !== null) card.difficulty = data.difficulty;
+  if (data.elapsed_days !== undefined && data.elapsed_days !== null) card.elapsed_days = data.elapsed_days;
+  if (data.scheduled_days !== undefined && data.scheduled_days !== null) card.scheduled_days = data.scheduled_days;
+  if (data.reps !== undefined && data.reps !== null) card.reps = data.reps;
+  if (data.lapses !== undefined && data.lapses !== null) card.lapses = data.lapses;
+  if (data.state !== undefined && data.state !== null) card.state = data.state;
+  if (data.last_review) card.last_review = new Date(data.last_review);
+  return card;
+};
+
+const serializeFsrsCard = (card) => ({
+  due: card.due ? new Date(card.due).toISOString() : new Date().toISOString(),
+  stability: card.stability,
+  difficulty: card.difficulty,
+  elapsed_days: card.elapsed_days,
+  scheduled_days: card.scheduled_days,
+  reps: card.reps,
+  lapses: card.lapses,
+  state: card.state,
+  last_review: card.last_review ? new Date(card.last_review).toISOString() : null
+});
+
+const mapGradeToFsrsRating = (grade) => {
+  if (grade <= 1) return Rating.Again;
+  if (grade === 2) return Rating.Hard;
+  if (grade === 3) return Rating.Good;
+  return Rating.Easy;
 };
 
 const formatDate = (date) => new Date(date).toLocaleDateString('zh-TW');
@@ -196,6 +217,21 @@ const speak = (text, audioUrl = null) => {
     alert("瀏覽器不支援語音");
   }
 };
+
+// [New] 理解程度顯示元件
+const ProficiencyDots = ({ score = 0 }) => (
+  <div className="flex items-center gap-1.5" title={`理解程度: ${score}/5`}>
+    <div className={`h-2 w-12 rounded-full transition-colors duration-300 shadow-sm ${
+      score <= 0 ? 'bg-gray-200' :
+      score === 1 ? 'bg-red-500' :
+      score === 2 ? 'bg-orange-500' :
+      score === 3 ? 'bg-yellow-400' :
+      score === 4 ? 'bg-lime-500' :
+      'bg-green-600'
+    }`} />
+    <span className="text-xs font-bold text-gray-400">Lv.{score}</span>
+  </div>
+);
 
 /**
  * ------------------------------------------------------------------
@@ -231,6 +267,9 @@ export default function VocabularyApp() {
   const [searchError, setSearchError] = useState(null);
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [suggestions, setSuggestions] = useState([]);
+  const ignoreNextQueryUpdate = useRef(false);
+  const [viewingFolderId, setViewingFolderId] = useState(null);
+  const [returnFolderId, setReturnFolderId] = useState(null);
 
   // --- State: Review & Story ---
   const [reviewQueue, setReviewQueue] = useState([]);
@@ -241,6 +280,8 @@ export default function VocabularyApp() {
   const [feedback, setFeedback] = useState(null);
   const [story, setStory] = useState(null);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
+  const [isAwaitingNext, setIsAwaitingNext] = useState(false);
+  const [pendingAutoGrade, setPendingAutoGrade] = useState(null);
 
   const normalizedEntries = searchResult ? normalizeEntries(searchResult) : [];
   const currentReviewWord = reviewQueue[currentCardIndex] || {};
@@ -258,6 +299,9 @@ export default function VocabularyApp() {
         ? (currentReviewWord.ukAudioUrl || currentReviewWord.audioUrl || currentReviewWord.usAudioUrl)
         : (currentReviewWord.usAudioUrl || currentReviewWord.audioUrl || currentReviewWord.ukAudioUrl))
     : null;
+
+  const activeFolder = viewingFolderId ? folders.find(f => f.id === viewingFolderId) : null;
+  const savedWordInSearch = searchResult ? vocabData.find(w => w.word === searchResult.word) : null;
 
   // --- Effect: Persistence (Supabase Sync) ---
   useEffect(() => {
@@ -298,11 +342,17 @@ export default function VocabularyApp() {
           id: item.word_id.toString(), // 使用 word_id 作為識別
           libraryId: item.id,      // 保留關聯表 ID
           folderId: item.folder_id || 'default',
-          nextReview: item.next_review || new Date().toISOString(),
+          nextReview: item.next_review || item.due || new Date().toISOString(),
           proficiencyScore: item.proficiency_score,
-          interval: item.interval || 0,
-          repetitions: item.repetitions || 0,
-          ef: item.ef || 2.5
+          due: item.due || item.next_review || new Date().toISOString(),
+          stability: item.stability ?? null,
+          difficulty: item.difficulty ?? null,
+          elapsed_days: item.elapsed_days ?? null,
+          scheduled_days: item.scheduled_days ?? null,
+          reps: item.reps ?? null,
+          lapses: item.lapses ?? null,
+          state: item.state ?? null,
+          last_review: item.last_review ?? null
         }));
         setVocabData(loadedVocab);
         setIsDataLoaded(true);
@@ -328,6 +378,11 @@ export default function VocabularyApp() {
 
   // --- Effect: Autocomplete Suggestions ---
   useEffect(() => {
+    if (ignoreNextQueryUpdate.current) {
+      ignoreNextQueryUpdate.current = false;
+      return;
+    }
+
     const fetchSuggestions = async () => {
       if (!query.trim() || query.length < 2) {
         setSuggestions([]);
@@ -356,7 +411,7 @@ export default function VocabularyApp() {
       }
     };
 
-    const timeoutId = setTimeout(fetchSuggestions, 300); // 300ms 防抖動
+    const timeoutId = setTimeout(fetchSuggestions, 100); // 100ms 防抖動
     return () => clearTimeout(timeoutId);
   }, [query]);
 
@@ -368,7 +423,11 @@ export default function VocabularyApp() {
     const searchTerm = (typeof e === 'string' ? e : query).trim();
     if (!searchTerm) return;
 
-    if (typeof e === 'string') setQuery(searchTerm);
+    setReturnFolderId(null); // 手動搜尋時，清除「返回資料夾」的狀態
+    if (typeof e === 'string') {
+      ignoreNextQueryUpdate.current = true;
+      setQuery(searchTerm);
+    }
 
     setIsSearching(true);
     setSearchResult(null);
@@ -519,6 +578,24 @@ export default function VocabularyApp() {
   };
 
   // --- Logic: CRUD & Review ---
+  const handleShowDetails = (word) => {
+    // 建構符合 searchResult 格式的物件，補足可能缺失的欄位
+    const details = {
+      ...word,
+      entries: normalizeEntries(word),
+      similar: word.similar || [], 
+      usAudioUrl: word.usAudioUrl || null,
+      ukAudioUrl: word.ukAudioUrl || null,
+      source: 'Library'
+    };
+    ignoreNextQueryUpdate.current = true;
+    setQuery(word.word);
+    setSearchResult(details);
+    setActiveTab('search');
+    if (viewingFolderId) setReturnFolderId(viewingFolderId); // 記錄來源資料夾
+    setViewingFolderId(null);
+  };
+
   const saveWord = async (folderId) => {
     if (!searchResult || !session) {
       if (!session) alert("請等待連線至資料庫...");
@@ -528,11 +605,13 @@ export default function VocabularyApp() {
     try {
       // 1. Upsert Dictionary (確保單字存在於字典表)
       // 先查詢是否已存在
-      let { data: dictWord } = await supabase
+      let { data: dictWord, error: fetchError } = await supabase
         .from('dictionary')
         .select('id')
         .eq('word', searchResult.word)
-        .single();
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
 
       if (!dictWord) {
         // 不存在則新增
@@ -545,26 +624,58 @@ export default function VocabularyApp() {
             pos: searchResult.pos,
             phonetic: searchResult.phonetic,
             example: searchResult.example,
-            mnemonics: searchResult.mnemonics
+            mnemonics: searchResult.mnemonics || null
           }])
           .select()
           .single();
         
-        if (dictError) throw dictError;
-        dictWord = newDictWord;
+        if (dictError) {
+          // 若發生 Unique Violation (23505)，代表剛好有別人新增了，改為重新查詢
+          if (dictError.code === '23505') {
+            const { data: retryWord, error: retryError } = await supabase
+              .from('dictionary')
+              .select('id')
+              .eq('word', searchResult.word)
+              .maybeSingle();
+            if (retryError) throw retryError;
+            dictWord = retryWord;
+          } else {
+            throw dictError;
+          }
+        } else {
+          dictWord = newDictWord;
+        }
       }
 
       // 2. Insert User Library (建立使用者與單字的關聯)
-      const { data: libraryEntry, error: libError } = await supabase
+      const now = new Date();
+      const initialCard = createEmptyCard();
+      initialCard.due = now;
+      const fsrsState = serializeFsrsCard(initialCard);
+
+      const baseLibraryPayload = {
+        user_id: session.user.id,
+        word_id: dictWord.id,
+        folder_id: folderId,
+        next_review: fsrsState.due
+      };
+
+      let { data: libraryEntry, error: libError } = await supabase
         .from('user_library')
         .insert([{
-          user_id: session.user.id,
-          word_id: dictWord.id,
-          folder_id: folderId,
-          next_review: new Date().toISOString()
+          ...baseLibraryPayload,
+          ...fsrsState
         }])
         .select()
         .single();
+
+      if (libError && libError.code === '42703') {
+        ({ data: libraryEntry, error: libError } = await supabase
+          .from('user_library')
+          .insert([baseLibraryPayload])
+          .select()
+          .single());
+      }
 
       if (libError) {
         if (libError.code === '23505') alert("這個單字已經在您的收藏庫囉！"); // Unique constraint violation
@@ -578,10 +689,9 @@ export default function VocabularyApp() {
         id: dictWord.id.toString(),
         libraryId: libraryEntry.id,
         folderId: folderId,
-        nextReview: libraryEntry.next_review,
-        interval: 0,
-        repetitions: 0,
-        ef: 2.5
+        nextReview: libraryEntry.next_review || fsrsState.due,
+        ...fsrsState,
+        proficiencyScore: 0 // 初始化理解程度
       };
 
       setVocabData(prev => [...prev, newWordState]);
@@ -601,52 +711,148 @@ export default function VocabularyApp() {
     if (name) setFolders([...folders, { id: Date.now().toString(), name, words: [] }]);
   };
 
-  const startReview = (folderId, mode) => {
+  const buildReviewBatch = (words, batchSize) => {
+    if (words.length <= batchSize) return words;
     const now = new Date();
-    const dueWords = vocabData.filter(w => 
-      (folderId === 'all' || w.folderId === folderId) && 
-      new Date(w.nextReview) <= now
-    );
+    const dueWords = words
+      .filter(w => new Date(w.nextReview) <= now)
+      .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview));
 
-    if (dueWords.length === 0) {
-      alert("目前沒有需要複習的單字！");
+    if (dueWords.length >= batchSize) {
+      return dueWords.slice(0, batchSize);
+    }
+
+    const notDue = words
+      .filter(w => new Date(w.nextReview) > now)
+      .sort((a, b) => (a.proficiencyScore || 0) - (b.proficiencyScore || 0));
+
+    const mixed = [];
+    let low = 0;
+    let high = notDue.length - 1;
+    while (mixed.length < (batchSize - dueWords.length) && low <= high) {
+      if (low <= high) {
+        mixed.push(notDue[low]);
+        low += 1;
+      }
+      if (mixed.length >= (batchSize - dueWords.length)) break;
+      if (low <= high) {
+        mixed.push(notDue[high]);
+        high -= 1;
+      }
+    }
+
+    return [...dueWords, ...mixed].slice(0, batchSize);
+  };
+
+  const startReview = (folderId, mode) => {
+    const filteredWords = vocabData.filter(w => (folderId === 'all' || w.folderId === folderId));
+    if (filteredWords.length === 0) {
+      alert("目前沒有可複習的單字！");
       return;
     }
-    setReviewQueue(dueWords);
+
+    const reviewBatch = buildReviewBatch(filteredWords, 10);
+    setReviewQueue(reviewBatch);
     setCurrentCardIndex(0);
     setReviewMode(mode);
     setIsFlipped(false);
     setUserAnswer('');
     setFeedback(null);
+    setIsAwaitingNext(false);
+    setPendingAutoGrade(null);
     setActiveTab('review_session');
   };
 
-  const processRating = (grade) => {
-    const currentWord = reviewQueue[currentCardIndex];
-    if (!currentWord) {
-      setActiveTab('review');
-      return;
+  const advanceToNextCard = () => {
+    if (pendingAutoGrade !== null) {
+      processRating(pendingAutoGrade, { advance: false });
+      setPendingAutoGrade(null);
     }
-    
-    // 使用預設值避免 undefined 導致計算錯誤 (NaN) 而崩潰
-    const prevInterval = currentWord.interval || 0;
-    const prevRepetitions = currentWord.repetitions || 0;
-    const prevEf = currentWord.ef || 2.5;
-
-    const { interval, repetitions, ef } = calculateSM2(grade, prevInterval, prevRepetitions, prevEf);
-    const nextDate = new Date();
-    nextDate.setDate(nextDate.getDate() + interval);
-
-    setVocabData(prev => prev.map(w => w.id === currentWord.id ? { ...w, interval, repetitions, ef, nextReview: nextDate.toISOString() } : w));
 
     if (currentCardIndex < reviewQueue.length - 1) {
       setCurrentCardIndex(prev => prev + 1);
       setIsFlipped(false);
       setUserAnswer('');
       setFeedback(null);
+      setIsAwaitingNext(false);
     } else {
       alert("複習完成！");
       setActiveTab('review');
+    }
+  };
+
+  useEffect(() => {
+    if (!(activeTab === 'review_session' && isFlipped && reviewMode !== 'flashcard' && isAwaitingNext)) {
+      return;
+    }
+
+    const handleKeyDown = (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        advanceToNextCard();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isFlipped, reviewMode, isAwaitingNext, advanceToNextCard]);
+
+  const processRating = (grade, options = {}) => {
+    const currentWord = reviewQueue[currentCardIndex];
+    if (!currentWord) {
+      setActiveTab('review');
+      return;
+    }
+    
+    const prevScore = currentWord.proficiencyScore || 0;
+    const now = new Date();
+    const rating = mapGradeToFsrsRating(grade);
+    const currentCard = buildFsrsCard(currentWord);
+    const schedulingCards = fsrs.repeat(currentCard, now);
+    const nextCardRecord = schedulingCards[rating];
+    const nextCard = nextCardRecord.card;
+    const fsrsState = serializeFsrsCard(nextCard);
+    const nextReviewIso = fsrsState.due;
+
+    // 計算新的理解程度 (0-5)
+    // 邏輯：答錯(1-2)扣分，普通(3)持平，答對(4-5)加分
+    let scoreChange = grade - 3; 
+    let newScore = prevScore + scoreChange;
+    
+    // 特殊規則：如果是新單字(0)且答對(>=3)，至少升到 Lv.1
+    if (prevScore === 0 && grade >= 3) newScore = Math.max(1, newScore);
+    
+    // 限制範圍 0-5
+    newScore = Math.max(0, Math.min(5, newScore));
+
+    // 更新本地狀態
+    setVocabData(prev => prev.map(w => w.id === currentWord.id ? { ...w, ...fsrsState, nextReview: nextReviewIso, proficiencyScore: newScore } : w));
+
+    // 更新 Supabase
+    if (session) {
+      const updatePayload = {
+        ...fsrsState,
+        next_review: nextReviewIso,
+        proficiency_score: newScore
+      };
+
+      supabase.from('user_library').update(updatePayload).eq('id', currentWord.libraryId).then(({ error }) => {
+        if (error && error.code === '42703') {
+          supabase.from('user_library').update({
+            next_review: nextReviewIso,
+            proficiency_score: newScore
+          }).eq('id', currentWord.libraryId).then(({ error: retryError }) => {
+            if (retryError) console.error("更新複習進度失敗:", retryError);
+          });
+        } else if (error) {
+          console.error("更新複習進度失敗:", error);
+        }
+      });
+    }
+
+    const shouldAdvance = options.advance !== false;
+    if (shouldAdvance) {
+      advanceToNextCard();
     }
   };
 
@@ -658,7 +864,14 @@ export default function VocabularyApp() {
     }
     const isCorrect = userAnswer.toLowerCase().trim() === currentWord.word.toLowerCase();
     setFeedback(isCorrect ? 'correct' : 'incorrect');
-    setIsFlipped(true); 
+    setIsFlipped(true);
+
+    if (reviewMode !== 'flashcard') {
+      if (isAwaitingNext) return;
+      const autoGrade = isCorrect ? 4 : 1;
+      setPendingAutoGrade(autoGrade);
+      setIsAwaitingNext(true);
+    }
   };
 
   // --- Sub-Components ---
@@ -676,7 +889,7 @@ export default function VocabularyApp() {
       ].map(item => (
         <button 
           key={item.id}
-          onClick={() => setActiveTab(item.id)}
+          onClick={() => { setActiveTab(item.id); setViewingFolderId(null); }}
           className={`flex flex-col md:flex-row items-center gap-2 p-2 rounded-lg transition ${activeTab === item.id || (item.id === 'review' && activeTab === 'review_session') ? 'text-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
         >
           <item.icon className="w-6 h-6" />
@@ -695,13 +908,25 @@ export default function VocabularyApp() {
         {/* === TAB: SEARCH === */}
         {activeTab === 'search' && (
           <div className="max-w-2xl mx-auto space-y-6">
+            {returnFolderId && (
+              <button 
+                onClick={() => {
+                  setViewingFolderId(returnFolderId);
+                  setActiveTab('library');
+                  setReturnFolderId(null);
+                }}
+                className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition font-medium mb-2"
+              >
+                <ArrowLeft className="w-4 h-4" />
+                返回 {folders.find(f => f.id === returnFolderId)?.name || '資料夾'}
+              </button>
+            )}
+
             <header>
               <h1 className="text-2xl font-bold mb-2">單字查詢</h1>
               <div className="text-sm text-gray-500 flex items-center gap-2">
-                {apiKey || groqApiKey ? (
+                {(apiKey || groqApiKey) && (
                   <span className="text-green-600 flex items-center gap-1"><Sparkles className="w-3 h-3"/> AI 功能已啟用</span>
-                ) : (
-                  <span className="text-orange-500">請至設定輸入 API Key 以解鎖 AI 查詢</span>
                 )}
               </div>
             </header>
@@ -772,6 +997,12 @@ export default function VocabularyApp() {
                             >
                               UK
                             </button>
+                          </div>
+                        )}
+                        {savedWordInSearch && (
+                          <div className="ml-4 flex flex-col items-start">
+                            <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Mastery</span>
+                            <ProficiencyDots score={savedWordInSearch.proficiencyScore} />
                           </div>
                         )}
                       </h2>
@@ -864,55 +1095,119 @@ export default function VocabularyApp() {
         {/* === TAB: LIBRARY === */}
         {activeTab === 'library' && (
           <div className="max-w-4xl mx-auto">
-            <header className="flex justify-between items-center mb-6">
-              <h1 className="text-2xl font-bold">我的單字庫</h1>
-              <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
-                <Plus className="w-4 h-4" /> 新增資料夾
-              </button>
-            </header>
+            {!activeFolder ? (
+              <>
+                <header className="flex justify-between items-center mb-6">
+                  <h1 className="text-2xl font-bold">我的單字庫</h1>
+                  <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
+                    <Plus className="w-4 h-4" /> 新增資料夾
+                  </button>
+                </header>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {folders.map(folder => (
-                <div key={folder.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group">
-                  <div className="flex justify-between items-start mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-                        <Folder className="w-5 h-5" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {folders.map(folder => (
+                    <div key={folder.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group">
+                      <div className="flex justify-between items-start mb-4">
+                        <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingFolderId(folder.id)}>
+                          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+                            <Folder className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
+                            <p className="text-sm text-gray-500">{folder.words.length} 個單字</p>
+                          </div>
+                        </div>
+                        {folder.id !== 'default' && (
+                          <button onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除?')) setFolders(folders.filter(f => f.id !== folder.id)); }} className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                      <div>
-                        <h3 className="font-bold text-lg">{folder.name}</h3>
-                        <p className="text-sm text-gray-500">{folder.words.length} 個單字</p>
+                      
+                      <div className="space-y-2 mb-4 max-h-40 overflow-y-auto cursor-pointer" onClick={() => setViewingFolderId(folder.id)}>
+                        {vocabData.filter(w => folder.words.includes(w.id)).slice(0, 3).map(w => (
+                          <div key={w.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
+                            <span className="font-medium">{w.word}</span>
+                            <ProficiencyDots score={w.proficiencyScore} />
+                            <span className="text-gray-500 text-xs">{formatDate(w.nextReview)}</span>
+                          </div>
+                        ))}
+                        {folder.words.length > 3 && <div className="text-center text-xs text-gray-400 pt-1">+{folder.words.length - 3} words...</div>}
+                        {folder.words.length === 0 && <div className="text-center text-xs text-gray-400 py-2">尚無單字，點擊查看詳情</div>}
+                      </div>
+
+                      <div className="flex gap-2 mt-2">
+                        <button onClick={() => startReview(folder.id, 'flashcard')} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">複習</button>
+                        <button 
+                          onClick={() => generateFolderStory(folder)}
+                          className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"
+                        >
+                          <Sparkles className="w-3 h-3" /> 生成故事
+                        </button>
                       </div>
                     </div>
-                    {folder.id !== 'default' && (
-                      <button onClick={() => { if(confirm('確定刪除?')) setFolders(folders.filter(f => f.id !== folder.id)); }} className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                  
-                  <div className="space-y-2 mb-4 max-h-40 overflow-y-auto">
-                    {vocabData.filter(w => folder.words.includes(w.id)).slice(0, 3).map(w => (
-                      <div key={w.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
-                        <span className="font-medium">{w.word}</span>
-                        <span className="text-gray-500 text-xs">{formatDate(w.nextReview)}</span>
-                      </div>
-                    ))}
-                    {folder.words.length > 3 && <div className="text-center text-xs text-gray-400 pt-1">+{folder.words.length - 3} words...</div>}
-                  </div>
-
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={() => startReview(folder.id, 'flashcard')} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">複習</button>
-                    <button 
-                      onClick={() => generateFolderStory(folder)}
-                      className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"
-                    >
-                      <Sparkles className="w-3 h-3" /> 生成故事
-                    </button>
-                  </div>
+                  ))}
                 </div>
-              ))}
-            </div>
+              </>
+            ) : (
+              <div className="animate-in fade-in slide-in-from-right duration-300">
+                <header className="flex items-center gap-4 mb-6">
+                  <button onClick={() => setViewingFolderId(null)} className="p-2 hover:bg-gray-100 rounded-full transition group">
+                    <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
+                  </button>
+                  <div>
+                    <h1 className="text-2xl font-bold flex items-center gap-2">
+                      <Folder className="w-6 h-6 text-blue-500" />
+                      {activeFolder.name}
+                    </h1>
+                    <p className="text-gray-500 text-sm">{activeFolder.words.length} 個單字</p>
+                  </div>
+                </header>
+
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                  {vocabData.filter(w => activeFolder.words.includes(w.id)).length > 0 ? (
+                    <div className="divide-y divide-gray-100">
+                      {vocabData
+                        .filter(w => activeFolder.words.includes(w.id))
+                        .map(word => (
+                          <div key={word.id} onClick={() => handleShowDetails(word)} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition">{word.word}</span>
+                                <button onClick={(e) => { e.stopPropagation(); speak(word.word); }} className="p-1 rounded-full hover:bg-gray-200 text-gray-400 hover:text-blue-600 transition">
+                                  <Volume2 className="w-4 h-4" />
+                                </button>
+                                <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{word.pos}</span>
+                              </div>
+                              <p className="text-gray-600 text-sm">{word.translation || word.definition}</p>
+                            </div>
+                            <div className="flex items-center gap-6">
+                               <div className="flex flex-col items-end gap-1">
+                                  <span className="text-xs text-gray-400">理解程度</span>
+                                  <ProficiencyDots score={word.proficiencyScore} />
+                               </div>
+                               <div className="text-right min-w-[80px]">
+                                  <div className="text-xs text-gray-400">下次複習</div>
+                                  <div className={`text-sm font-medium ${new Date(word.nextReview) <= new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                                    {formatDate(word.nextReview)}
+                                  </div>
+                               </div>
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  ) : (
+                    <div className="p-12 text-center text-gray-400 flex flex-col items-center">
+                      <Book className="w-12 h-12 mb-3 opacity-20" />
+                      <p>這個資料夾還是空的</p>
+                      <button onClick={() => { setActiveTab('search'); setViewingFolderId(null); }} className="mt-4 text-blue-600 hover:underline text-sm">
+                        去查詢並新增單字
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* AI Story Modal */}
             {(story || isGeneratingStory) && (
@@ -1004,7 +1299,7 @@ export default function VocabularyApp() {
                     {reviewMode === 'spelling' && (
                       <div className="space-y-4 w-full">
                         <div className="text-xl text-gray-600">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
-                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkAnswer()} autoFocus />
+                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
                       </div>
                     )}
                     {reviewMode === 'cloze' && (
@@ -1013,13 +1308,13 @@ export default function VocabularyApp() {
                           {(primaryReviewEntry.example || currentReviewWord.example || '').replace(new RegExp(currentReviewWord.word || '', 'gi'), '________')}
                         </div>
                         <div className="text-sm text-gray-500">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
-                        <input type="text" className="w-full border p-3 rounded-lg text-center" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkAnswer()} autoFocus />
+                        <input type="text" className="w-full border p-3 rounded-lg text-center" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
                       </div>
                     )}
                     {reviewMode === 'dictation' && (
                       <div className="space-y-6 w-full flex flex-col items-center">
                         <button onClick={() => speak(currentReviewWord.word, preferredReviewAudio)} className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-200 transition animate-pulse"><Volume2 className="w-8 h-8" /></button>
-                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={e => e.key === 'Enter' && checkAnswer()} autoFocus />
+                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
                       </div>
                     )}
                   </>
@@ -1082,14 +1377,24 @@ export default function VocabularyApp() {
                 {!isFlipped ? (
                   <button onClick={() => reviewMode === 'flashcard' ? setIsFlipped(true) : checkAnswer()} className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-sm">{reviewMode === 'flashcard' ? '顯示答案' : '檢查'}</button>
                 ) : (
-                  <div>
-                    <p className="text-center text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">自評理解程度</p>
-                    <div className="grid grid-cols-5 gap-2">
-                      {[1, 2, 3, 4, 5].map((val) => (
-                        <button key={val} onClick={() => processRating(val)} className={`text-white py-3 rounded-lg font-bold hover:opacity-90 active:scale-95 transition ${['bg-red-500','bg-orange-500','bg-yellow-500','bg-blue-500','bg-green-500'][val-1]}`}>{val}</button>
-                      ))}
+                  reviewMode === 'flashcard' ? (
+                    <div>
+                      <p className="text-center text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">自評理解程度</p>
+                      <div className="grid grid-cols-5 gap-2">
+                        {[1, 2, 3, 4, 5].map((val) => (
+                          <button key={val} onClick={() => processRating(val)} className={`text-white py-3 rounded-lg font-bold hover:opacity-90 active:scale-95 transition ${['bg-red-500','bg-orange-500','bg-yellow-500','bg-blue-500','bg-green-500'][val-1]}`}>{val}</button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  ) : (
+                    <button
+                      onClick={advanceToNextCard}
+                      disabled={!isAwaitingNext}
+                      className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold text-lg hover:bg-blue-700 transition shadow-sm disabled:opacity-60"
+                    >
+                      下一題
+                    </button>
+                  )
                 )}
               </div>
             </div>

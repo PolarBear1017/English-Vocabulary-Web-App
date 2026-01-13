@@ -1711,7 +1711,16 @@ export default function VocabularyApp() {
                       </div>
 
                       <div className="flex gap-2 mt-2">
-                        <button onClick={() => startReview(folder.id, 'flashcard')} className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition">複習</button>
+                        <button
+                          onClick={() => {
+                            setSelectedReviewFolders([folder.id]);
+                            setReviewSetupView('main');
+                            setActiveTab('review');
+                          }}
+                          className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+                        >
+                          複習
+                        </button>
                         <button 
                           onClick={() => generateFolderStory(folder)}
                           className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"

@@ -2,7 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   Search, Book, Brain, Volume2, Save, Plus, 
   Folder, Trash2, X, RefreshCw, Mic, Sparkles, 
-  Settings, ArrowRight, ArrowLeft, Key, Loader2
+  Settings, ArrowRight, ArrowLeft, Key, Loader2,
+  LogIn, LogOut, User
 } from 'lucide-react';
 // [Supabase] 引入 Supabase 功能
 import { supabase } from './supabase';
@@ -243,11 +244,17 @@ export default function VocabularyApp() {
   const [activeTab, setActiveTab] = useState('search'); 
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem('groq_api_key') || '');
+  const [settingsView, setSettingsView] = useState('main'); // 'main', 'account', 'api'
 
   // [Supabase] 資料載入狀態與 Session
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [session, setSession] = useState(null);
   
+  // --- State: Email Auth ---
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [authLoading, setAuthLoading] = useState(false);
+
   // --- State: Data ---
   const [folders, setFolders] = useState(() => {
     const saved = localStorage.getItem('vocab_folders');
@@ -342,7 +349,8 @@ export default function VocabularyApp() {
           ...item.dictionary,      // 展開字典資料 (word, definition...)
           id: item.word_id.toString(), // 使用 word_id 作為識別
           libraryId: item.id,      // 保留關聯表 ID
-          folderId: item.folder_id || 'default',
+          // [修改] 支援多資料夾：優先使用 folder_ids 陣列，若無則相容舊版 folder_id
+          folderIds: item.folder_ids || (item.folder_id ? [item.folder_id] : ['default']),
           nextReview: item.next_review || item.due || new Date().toISOString(),
           proficiencyScore: item.proficiency_score,
           due: item.due || item.next_review || new Date().toISOString(),
@@ -599,17 +607,17 @@ export default function VocabularyApp() {
 
   const saveWord = async (folderId) => {
     if (!searchResult || !session) {
-      if (!session) alert("請等待連線至資料庫...");
+      if (!session) alert("請先登入才能儲存單字！");
       return;
     }
 
     try {
       // 1. Upsert Dictionary (確保單字存在於字典表)
-      // 先查詢是否已存在
+      // 先查詢是否已存在 (使用 ilike 忽略大小寫，避免 "Apple" vs "apple" 造成重複錯誤)
       let { data: dictWord, error: fetchError } = await supabase
         .from('dictionary')
-        .select('id')
-        .eq('word', searchResult.word)
+        .select('id, word')
+        .ilike('word', searchResult.word)
         .maybeSingle();
 
       if (fetchError) throw fetchError;
@@ -635,8 +643,8 @@ export default function VocabularyApp() {
           if (dictError.code === '23505') {
             const { data: retryWord, error: retryError } = await supabase
               .from('dictionary')
-              .select('id')
-              .eq('word', searchResult.word)
+              .select('id, word')
+              .ilike('word', searchResult.word)
               .maybeSingle();
             if (retryError) throw retryError;
             dictWord = retryWord;
@@ -648,35 +656,62 @@ export default function VocabularyApp() {
         }
       }
 
+      if (!dictWord) throw new Error("無法取得單字 ID (請稍後再試)");
+
       // 2. Insert User Library (建立使用者與單字的關聯)
+      // [修改] 先檢查使用者是否已經收藏過這個單字
+      const { data: existingEntry, error: libFetchError } = await supabase
+        .from('user_library')
+        .select('id, folder_ids')
+        .eq('user_id', session.user.id)
+        .eq('word_id', dictWord.id)
+        .maybeSingle();
+
+      if (libFetchError) throw libFetchError;
+
+      if (existingEntry) {
+        // A. 單字已存在 -> 更新 folder_ids 加入新資料夾
+        const currentFolders = existingEntry.folder_ids || [];
+        
+        if (currentFolders.includes(folderId)) {
+          alert("這個單字已經在這個資料夾囉！");
+          return;
+        }
+
+        const newFolders = [...currentFolders, folderId];
+        
+        const { error: updateError } = await supabase
+          .from('user_library')
+          .update({ folder_ids: newFolders })
+          .eq('id', existingEntry.id);
+
+        if (updateError) throw updateError;
+
+        // 更新本地狀態
+        setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: newFolders } : w));
+        alert(`已將 "${searchResult.word}" 加入資料夾！(與其他資料夾共享複習進度)`);
+        return;
+      }
+
+      // B. 單字不存在 -> 新增單字
       const now = new Date();
       const initialCard = createEmptyCard();
       initialCard.due = now;
       const fsrsState = serializeFsrsCard(initialCard);
 
-      const baseLibraryPayload = {
+      const payload = {
         user_id: session.user.id,
         word_id: dictWord.id,
-        folder_id: folderId,
-        next_review: fsrsState.due
+        folder_ids: [folderId], // [修改] 使用陣列儲存
+        next_review: fsrsState.due,
+        ...fsrsState
       };
 
       let { data: libraryEntry, error: libError } = await supabase
         .from('user_library')
-        .insert([{
-          ...baseLibraryPayload,
-          ...fsrsState
-        }])
+        .insert([payload])
         .select()
         .single();
-
-      if (libError && libError.code === '42703') {
-        ({ data: libraryEntry, error: libError } = await supabase
-          .from('user_library')
-          .insert([baseLibraryPayload])
-          .select()
-          .single());
-      }
 
       if (libError) {
         if (libError.code === '23505') alert("這個單字已經在您的收藏庫囉！"); // Unique constraint violation
@@ -689,21 +724,73 @@ export default function VocabularyApp() {
         ...searchResult,
         id: dictWord.id.toString(),
         libraryId: libraryEntry.id,
-        folderId: folderId,
+        folderIds: [folderId],
         nextReview: libraryEntry.next_review || fsrsState.due,
         ...fsrsState,
         proficiencyScore: 0 // 初始化理解程度
       };
 
       setVocabData(prev => [...prev, newWordState]);
-      // 注意：這裡簡化了 folders 的更新，實際建議在 DB 建立 folders 表
-      setFolders(prev => prev.map(f => f.id === folderId ? { ...f, words: [...f.words, newWordState.id] } : f));
       
       alert(`已將 "${searchResult.word}" 儲存！`);
 
     } catch (e) {
       console.error("儲存失敗:", e);
-      alert("儲存失敗，請稍後再試");
+      let msg = e.message || "請稍後再試";
+      if (msg.includes("row-level security")) {
+        msg = "資料庫權限不足。請在 Supabase SQL Editor 執行 RLS 政策指令以開放寫入權限。";
+      } else if (msg.includes('column "folder_ids" of relation "user_library" does not exist')) {
+        msg = "資料庫尚未更新。請在 Supabase SQL Editor 執行: ALTER TABLE user_library ADD COLUMN folder_ids text[] DEFAULT '{}';";
+      }
+      alert("儲存失敗: " + msg);
+    }
+  };
+
+  const handleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) alert("登入失敗: " + error.message);
+  };
+
+  const handleLogout = async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) alert("登出失敗: " + error.message);
+    setVocabData([]);
+    setFolders([{ id: 'default', name: '預設資料夾', words: [] }]);
+  };
+
+  const handleEmailSignUp = async () => {
+    if (!email || !password) return alert("請輸入 Email 和密碼");
+    setAuthLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: email,
+      password: password,
+    });
+    setAuthLoading(false);
+    if (error) {
+      alert('註冊失敗: ' + error.message);
+    } else {
+      alert('註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。');
+    }
+  };
+
+  const handleEmailSignIn = async () => {
+    if (!email || !password) return alert("請輸入 Email 和密碼");
+    setAuthLoading(true);
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: email,
+      password: password,
+    });
+    setAuthLoading(false);
+    if (error) {
+      alert('登入失敗: ' + error.message);
+    } else {
+      setEmail('');
+      setPassword('');
     }
   };
 
@@ -746,7 +833,8 @@ export default function VocabularyApp() {
   };
 
   const startReview = (folderId, mode) => {
-    const filteredWords = vocabData.filter(w => (folderId === 'all' || w.folderId === folderId));
+    // [修改] 篩選邏輯：檢查 folderIds 陣列是否包含該資料夾
+    const filteredWords = vocabData.filter(w => (folderId === 'all' || (w.folderIds && w.folderIds.includes(folderId))));
     if (filteredWords.length === 0) {
       alert("目前沒有可複習的單字！");
       return;
@@ -890,7 +978,7 @@ export default function VocabularyApp() {
       ].map(item => (
         <button 
           key={item.id}
-          onClick={() => { setActiveTab(item.id); setViewingFolderId(null); }}
+          onClick={() => { setActiveTab(item.id); setViewingFolderId(null); if (item.id === 'settings') setSettingsView('main'); }}
           className={`flex flex-col md:flex-row items-center gap-2 p-2 rounded-lg transition ${activeTab === item.id || (item.id === 'review' && activeTab === 'review_session') ? 'text-blue-600 bg-blue-50' : 'text-gray-500 hover:bg-gray-50'}`}
         >
           <item.icon className="w-6 h-6" />
@@ -1134,15 +1222,16 @@ export default function VocabularyApp() {
                       </div>
                       
                       <div className="space-y-2 mb-4 max-h-40 overflow-y-auto cursor-pointer" onClick={() => setViewingFolderId(folder.id)}>
-                        {vocabData.filter(w => folder.words.includes(w.id)).slice(0, 3).map(w => (
+                        {/* [修改] 列表顯示邏輯：改用 folderIds 判斷 */}
+                        {vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id)).slice(0, 3).map(w => (
                           <div key={w.id} className="flex justify-between items-center text-sm p-2 bg-gray-50 rounded">
                             <span className="font-medium">{w.word}</span>
                             <ProficiencyDots score={w.proficiencyScore} />
                             <span className="text-gray-500 text-xs">{formatDate(w.nextReview)}</span>
                           </div>
                         ))}
-                        {folder.words.length > 3 && <div className="text-center text-xs text-gray-400 pt-1">+{folder.words.length - 3} words...</div>}
-                        {folder.words.length === 0 && <div className="text-center text-xs text-gray-400 py-2">尚無單字，點擊查看詳情</div>}
+                        {vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id)).length > 3 && <div className="text-center text-xs text-gray-400 pt-1">+{vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id)).length - 3} words...</div>}
+                        {vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id)).length === 0 && <div className="text-center text-xs text-gray-400 py-2">尚無單字，點擊查看詳情</div>}
                       </div>
 
                       <div className="flex gap-2 mt-2">
@@ -1169,15 +1258,15 @@ export default function VocabularyApp() {
                       <Folder className="w-6 h-6 text-blue-500" />
                       {activeFolder.name}
                     </h1>
-                    <p className="text-gray-500 text-sm">{activeFolder.words.length} 個單字</p>
+                    <p className="text-gray-500 text-sm">{vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id)).length} 個單字</p>
                   </div>
                 </header>
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  {vocabData.filter(w => activeFolder.words.includes(w.id)).length > 0 ? (
+                  {vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id)).length > 0 ? (
                     <div className="divide-y divide-gray-100">
                       {vocabData
-                        .filter(w => activeFolder.words.includes(w.id))
+                        .filter(w => w.folderIds && w.folderIds.includes(activeFolder.id))
                         .map(word => (
                           <div key={word.id} onClick={() => handleShowDetails(word)} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
                             <div>
@@ -1413,54 +1502,177 @@ export default function VocabularyApp() {
         {/* === TAB: SETTINGS === */}
         {activeTab === 'settings' && (
           <div className="max-w-xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6">設定</h1>
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
-              <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
-                <Key className="w-5 h-5 text-gray-500" /> API 金鑰設定
-              </h2>
-              <div className="space-y-6">
-                <div>
-                  <p className="text-sm text-gray-600 mb-2">
-                    AI 功能會優先使用 Google Gemini。如果 Gemini 呼叫失敗，將會自動使用 Groq 作為備用。
-                  </p>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Google Gemini API Key</label>
-                  <input 
-                    type="password" 
-                    value={apiKey}
-                    onChange={(e) => setApiKey(e.target.value)}
-                    placeholder="貼上您的 Gemini API Key..."
-                    className="w-full p-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none font-mono"
-                  />
-                   <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 block">
-                    👉 按此免費取得 Gemini API Key
-                  </a>
+            {settingsView === 'main' ? (
+              <>
+                <h1 className="text-2xl font-bold mb-6">設定</h1>
+                <div className="space-y-4">
+                  <button 
+                    onClick={() => setSettingsView('account')}
+                    className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center text-blue-600">
+                        <User className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-800">帳戶管理</div>
+                        <div className="text-sm text-gray-500">
+                          {session?.user && !session.user.is_anonymous 
+                            ? session.user.email 
+                            : '尚未登入 / 訪客模式'}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-300" />
+                  </button>
+
+                  <button 
+                    onClick={() => setSettingsView('api')}
+                    className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600">
+                        <Key className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-800">API 金鑰設定</div>
+                        <div className="text-sm text-gray-500">
+                          {apiKey || groqApiKey ? '已設定' : '未設定'}
+                        </div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-300" />
+                  </button>
                 </div>
                 
-                <div>
-                  <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Groq API Key (備用)</label>
-                  <input 
-                    type="password" 
-                    value={groqApiKey}
-                    onChange={(e) => setGroqApiKey(e.target.value)}
-                    placeholder="貼上您的 Groq API Key..."
-                    className="w-full p-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none font-mono"
-                  />
-                  <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 block">
-                    👉 按此免費取得 Groq API Key
-                  </a>
+                <div className="mt-8 text-center text-gray-400 text-sm">
+                  <p>VocabMaster v1.2.0 (Dual-AI Fallback)</p>
                 </div>
+              </>
+            ) : (
+              <div className="animate-in slide-in-from-right duration-300">
+                <button 
+                  onClick={() => setSettingsView('main')} 
+                  className="flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-4 transition"
+                >
+                  <ArrowLeft className="w-4 h-4" /> 返回設定
+                </button>
+                
+                {settingsView === 'account' && (
+                  <>
+                    <h1 className="text-2xl font-bold mb-6">帳戶管理</h1>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 mb-6">
+                      <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <User className="w-5 h-5 text-gray-500" /> 帳戶設定
+                      </h2>
+                      {session?.user && !session.user.is_anonymous ? (
+                        <div>
+                          <div className="flex items-center gap-4 mb-6">
+                            {session.user.user_metadata?.avatar_url ? (
+                              <img src={session.user.user_metadata.avatar_url} alt="Avatar" className="w-16 h-16 rounded-full border border-gray-200" />
+                            ) : (
+                              <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold">
+                                {session.user.email?.[0]?.toUpperCase() || 'U'}
+                              </div>
+                            )}
+                            <div>
+                              <p className="font-bold text-lg text-gray-800">{session.user.email}</p>
+                              <p className="text-xs text-green-600 bg-green-50 px-2 py-0.5 rounded-full inline-block mt-1">● 已登入</p>
+                            </div>
+                          </div>
+                          <button onClick={handleLogout} className="flex items-center gap-2 bg-gray-100 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-200 transition">
+                            <LogOut className="w-4 h-4" /> 登出
+                          </button>
+                        </div>
+                      ) : (
+                        <div>
+                          <p className="text-sm text-gray-600 mb-4">
+                            {session?.user?.is_anonymous ? '目前為訪客身分 (資料僅存於本機)。' : '尚未登入。'}
+                            <br />登入後可跨裝置同步您的單字庫。
+                          </p>
+                          <button onClick={handleLogin} className="flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition shadow-sm">
+                            <LogIn className="w-4 h-4" /> 使用 Google 登入
+                          </button>
 
-                {(apiKey || groqApiKey) && (
-                  <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 p-3 rounded-lg">
-                    <Check className="w-5 h-5" /> API 金鑰已儲存，AI 功能已啟用！
-                  </div>
+                          <div className="mt-6 pt-6 border-t border-gray-100">
+                            <p className="text-xs font-bold text-gray-500 uppercase mb-3">或使用 Email 登入/註冊</p>
+                            <div className="space-y-3">
+                              <input
+                                type="email"
+                                placeholder="Email 信箱"
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                              />
+                              <input
+                                type="password"
+                                placeholder="密碼 (至少 6 碼)"
+                                value={password}
+                                onChange={(e) => setPassword(e.target.value)}
+                                className="w-full p-2.5 border border-gray-300 rounded-lg text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-100 outline-none"
+                              />
+                              <div className="flex gap-3">
+                                <button onClick={handleEmailSignIn} disabled={authLoading} className="flex-1 bg-gray-800 text-white py-2 rounded-lg text-sm hover:bg-gray-900 transition disabled:opacity-50">登入</button>
+                                <button onClick={handleEmailSignUp} disabled={authLoading} className="flex-1 bg-white border border-gray-300 text-gray-700 py-2 rounded-lg text-sm hover:bg-gray-50 transition disabled:opacity-50">註冊</button>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+
+                {settingsView === 'api' && (
+                  <>
+                    <h1 className="text-2xl font-bold mb-6">API 金鑰設定</h1>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                      <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <Key className="w-5 h-5 text-gray-500" /> API 金鑰設定
+                      </h2>
+                      <div className="space-y-6">
+                        <div>
+                          <p className="text-sm text-gray-600 mb-2">
+                            AI 功能會優先使用 Google Gemini。如果 Gemini 呼叫失敗，將會自動使用 Groq 作為備用。
+                          </p>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Google Gemini API Key</label>
+                          <input 
+                            type="password" 
+                            value={apiKey}
+                            onChange={(e) => setApiKey(e.target.value)}
+                            placeholder="貼上您的 Gemini API Key..."
+                            className="w-full p-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none font-mono"
+                          />
+                           <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 block">
+                            👉 按此免費取得 Gemini API Key
+                          </a>
+                        </div>
+                        
+                        <div>
+                          <label className="block text-xs font-bold text-gray-500 uppercase mb-1">Groq API Key (備用)</label>
+                          <input 
+                            type="password" 
+                            value={groqApiKey}
+                            onChange={(e) => setGroqApiKey(e.target.value)}
+                            placeholder="貼上您的 Groq API Key..."
+                            className="w-full p-3 rounded-lg border border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none font-mono"
+                          />
+                          <a href="https://console.groq.com/keys" target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline mt-1 block">
+                            👉 按此免費取得 Groq API Key
+                          </a>
+                        </div>
+
+                        {(apiKey || groqApiKey) && (
+                          <div className="flex items-center gap-2 text-green-600 text-sm bg-green-50 p-3 rounded-lg">
+                            <Check className="w-5 h-5" /> API 金鑰已儲存，AI 功能已啟用！
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </>
                 )}
               </div>
-            </div>
-            
-            <div className="mt-8 text-center text-gray-400 text-sm">
-              <p>VocabMaster v1.2.0 (Dual-AI Fallback)</p>
-            </div>
+            )}
           </div>
         )}
 

@@ -453,7 +453,7 @@ export default function VocabularyApp() {
       if (data) {
         // 將 DB 結構轉換回 App 需要的格式
         const loadedVocab = data.map(item => {
-          const rawFolderIds = (Array.isArray(item.folder_ids) && item.folder_ids.length > 0)
+          const rawFolderIds = Array.isArray(item.folder_ids)
             ? item.folder_ids
             : ['default'];
           const normalizedFolderIds = rawFolderIds.map(id => id?.toString());
@@ -1026,6 +1026,49 @@ export default function VocabularyApp() {
     if (viewingFolderId === folderId) setViewingFolderId(null);
   };
 
+  const handleRemoveWordFromFolder = async (word, folderId) => {
+    const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
+    const normalizedFolderId = folderId?.toString();
+    if (!normalizedFolderId || currentFolders.length === 0) return;
+
+    if (!currentFolders.includes(normalizedFolderId)) return;
+
+    const nextFolders = currentFolders.filter(id => id !== normalizedFolderId);
+
+    if (nextFolders.length === 0) {
+      if (session?.user) {
+        const { error } = await supabase
+          .from('user_library')
+          .update({ folder_ids: [] })
+          .eq('id', word.libraryId)
+          .eq('user_id', session.user.id);
+
+        if (error) {
+          alert("移除失敗: " + error.message);
+          return;
+        }
+      }
+
+      setVocabData(prev => prev.map(w => w.id === word.id ? { ...w, folderIds: [] } : w));
+      return;
+    }
+
+    if (session?.user) {
+      const { error } = await supabase
+        .from('user_library')
+        .update({ folder_ids: nextFolders })
+        .eq('id', word.libraryId)
+        .eq('user_id', session.user.id);
+
+      if (error) {
+        alert("移除失敗: " + error.message);
+        return;
+      }
+    }
+
+    setVocabData(prev => prev.map(w => w.id === word.id ? { ...w, folderIds: nextFolders } : w));
+  };
+
   const buildReviewBatch = (words, batchSize) => {
     if (words.length <= batchSize) return words;
     const now = new Date();
@@ -1391,9 +1434,9 @@ export default function VocabularyApp() {
             {searchResult && !isSearching && (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
                 <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
-                  <div className="flex justify-between items-start gap-4">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
                     <div>
-                      <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-3">
+                      <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
                         {searchResult.word}
                         <button onClick={() => speak(searchResult.word, preferredSearchAudio)} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition">
                           <Volume2 className="w-5 h-5 text-blue-600" />
@@ -1431,10 +1474,10 @@ export default function VocabularyApp() {
                         {searchResult.source === 'Groq AI' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3"/> Groq AI</span>}
                       </div>
                     </div>
-                    <div className="relative shrink-0">
+                    <div className="relative w-full sm:w-auto shrink-0 flex items-start sm:items-center">
                       <button 
                         onClick={() => setIsSaveMenuOpen(!isSaveMenuOpen)}
-                        className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition shadow-sm"
+                        className="flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
                       >
                         <Save className="w-4 h-4" /> 儲存
                       </button>
@@ -1442,7 +1485,7 @@ export default function VocabularyApp() {
                       {isSaveMenuOpen && <div className="fixed inset-0 z-10" onClick={() => setIsSaveMenuOpen(false)} />}
                       
                       {isSaveMenuOpen && (
-                        <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
+                        <div className="absolute left-0 sm:right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
                           {folders.map(f => (
                             <button key={f.id} onClick={() => { saveWord(f.id); setIsSaveMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg text-sm">{f.name}</button>
                           ))}
@@ -1623,7 +1666,7 @@ export default function VocabularyApp() {
                               </div>
                               <p className="text-gray-600 text-sm">{word.translation || word.definition}</p>
                             </div>
-                            <div className="flex items-center gap-6">
+                            <div className="flex items-center gap-4">
                                <div className="flex flex-col items-end gap-1">
                                   <span className="text-xs text-gray-400">理解程度</span>
                                   <ProficiencyDots score={word.proficiencyScore} />
@@ -1634,6 +1677,18 @@ export default function VocabularyApp() {
                                     {formatDate(word.nextReview)}
                                   </div>
                                </div>
+                               <button
+                                 onClick={(e) => {
+                                   e.stopPropagation();
+                                   if (confirm(`確定要將 "${word.word}" 從「${activeFolder.name}」移除嗎？`)) {
+                                     handleRemoveWordFromFolder(word, activeFolder.id);
+                                   }
+                                 }}
+                                 className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"
+                                 title="移除單字"
+                               >
+                                 <Trash2 className="w-4 h-4" />
+                               </button>
                             </div>
                           </div>
                         ))}

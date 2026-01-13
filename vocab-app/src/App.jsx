@@ -316,7 +316,9 @@ export default function VocabularyApp() {
     // 1. 處理身份驗證 (匿名登入)
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      if (!session) {
+      if (session) {
+        loadData(session.user.id);
+      } else {
         // 若無 Session，自動匿名登入 (需在 Supabase 後台開啟 Anonymous Sign-ins)
         supabase.auth.signInAnonymously().catch(console.error);
       }
@@ -344,7 +346,7 @@ export default function VocabularyApp() {
       // 合併「預設資料夾」與「雲端資料夾」
       const allFolders = [{ id: 'default', name: '預設資料夾', words: [] }];
       // [修正] 確保從 DB 載入的資料夾也有 words 屬性 (雖然現在主要靠 folderIds 判斷，但為了防呆加上)
-      if (dbFolders) allFolders.push(...dbFolders.map(f => ({ ...f, words: [] })));
+      if (dbFolders) allFolders.push(...dbFolders.map(f => ({ ...f, id: f.id?.toString(), words: [] })));
       setFolders(allFolders);
 
       // 2. 載入單字庫 (User Library)
@@ -352,6 +354,7 @@ export default function VocabularyApp() {
         .from('user_library')
         .select(`
           *,
+          folder_ids,
           dictionary:word_id (*)
         `)
         .eq('user_id', userId);
@@ -360,12 +363,18 @@ export default function VocabularyApp() {
 
       if (data) {
         // 將 DB 結構轉換回 App 需要的格式
-        const loadedVocab = data.map(item => ({
+        const loadedVocab = data.map(item => {
+          const rawFolderIds = (Array.isArray(item.folder_ids) && item.folder_ids.length > 0)
+            ? item.folder_ids
+            : ['default'];
+          const normalizedFolderIds = rawFolderIds.map(id => id?.toString());
+
+          return ({
           ...item.dictionary,      // 展開字典資料 (word, definition...)
           id: item.word_id.toString(), // 使用 word_id 作為識別
           libraryId: item.id,      // 保留關聯表 ID
-          // [修改] 支援多資料夾：優先使用 folder_ids 陣列，若無則相容舊版 folder_id
-          folderIds: item.folder_ids || (item.folder_id ? [item.folder_id] : ['default']),
+          // [修改] 支援多資料夾：優先使用 folder_ids 陣列
+          folderIds: normalizedFolderIds,
           nextReview: item.next_review || item.due || new Date().toISOString(),
           proficiencyScore: item.proficiency_score,
           due: item.due || item.next_review || new Date().toISOString(),
@@ -377,12 +386,14 @@ export default function VocabularyApp() {
           lapses: item.lapses ?? null,
           state: item.state ?? null,
           last_review: item.last_review ?? null
-        }));
+          });
+        });
         setVocabData(loadedVocab);
-        setIsDataLoaded(true);
       }
+      setIsDataLoaded(true);
     } catch (e) {
       console.error("Supabase 載入失敗:", e);
+      setIsDataLoaded(true);
     }
   };
 
@@ -687,24 +698,37 @@ export default function VocabularyApp() {
 
       if (existingEntry) {
         // A. 單字已存在 -> 更新 folder_ids 加入新資料夾
-        const currentFolders = existingEntry.folder_ids || [];
+        // [修正] 確保讀取現有的 folder_ids，避免覆蓋舊資料
+        const currentFolders = Array.isArray(existingEntry.folder_ids) ? existingEntry.folder_ids : [];
+        const normalizedCurrentFolders = currentFolders.map(id => id?.toString());
+        const normalizedFolderId = folderId?.toString();
+
+        if (!normalizedFolderId) {
+          throw new Error("無效的資料夾 ID，請重新整理後再試。");
+        }
         
-        if (currentFolders.includes(folderId)) {
+        if (normalizedCurrentFolders.includes(normalizedFolderId)) {
           alert("這個單字已經在這個資料夾囉！");
           return;
         }
 
-        const newFolders = [...currentFolders, folderId];
+        const newFolders = Array.from(new Set([...normalizedCurrentFolders, normalizedFolderId]));
         
-        const { error: updateError } = await supabase
+        const { data: updatedEntry, error: updateError } = await supabase
           .from('user_library')
           .update({ folder_ids: newFolders })
-          .eq('id', existingEntry.id);
+          .eq('user_id', session.user.id)
+          .eq('word_id', dictWord.id)
+          .select('id, folder_ids')
+          .maybeSingle();
 
         if (updateError) throw updateError;
 
         // 更新本地狀態
-        setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: newFolders } : w));
+        const mergedFolderIds = Array.isArray(updatedEntry?.folder_ids)
+          ? updatedEntry.folder_ids.map(id => id?.toString())
+          : newFolders;
+        setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: mergedFolderIds } : w));
         alert(`已將 "${searchResult.word}" 加入資料夾！(與其他資料夾共享複習進度)`);
         return;
       }
@@ -718,7 +742,7 @@ export default function VocabularyApp() {
       const payload = {
         user_id: session.user.id,
         word_id: dictWord.id,
-        folder_ids: [folderId], // [修改] 使用陣列儲存
+        folder_ids: [folderId?.toString()], // [修改] 使用陣列儲存
         next_review: fsrsState.due,
         ...fsrsState
       };
@@ -730,9 +754,50 @@ export default function VocabularyApp() {
         .single();
 
       if (libError) {
-        if (libError.code === '23505') alert("這個單字已經在您的收藏庫囉！"); // Unique constraint violation
-        else throw libError;
-        return;
+        if (libError.code === '23505') {
+          // Unique constraint violation -> 重新查詢並合併 folder_ids
+          const { data: fallbackEntry, error: fallbackError } = await supabase
+            .from('user_library')
+            .select('id, folder_ids')
+            .eq('user_id', session.user.id)
+            .eq('word_id', dictWord.id)
+            .maybeSingle();
+
+          if (fallbackError) throw fallbackError;
+          if (!fallbackEntry) throw new Error("無法取得既有單字紀錄，請稍後再試。");
+
+          const currentFolders = Array.isArray(fallbackEntry.folder_ids) ? fallbackEntry.folder_ids : [];
+          const normalizedCurrentFolders = currentFolders.map(id => id?.toString());
+          const normalizedFolderId = folderId?.toString();
+
+          if (!normalizedFolderId) {
+            throw new Error("無效的資料夾 ID，請重新整理後再試。");
+          }
+
+          if (normalizedCurrentFolders.includes(normalizedFolderId)) {
+            alert("這個單字已經在這個資料夾囉！");
+            return;
+          }
+
+          const newFolders = Array.from(new Set([...normalizedCurrentFolders, normalizedFolderId]));
+          const { data: updatedEntry, error: updateError } = await supabase
+            .from('user_library')
+            .update({ folder_ids: newFolders })
+            .eq('user_id', session.user.id)
+            .eq('word_id', dictWord.id)
+            .select('id, folder_ids')
+            .maybeSingle();
+
+          if (updateError) throw updateError;
+
+          const mergedFolderIds = Array.isArray(updatedEntry?.folder_ids)
+            ? updatedEntry.folder_ids.map(id => id?.toString())
+            : newFolders;
+          setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: mergedFolderIds } : w));
+          alert(`已將 "${searchResult.word}" 加入資料夾！(與其他資料夾共享複習進度)`);
+          return;
+        }
+        throw libError;
       }
 
       // 3. 更新本地狀態 (為了即時 UI 反饋)
@@ -740,7 +805,7 @@ export default function VocabularyApp() {
         ...searchResult,
         id: dictWord.id.toString(),
         libraryId: libraryEntry.id,
-        folderIds: [folderId],
+        folderIds: [folderId?.toString()],
         nextReview: libraryEntry.next_review || fsrsState.due,
         ...fsrsState,
         proficiencyScore: 0 // 初始化理解程度
@@ -759,6 +824,15 @@ export default function VocabularyApp() {
         msg = "資料庫尚未更新。請在 Supabase SQL Editor 執行: ALTER TABLE user_library ADD COLUMN folder_ids text[] DEFAULT '{}';";
       }
       alert("儲存失敗: " + msg);
+    }
+  };
+
+  const handleManualSync = () => {
+    if (session?.user) {
+      setIsDataLoaded(false);
+      loadData(session.user.id).then(() => alert("同步完成！"));
+    } else {
+      alert("請先登入才能同步資料！");
     }
   };
 
@@ -823,7 +897,7 @@ export default function VocabularyApp() {
         .single();
       
       if (error) return alert("建立資料夾失敗: " + error.message);
-      setFolders(prev => [...prev, data]);
+      setFolders(prev => [...prev, { ...data, id: data.id?.toString() }]);
     } else {
       // [本機模式] 寫入 State
       setFolders([...folders, { id: Date.now().toString(), name, words: [] }]);
@@ -1238,7 +1312,12 @@ export default function VocabularyApp() {
             {!activeFolder ? (
               <>
                 <header className="flex justify-between items-center mb-6">
-                  <h1 className="text-2xl font-bold">我的單字庫</h1>
+                  <div className="flex items-center gap-3">
+                    <h1 className="text-2xl font-bold">我的單字庫</h1>
+                    <button onClick={handleManualSync} className="p-2 text-gray-400 hover:text-blue-600 transition rounded-full hover:bg-blue-50" title="手動同步資料">
+                      <RefreshCw className={`w-5 h-5 ${!isDataLoaded ? 'animate-spin text-blue-600' : ''}`} />
+                    </button>
+                  </div>
                   <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
                     <Plus className="w-4 h-4" /> 新增資料夾
                   </button>

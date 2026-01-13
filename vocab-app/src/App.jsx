@@ -332,7 +332,21 @@ export default function VocabularyApp() {
 
   const loadData = async (userId) => {
     try {
-      // 2. 從 Supabase 載入資料 (Join user_library 與 dictionary)
+      // 1. 載入資料夾 (Folders)
+      const { data: dbFolders, error: folderError } = await supabase
+        .from('folders')
+        .select('*')
+        .eq('user_id', userId)
+        .order('created_at', { ascending: true });
+
+      if (folderError) throw folderError;
+
+      // 合併「預設資料夾」與「雲端資料夾」
+      const allFolders = [{ id: 'default', name: '預設資料夾', words: [] }];
+      if (dbFolders) allFolders.push(...dbFolders);
+      setFolders(allFolders);
+
+      // 2. 載入單字庫 (User Library)
       const { data, error } = await supabase
         .from('user_library')
         .select(`
@@ -794,9 +808,36 @@ export default function VocabularyApp() {
     }
   };
 
-  const createFolder = () => {
+  const createFolder = async () => {
     const name = prompt("輸入資料夾名稱：");
-    if (name) setFolders([...folders, { id: Date.now().toString(), name, words: [] }]);
+    if (!name) return;
+
+    if (session?.user) {
+      // [DB模式] 寫入 Supabase
+      const { data, error } = await supabase
+        .from('folders')
+        .insert({ name, user_id: session.user.id })
+        .select()
+        .single();
+      
+      if (error) return alert("建立資料夾失敗: " + error.message);
+      setFolders(prev => [...prev, data]);
+    } else {
+      // [本機模式] 寫入 State
+      setFolders([...folders, { id: Date.now().toString(), name, words: [] }]);
+    }
+  };
+
+  const handleDeleteFolder = async (folderId) => {
+    if (!confirm('確定刪除此資料夾？(資料夾內的單字不會被刪除，只會移除分類)')) return;
+
+    if (session?.user && folderId !== 'default') {
+      const { error } = await supabase.from('folders').delete().eq('id', folderId);
+      if (error) return alert("刪除失敗: " + error.message);
+    }
+
+    setFolders(prev => prev.filter(f => f.id !== folderId));
+    if (viewingFolderId === folderId) setViewingFolderId(null);
   };
 
   const buildReviewBatch = (words, batchSize) => {
@@ -1215,7 +1256,7 @@ export default function VocabularyApp() {
                           </div>
                         </div>
                         {folder.id !== 'default' && (
-                          <button onClick={(e) => { e.stopPropagation(); if(confirm('確定刪除?')) setFolders(folders.filter(f => f.id !== folder.id)); }} className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
+                          <button onClick={(e) => { e.stopPropagation(); handleDeleteFolder(folder.id); }} className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}

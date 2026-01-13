@@ -1556,7 +1556,7 @@ export default function VocabularyApp() {
                       
                       {isSaveMenuOpen && (
                         <div className="absolute left-0 sm:right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
-                          {folders.map(f => {
+                          {[...folders].reverse().map(f => {
                             const isSavedInFolder = savedWordInSearch?.folderIds?.includes(f.id);
                             return (
                               <button

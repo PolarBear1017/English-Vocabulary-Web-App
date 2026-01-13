@@ -347,6 +347,9 @@ export default function VocabularyApp() {
   const [viewingFolderId, setViewingFolderId] = useState(null);
   const [returnFolderId, setReturnFolderId] = useState(null);
   const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
+  const [saveButtonFeedback, setSaveButtonFeedback] = useState(false);
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
 
   // --- State: Review & Story ---
   const [reviewQueue, setReviewQueue] = useState([]);
@@ -520,6 +523,33 @@ export default function VocabularyApp() {
   useEffect(() => {
     localStorage.setItem('request_retention', String(requestRetention));
   }, [requestRetention]);
+
+  useEffect(() => {
+    setSaveButtonFeedback(false);
+  }, [searchResult?.word]);
+
+  const showToast = (message, type = 'success') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
+    setToast({ message, type });
+    toastTimerRef.current = setTimeout(() => {
+      setToast(null);
+    }, 2500);
+  };
+
+  const triggerSaveButtonFeedback = () => {
+    setSaveButtonFeedback(true);
+    setTimeout(() => setSaveButtonFeedback(false), 1000);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+    };
+  }, []);
 
   // --- Effect: Autocomplete Suggestions ---
   useEffect(() => {
@@ -748,6 +778,8 @@ export default function VocabularyApp() {
       return;
     }
 
+    const folderName = folders.find(f => f.id === folderId)?.name || '資料夾';
+
     try {
       // 1. Upsert Dictionary (確保單字存在於字典表)
       // 先查詢是否已存在 (使用 ilike 忽略大小寫，避免 "Apple" vs "apple" 造成重複錯誤)
@@ -818,7 +850,7 @@ export default function VocabularyApp() {
         }
         
         if (normalizedCurrentFolders.includes(normalizedFolderId)) {
-          alert("這個單字已經在這個資料夾囉！");
+          showToast(`「${searchResult.word}」已在「${folderName}」`, 'info');
           return;
         }
 
@@ -839,7 +871,8 @@ export default function VocabularyApp() {
           ? updatedEntry.folder_ids.map(id => id?.toString())
           : newFolders;
         setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: mergedFolderIds } : w));
-        alert(`已將 "${searchResult.word}" 加入資料夾！(與其他資料夾共享複習進度)`);
+        showToast(`已加入「${folderName}」`);
+        triggerSaveButtonFeedback();
         return;
       }
 
@@ -885,7 +918,7 @@ export default function VocabularyApp() {
           }
 
           if (normalizedCurrentFolders.includes(normalizedFolderId)) {
-            alert("這個單字已經在這個資料夾囉！");
+            showToast(`「${searchResult.word}」已在「${folderName}」`, 'info');
             return;
           }
 
@@ -904,7 +937,8 @@ export default function VocabularyApp() {
             ? updatedEntry.folder_ids.map(id => id?.toString())
             : newFolders;
           setVocabData(prev => prev.map(w => w.id === dictWord.id.toString() ? { ...w, folderIds: mergedFolderIds } : w));
-          alert(`已將 "${searchResult.word}" 加入資料夾！(與其他資料夾共享複習進度)`);
+          showToast(`已加入「${folderName}」`);
+          triggerSaveButtonFeedback();
           return;
         }
         throw libError;
@@ -923,7 +957,8 @@ export default function VocabularyApp() {
 
       setVocabData(prev => [...prev, newWordState]);
       
-      alert(`已將 "${searchResult.word}" 儲存！`);
+      showToast(`已儲存到「${folderName}」`);
+      triggerSaveButtonFeedback();
 
     } catch (e) {
       console.error("儲存失敗:", e);
@@ -1479,16 +1514,43 @@ export default function VocabularyApp() {
                         onClick={() => setIsSaveMenuOpen(!isSaveMenuOpen)}
                         className="flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
                       >
-                        <Save className="w-4 h-4" /> 儲存
+                        {saveButtonFeedback ? (
+                          <>
+                            <Check className="w-4 h-4" /> 已加入
+                          </>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" /> 儲存
+                          </>
+                        )}
                       </button>
                       
                       {isSaveMenuOpen && <div className="fixed inset-0 z-10" onClick={() => setIsSaveMenuOpen(false)} />}
                       
                       {isSaveMenuOpen && (
-                        <div className="absolute left-0 sm:right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
-                          {folders.map(f => (
-                            <button key={f.id} onClick={() => { saveWord(f.id); setIsSaveMenuOpen(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 rounded-lg text-sm">{f.name}</button>
-                          ))}
+                        <div className="absolute left-0 sm:right-0 top-full mt-2 w-52 bg-white rounded-xl shadow-xl border border-gray-100 z-20 p-1">
+                          {folders.map(f => {
+                            const isSavedInFolder = savedWordInSearch?.folderIds?.includes(f.id);
+                            return (
+                              <button
+                                key={f.id}
+                                onClick={() => {
+                                  if (isSavedInFolder) {
+                                    if (confirm(`要將 "${searchResult.word}" 從「${f.name}」移除嗎？`)) {
+                                      handleRemoveWordFromFolder(savedWordInSearch, f.id);
+                                    }
+                                  } else {
+                                    saveWord(f.id);
+                                  }
+                                  setIsSaveMenuOpen(false);
+                                }}
+                                className="w-full text-left px-3 py-2 hover:bg-gray-50 rounded-lg text-sm flex items-center justify-between gap-3"
+                              >
+                                <span className="truncate">{f.name}</span>
+                                {isSavedInFolder && <Check className="w-4 h-4 text-green-600" />}
+                              </button>
+                            );
+                          })}
                         </div>
                       )}
                     </div>
@@ -2181,6 +2243,19 @@ export default function VocabularyApp() {
           </div>
         )}
 
+        {toast && (
+          <div className="fixed right-4 bottom-24 md:bottom-6 z-[70]">
+            <div className={`px-4 py-3 rounded-lg shadow-lg text-sm text-white ${
+              toast.type === 'error'
+                ? 'bg-red-600'
+                : toast.type === 'info'
+                ? 'bg-gray-700'
+                : 'bg-green-600'
+            }`}>
+              {toast.message}
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );

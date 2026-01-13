@@ -343,7 +343,8 @@ export default function VocabularyApp() {
 
       // 合併「預設資料夾」與「雲端資料夾」
       const allFolders = [{ id: 'default', name: '預設資料夾', words: [] }];
-      if (dbFolders) allFolders.push(...dbFolders);
+      // [修正] 確保從 DB 載入的資料夾也有 words 屬性 (雖然現在主要靠 folderIds 判斷，但為了防呆加上)
+      if (dbFolders) allFolders.push(...dbFolders.map(f => ({ ...f, words: [] })));
       setFolders(allFolders);
 
       // 2. 載入單字庫 (User Library)
@@ -576,7 +577,8 @@ export default function VocabularyApp() {
     }
 
     const wordsInFolder = vocabData
-      .filter(w => folder.words.includes(w.id))
+      // [修正] 改用 folderIds 判斷單字是否在資料夾內
+      .filter(w => w.folderIds && w.folderIds.includes(folder.id))
       .map(w => w.word);
     
     if (wordsInFolder.length < 3) {
@@ -1252,7 +1254,8 @@ export default function VocabularyApp() {
                           </div>
                           <div>
                             <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
-                            <p className="text-sm text-gray-500">{folder.words.length} 個單字</p>
+                            {/* [修正] 改用 vocabData 計算單字數量 */}
+                            <p className="text-sm text-gray-500">{vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id)).length} 個單字</p>
                           </div>
                         </div>
                         {folder.id !== 'default' && (

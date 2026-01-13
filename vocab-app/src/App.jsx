@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
-  Search, Book, Brain, Check, Volume2, Save, Plus, 
+  Search, Book, Brain, Check, Volume2, Save, Plus, ArrowUpDown,
   Folder, Trash2, X, RefreshCw, Mic, Sparkles, 
   Settings, ArrowRight, ArrowLeft, Key, Loader2,
   LogIn, LogOut, User
@@ -366,6 +366,8 @@ export default function VocabularyApp() {
   const [answerHint, setAnswerHint] = useState('');
   const [hasMistake, setHasMistake] = useState(false);
   const [selectedReviewFolders, setSelectedReviewFolders] = useState(['all']);
+  const [folderSortBy, setFolderSortBy] = useState(() => localStorage.getItem('folder_sort_by') || 'created_desc');
+  const [wordSortBy, setWordSortBy] = useState(() => localStorage.getItem('word_sort_by') || 'added_desc');
   const [requestRetention, setRequestRetention] = useState(() => {
     const saved = localStorage.getItem('request_retention');
     const parsed = saved ? Number(saved) : 0.9;
@@ -413,6 +415,38 @@ export default function VocabularyApp() {
         .filter(folder => selectedReviewFolders.includes(folder.id))
         .map(folder => folder.name)
         .join('、') || '尚未選擇';
+  const sortedFolders = useMemo(() => {
+    const copy = [...folders];
+    switch (folderSortBy) {
+      case 'name_asc':
+        return copy.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
+      case 'count_desc':
+        return copy.sort((a, b) => {
+          const aCount = vocabData.filter(w => w.folderIds && w.folderIds.includes(a.id)).length;
+          const bCount = vocabData.filter(w => w.folderIds && w.folderIds.includes(b.id)).length;
+          return bCount - aCount;
+        });
+      case 'created_desc':
+      default:
+        return copy.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+    }
+  }, [folders, vocabData, folderSortBy]);
+  const sortedActiveFolderWords = useMemo(() => {
+    if (!activeFolder) return [];
+    const words = vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id));
+    const copy = [...words];
+    switch (wordSortBy) {
+      case 'alphabetical_asc':
+        return copy.sort((a, b) => (a.word || '').localeCompare(b.word || '', 'en'));
+      case 'proficiency_asc':
+        return copy.sort((a, b) => (a.proficiencyScore || 0) - (b.proficiencyScore || 0));
+      case 'next_review_asc':
+        return copy.sort((a, b) => new Date(a.nextReview || 0) - new Date(b.nextReview || 0));
+      case 'added_desc':
+      default:
+        return copy.sort((a, b) => new Date(b.addedAt || 0) - new Date(a.addedAt || 0));
+    }
+  }, [activeFolder, vocabData, wordSortBy]);
 
   // --- Effect: Persistence (Supabase Sync) ---
   useEffect(() => {
@@ -453,7 +487,7 @@ export default function VocabularyApp() {
       setFolders(allFolders);
 
       // 2. 載入單字庫 (User Library)
-      const { data, error } = await supabase
+      let query = supabase
         .from('user_library')
         .select(`
           *,
@@ -461,6 +495,24 @@ export default function VocabularyApp() {
           dictionary:word_id (*)
         `)
         .eq('user_id', userId);
+
+      switch (wordSortBy) {
+        case 'alphabetical_asc':
+          query = query.order('word', { foreignTable: 'dictionary', ascending: true });
+          break;
+        case 'proficiency_asc':
+          query = query.order('proficiency_score', { ascending: true });
+          break;
+        case 'next_review_asc':
+          query = query.order('next_review', { ascending: true });
+          break;
+        case 'added_desc':
+        default:
+          query = query.order('created_at', { ascending: false });
+          break;
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -478,6 +530,7 @@ export default function VocabularyApp() {
           libraryId: item.id,      // 保留關聯表 ID
           // [修改] 支援多資料夾：優先使用 folder_ids 陣列
           folderIds: normalizedFolderIds,
+          addedAt: item.created_at || null,
           nextReview: item.next_review || item.due || new Date().toISOString(),
           proficiencyScore: item.proficiency_score,
           due: item.due || item.next_review || new Date().toISOString(),
@@ -498,7 +551,7 @@ export default function VocabularyApp() {
       console.error("Supabase 載入失敗:", e);
       setIsDataLoaded(true);
     }
-  }, []);
+  }, [wordSortBy]);
 
   useEffect(() => {
     const handleFocusOrVisible = () => {
@@ -534,6 +587,14 @@ export default function VocabularyApp() {
   useEffect(() => {
     localStorage.setItem('request_retention', String(requestRetention));
   }, [requestRetention]);
+
+  useEffect(() => {
+    localStorage.setItem('folder_sort_by', folderSortBy);
+  }, [folderSortBy]);
+
+  useEffect(() => {
+    localStorage.setItem('word_sort_by', wordSortBy);
+  }, [wordSortBy]);
 
   useEffect(() => {
     setSaveButtonFeedback(false);
@@ -972,6 +1033,7 @@ export default function VocabularyApp() {
         id: dictWord.id.toString(),
         libraryId: libraryEntry.id,
         folderIds: [folderId?.toString()],
+        addedAt: libraryEntry.created_at || new Date().toISOString(),
         nextReview: libraryEntry.next_review || fsrsState.due,
         ...fsrsState,
         proficiencyScore: 0 // 初始化理解程度
@@ -1664,20 +1726,34 @@ export default function VocabularyApp() {
           <div className="max-w-4xl mx-auto">
             {!activeFolder ? (
               <>
-                <header className="flex justify-between items-center mb-6">
+                <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
                   <div className="flex items-center gap-3">
                     <h1 className="text-2xl font-bold">我的單字庫</h1>
                     <button onClick={handleManualSync} className="p-2 text-gray-400 hover:text-blue-600 transition rounded-full hover:bg-blue-50" title="手動同步資料">
                       <RefreshCw className={`w-5 h-5 ${!isDataLoaded ? 'animate-spin text-blue-600' : ''}`} />
                     </button>
                   </div>
-                  <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
-                    <Plus className="w-4 h-4" /> 新增資料夾
-                  </button>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                      <ArrowUpDown className="w-4 h-4" />
+                      <select
+                        className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"
+                        value={folderSortBy}
+                        onChange={(e) => setFolderSortBy(e.target.value)}
+                      >
+                        <option value="created_desc">最新</option>
+                        <option value="name_asc">名稱 A-Z</option>
+                        <option value="count_desc">單字數多</option>
+                      </select>
+                    </div>
+                    <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
+                      <Plus className="w-4 h-4" /> 新增資料夾
+                    </button>
+                  </div>
                 </header>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {folders.map(folder => (
+                  {sortedFolders.map(folder => (
                     <div key={folder.id} className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group">
                       <div className="flex justify-between items-start mb-4">
                         <div className="flex items-center gap-3 cursor-pointer" onClick={() => setViewingFolderId(folder.id)}>
@@ -1734,7 +1810,8 @@ export default function VocabularyApp() {
               </>
             ) : (
               <div className="animate-in fade-in slide-in-from-right duration-300">
-                <header className="flex items-center gap-4 mb-6">
+                <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+                  <div className="flex items-center gap-4">
                   <button onClick={() => setViewingFolderId(null)} className="p-2 hover:bg-gray-100 rounded-full transition group">
                     <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
                   </button>
@@ -1745,14 +1822,26 @@ export default function VocabularyApp() {
                     </h1>
                     <p className="text-gray-500 text-sm">{vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id)).length} 個單字</p>
                   </div>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-gray-600">
+                    <ArrowUpDown className="w-4 h-4" />
+                    <select
+                      className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"
+                      value={wordSortBy}
+                      onChange={(e) => setWordSortBy(e.target.value)}
+                    >
+                      <option value="added_desc">最新加入</option>
+                      <option value="alphabetical_asc">A-Z</option>
+                      <option value="proficiency_asc">最不熟</option>
+                      <option value="next_review_asc">最先到期</option>
+                    </select>
+                  </div>
                 </header>
 
                 <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                  {vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id)).length > 0 ? (
+                  {sortedActiveFolderWords.length > 0 ? (
                     <div className="divide-y divide-gray-100">
-                      {vocabData
-                        .filter(w => w.folderIds && w.folderIds.includes(activeFolder.id))
-                        .map(word => (
+                      {sortedActiveFolderWords.map(word => (
                           <div key={word.id} onClick={() => handleShowDetails(word)} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
                             <div>
                               <div className="flex items-center gap-2 mb-1">
@@ -1922,7 +2011,7 @@ export default function VocabularyApp() {
                     </label>
                     <div className="border-t border-gray-200" />
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {folders.map(folder => (
+                      {sortedFolders.map(folder => (
                         <label key={folder.id} className="flex items-center gap-3 text-sm text-gray-700">
                           <input
                             type="checkbox"

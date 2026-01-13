@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { 
-  Search, Book, Brain, Volume2, Save, Plus, 
+  Search, Book, Brain, Check, Volume2, Save, Plus, 
   Folder, Trash2, X, RefreshCw, Mic, Sparkles, 
   Settings, ArrowRight, ArrowLeft, Key, Loader2,
   LogIn, LogOut, User
@@ -163,9 +163,6 @@ const normalizeEntries = (data) => {
   return [];
 };
 
-const fsrsParams = generatorParameters({ enable_fuzzing: true });
-const fsrs = new FSRS(fsrsParams);
-
 const buildFsrsCard = (data = {}) => {
   const card = createEmptyCard();
   if (data.due) card.due = new Date(data.due);
@@ -201,6 +198,77 @@ const mapGradeToFsrsRating = (grade) => {
 };
 
 const formatDate = (date) => new Date(date).toLocaleDateString('zh-TW');
+
+const splitExampleLines = (example = '') => {
+  const trimmed = example.trim();
+  if (!trimmed) return [];
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n').map(line => line.trim()).filter(Boolean);
+  }
+  const cjkMatch = trimmed.match(/[\u4e00-\u9fff]/);
+  if (cjkMatch && cjkMatch.index > 0) {
+    const english = trimmed.slice(0, cjkMatch.index).trim();
+    const chinese = trimmed.slice(cjkMatch.index).trim();
+    if (english && chinese) return [english, chinese];
+  }
+  return [trimmed];
+};
+
+const getLevenshteinDistance = (a = '', b = '') => {
+  if (a === b) return 0;
+  const aLen = a.length;
+  const bLen = b.length;
+  if (aLen === 0) return bLen;
+  if (bLen === 0) return aLen;
+
+  const dp = Array.from({ length: aLen + 1 }, () => new Array(bLen + 1).fill(0));
+  for (let i = 0; i <= aLen; i += 1) dp[i][0] = i;
+  for (let j = 0; j <= bLen; j += 1) dp[0][j] = j;
+
+  for (let i = 1; i <= aLen; i += 1) {
+    for (let j = 1; j <= bLen; j += 1) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+
+  return dp[aLen][bLen];
+};
+
+const calculateReviewResult = (userAnswer = '', correctAnswer = '') => {
+  const normalizedAnswer = userAnswer.toLowerCase().trim();
+  const normalizedCorrect = correctAnswer.toLowerCase().trim();
+
+  if (normalizedAnswer === normalizedCorrect) {
+    return { grade: 3, feedbackType: 'correct', allowRetry: false };
+  }
+
+  const wordLen = normalizedCorrect.length;
+  const distance = getLevenshteinDistance(normalizedAnswer, normalizedCorrect);
+  const isTypo = wordLen > 3 && distance <= 1;
+
+  if (isTypo) {
+    return { grade: 2, feedbackType: 'typo', allowRetry: false };
+  }
+
+  return { grade: 1, feedbackType: 'incorrect', allowRetry: true };
+};
+
+const highlightWord = (text, word) => {
+  if (!text || !word) return text;
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+  return parts.map((part, index) =>
+    regex.test(part)
+      ? <span key={`hl-${index}`} className="text-blue-600 font-semibold">{part}</span>
+      : <React.Fragment key={`hl-${index}`}>{part}</React.Fragment>
+  );
+};
 
 const speak = (text, audioUrl = null) => {
   if (audioUrl) {
@@ -244,7 +312,7 @@ export default function VocabularyApp() {
   const [activeTab, setActiveTab] = useState('search'); 
   const [apiKey, setApiKey] = useState(() => localStorage.getItem('gemini_api_key') || '');
   const [groqApiKey, setGroqApiKey] = useState(() => localStorage.getItem('groq_api_key') || '');
-  const [settingsView, setSettingsView] = useState('main'); // 'main', 'account', 'api'
+  const [settingsView, setSettingsView] = useState('main'); // 'main', 'account', 'api', 'review'
 
   // [Supabase] 資料載入狀態與 Session
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -275,6 +343,7 @@ export default function VocabularyApp() {
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [suggestions, setSuggestions] = useState([]);
   const ignoreNextQueryUpdate = useRef(false);
+  const searchInputRef = useRef(null);
   const [viewingFolderId, setViewingFolderId] = useState(null);
   const [returnFolderId, setReturnFolderId] = useState(null);
   const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
@@ -290,6 +359,19 @@ export default function VocabularyApp() {
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [isAwaitingNext, setIsAwaitingNext] = useState(false);
   const [pendingAutoGrade, setPendingAutoGrade] = useState(null);
+  const [answerHint, setAnswerHint] = useState('');
+  const [hasMistake, setHasMistake] = useState(false);
+  const [requestRetention, setRequestRetention] = useState(() => {
+    const saved = localStorage.getItem('request_retention');
+    const parsed = saved ? Number(saved) : 0.9;
+    return Number.isFinite(parsed) ? parsed : 0.9;
+  });
+
+  const fsrsParams = useMemo(() => generatorParameters({
+    enable_fuzzing: true,
+    request_retention: requestRetention
+  }), [requestRetention]);
+  const fsrs = useMemo(() => new FSRS(fsrsParams), [fsrsParams]);
 
   const normalizedEntries = searchResult ? normalizeEntries(searchResult) : [];
   const currentReviewWord = reviewQueue[currentCardIndex] || {};
@@ -297,6 +379,13 @@ export default function VocabularyApp() {
     ? normalizeEntries(currentReviewWord)
     : [];
   const primaryReviewEntry = currentReviewEntries[0] || {};
+  const clozeExample = primaryReviewEntry.example || currentReviewWord.example || '';
+  const clozeExampleLines = splitExampleLines(clozeExample);
+  const clozeExampleMain = clozeExampleLines[0] || clozeExample;
+  const clozeTranslation = (() => {
+    if (clozeExampleLines.length > 1) return clozeExampleLines[1];
+    return primaryReviewEntry.translation || currentReviewWord.translation || '';
+  })();
   const preferredSearchAudio = searchResult
     ? (preferredAccent === 'uk'
         ? (searchResult.ukAudioUrl || searchResult.audioUrl || searchResult.usAudioUrl)
@@ -332,7 +421,7 @@ export default function VocabularyApp() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const loadData = async (userId) => {
+  const loadData = useCallback(async (userId) => {
     try {
       // 1. 載入資料夾 (Folders)
       const { data: dbFolders, error: folderError } = await supabase
@@ -395,7 +484,24 @@ export default function VocabularyApp() {
       console.error("Supabase 載入失敗:", e);
       setIsDataLoaded(true);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const handleFocusOrVisible = () => {
+      if (document.visibilityState !== 'visible') return;
+      if (!session?.user) return;
+      setIsDataLoaded(false);
+      loadData(session.user.id);
+    };
+
+    window.addEventListener('focus', handleFocusOrVisible);
+    document.addEventListener('visibilitychange', handleFocusOrVisible);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusOrVisible);
+      document.removeEventListener('visibilitychange', handleFocusOrVisible);
+    };
+  }, [loadData, session]);
 
   // 3. 本地備份 (僅作為離線快取，主要依賴 DB)
   useEffect(() => {
@@ -410,6 +516,10 @@ export default function VocabularyApp() {
   useEffect(() => {
     localStorage.setItem('groq_api_key', groqApiKey);
   }, [groqApiKey]);
+
+  useEffect(() => {
+    localStorage.setItem('request_retention', String(requestRetention));
+  }, [requestRetention]);
 
   // --- Effect: Autocomplete Suggestions ---
   useEffect(() => {
@@ -919,34 +1029,37 @@ export default function VocabularyApp() {
   const buildReviewBatch = (words, batchSize) => {
     if (words.length <= batchSize) return words;
     const now = new Date();
+    const rolloverCutoff = new Date(now);
+    rolloverCutoff.setHours(24, 0, 0, 0);
     const dueWords = words
-      .filter(w => new Date(w.nextReview) <= now)
+      .filter(w => new Date(w.nextReview) < rolloverCutoff)
       .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview));
 
     if (dueWords.length >= batchSize) {
       return dueWords.slice(0, batchSize);
     }
 
-    const notDue = words
-      .filter(w => new Date(w.nextReview) > now)
-      .sort((a, b) => (a.proficiencyScore || 0) - (b.proficiencyScore || 0));
+    const slotsNeeded = batchSize - dueWords.length;
+    const dueIds = new Set(dueWords.map(w => w.id));
+    const newWords = words.filter(w => (w.proficiencyScore || 0) === 0 && !dueIds.has(w.id));
+    const fillNewWords = newWords.slice(0, slotsNeeded);
+    const selectedIds = new Set([...dueWords, ...fillNewWords].map(w => w.id));
+    const remainingSlots = slotsNeeded - fillNewWords.length;
 
-    const mixed = [];
-    let low = 0;
-    let high = notDue.length - 1;
-    while (mixed.length < (batchSize - dueWords.length) && low <= high) {
-      if (low <= high) {
-        mixed.push(notDue[low]);
-        low += 1;
-      }
-      if (mixed.length >= (batchSize - dueWords.length)) break;
-      if (low <= high) {
-        mixed.push(notDue[high]);
-        high -= 1;
-      }
+    let fillNotDue = [];
+    if (remainingSlots > 0) {
+      fillNotDue = words
+        .filter(w => new Date(w.nextReview) >= rolloverCutoff && !selectedIds.has(w.id))
+        .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview))
+        .slice(0, remainingSlots);
     }
 
-    return [...dueWords, ...mixed].slice(0, batchSize);
+    const combined = [...dueWords, ...fillNewWords, ...fillNotDue].slice(0, batchSize);
+    for (let i = combined.length - 1; i > 0; i -= 1) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [combined[i], combined[j]] = [combined[j], combined[i]];
+    }
+    return combined;
   };
 
   const startReview = (folderId, mode) => {
@@ -966,6 +1079,8 @@ export default function VocabularyApp() {
     setFeedback(null);
     setIsAwaitingNext(false);
     setPendingAutoGrade(null);
+    setAnswerHint('');
+    setHasMistake(false);
     setActiveTab('review_session');
   };
 
@@ -981,6 +1096,8 @@ export default function VocabularyApp() {
       setUserAnswer('');
       setFeedback(null);
       setIsAwaitingNext(false);
+      setAnswerHint('');
+      setHasMistake(false);
     } else {
       alert("複習完成！");
       setActiveTab('review');
@@ -1003,6 +1120,53 @@ export default function VocabularyApp() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeTab, isFlipped, reviewMode, isAwaitingNext, advanceToNextCard]);
 
+  useEffect(() => {
+    if (activeTab !== 'review_session') return;
+
+    const handleKeyDown = (event) => {
+      if (event.repeat) return;
+      const key = event.key;
+
+      if (['1', '2', '3', '4'].includes(key) && isFlipped && reviewMode === 'flashcard') {
+        event.preventDefault();
+        processRating(Number(key));
+        return;
+      }
+
+      if ((key === 'Enter' || key === ' ') && !isAwaitingNext) {
+        if (!isFlipped) {
+          event.preventDefault();
+          if (reviewMode === 'flashcard') {
+            setIsFlipped(true);
+          } else {
+            checkAnswer();
+          }
+          return;
+        }
+
+        if (reviewMode === 'flashcard') {
+          event.preventDefault();
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeTab, isFlipped, reviewMode, isAwaitingNext]);
+
+  useEffect(() => {
+    if (activeTab !== 'review_session' || !isFlipped) return;
+    if (!currentReviewWord?.word) return;
+    speak(currentReviewWord.word, preferredReviewAudio);
+  }, [activeTab, isFlipped, currentReviewWord?.word, preferredReviewAudio]);
+
+  useEffect(() => {
+    if (activeTab !== 'review_session' || isFlipped) return;
+    if (reviewMode !== 'dictation') return;
+    if (!currentReviewWord?.word) return;
+    speak(currentReviewWord.word, preferredReviewAudio);
+  }, [activeTab, isFlipped, reviewMode, currentReviewWord?.word, preferredReviewAudio]);
+
   const processRating = (grade, options = {}) => {
     const currentWord = reviewQueue[currentCardIndex];
     if (!currentWord) {
@@ -1018,7 +1182,15 @@ export default function VocabularyApp() {
     const nextCardRecord = schedulingCards[rating];
     const nextCard = nextCardRecord.card;
     const fsrsState = serializeFsrsCard(nextCard);
-    const nextReviewIso = fsrsState.due;
+    let nextReviewIso = fsrsState.due;
+    if (fsrsState.scheduled_days > 2) {
+      const nowMs = now.getTime();
+      const dueMs = new Date(fsrsState.due).getTime();
+      const fuzzFactor = 0.95 + Math.random() * 0.1;
+      const fuzzedMs = nowMs + (dueMs - nowMs) * fuzzFactor;
+      nextReviewIso = new Date(fuzzedMs).toISOString();
+      fsrsState.due = nextReviewIso;
+    }
 
     // 計算新的理解程度 (0-5)
     // 邏輯：答錯(1-2)扣分，普通(3)持平，答對(4-5)加分
@@ -1068,24 +1240,51 @@ export default function VocabularyApp() {
       setActiveTab('review');
       return;
     }
-    const isCorrect = userAnswer.toLowerCase().trim() === currentWord.word.toLowerCase();
-    setFeedback(isCorrect ? 'correct' : 'incorrect');
+    const isStrictMode = reviewMode === 'spelling' || reviewMode === 'cloze' || reviewMode === 'dictation';
+    const result = isStrictMode
+      ? calculateReviewResult(userAnswer, currentWord.word)
+      : { grade: 3, feedbackType: 'correct', allowRetry: false };
+
+    if (reviewMode !== 'flashcard' && result.allowRetry) {
+      setFeedback('incorrect');
+      setIsFlipped(false);
+      setPendingAutoGrade(null);
+      setIsAwaitingNext(false);
+      setUserAnswer('');
+      setAnswerHint(currentWord.word);
+      setHasMistake(true);
+      return;
+    }
+
+    const finalIncorrect = isStrictMode && hasMistake;
+    const feedbackType = finalIncorrect ? 'incorrect' : result.feedbackType;
+    setFeedback(feedbackType);
     setIsFlipped(true);
+    setAnswerHint('');
 
     if (reviewMode !== 'flashcard') {
       if (isAwaitingNext) return;
-      const autoGrade = isCorrect ? 4 : 1;
+      const autoGrade = finalIncorrect ? 1 : result.grade;
       setPendingAutoGrade(autoGrade);
       setIsAwaitingNext(true);
     }
+  };
+
+  const handleAnswerChange = (value) => {
+    setUserAnswer(value);
+    if (feedback === 'incorrect') {
+      setFeedback(null);
+      setIsAwaitingNext(false);
+    }
+    if (answerHint) setAnswerHint('');
   };
 
   // --- Sub-Components ---
   const Navigation = () => (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-lg md:relative md:border-t-0 md:flex-col md:w-64 md:h-screen md:border-r md:justify-start md:gap-4 md:p-6">
       <div className="hidden md:block text-2xl font-bold text-blue-600 mb-6 flex items-center gap-2">
-        <Brain className="w-8 h-8" />
-        VocabMaster
+        <LogoIcon className="w-8 h-8" />
+        Spaced
       </div>
       {[
         { id: 'search', icon: Search, label: '查詢' },
@@ -1146,14 +1345,26 @@ export default function VocabularyApp() {
 
             <form onSubmit={handleSearch} className="relative">
               <input
+                ref={searchInputRef}
                 type="text"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onBlur={() => setTimeout(() => setSuggestions([]), 200)} // 延遲隱藏以允許點擊
                 placeholder="輸入單字 (例如: serendipity)..."
-                className={`w-full p-4 pl-12 shadow-sm border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none ${suggestions.length > 0 ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
+                className={`w-full p-4 pl-12 pr-32 shadow-sm border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none ${suggestions.length > 0 ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
               />
               <Search className="absolute left-4 top-4 text-gray-400" />
+              
+              {query && (
+                <button
+                  type="button"
+                  onClick={() => { setQuery(''); setSuggestions([]); searchInputRef.current?.focus(); }}
+                  className="absolute right-24 top-4 text-gray-400 hover:text-gray-600 transition p-1 rounded-full hover:bg-gray-100"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              )}
+
               <button type="submit" disabled={isSearching} className="absolute right-3 top-2.5 bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
                 {isSearching ? <Loader2 className="w-5 h-5 animate-spin"/> : '查詢'}
               </button>
@@ -1251,9 +1462,19 @@ export default function VocabularyApp() {
                           {entry.definition && <p className="text-gray-600 mt-1">{entry.definition}</p>}
                           {entry.examples && entry.examples.length > 0 && (
                             <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">
-                              {entry.examples.map((example, exampleIndex) => (
-                                <p key={`${index}-ex-${exampleIndex}`} className="text-gray-700 italic">"{example}"</p>
-                              ))}
+                              {entry.examples.map((example, exampleIndex) => {
+                                const lines = splitExampleLines(example);
+                                return (
+                                  <p key={`${index}-ex-${exampleIndex}`} className="text-gray-700">
+                                    {lines.map((line, lineIndex) => (
+                                      <React.Fragment key={`${index}-ex-${exampleIndex}-line-${lineIndex}`}>
+                                        {highlightWord(line, searchResult?.word)}
+                                        {lineIndex < lines.length - 1 && <br />}
+                                      </React.Fragment>
+                                    ))}
+                                  </p>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1520,22 +1741,31 @@ export default function VocabularyApp() {
                     {reviewMode === 'spelling' && (
                       <div className="space-y-4 w-full">
                         <div className="text-xl text-gray-600">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
-                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        {feedback === 'incorrect' && (
+                          <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
+                        )}
                       </div>
                     )}
                     {reviewMode === 'cloze' && (
                       <div className="space-y-6 w-full">
                         <div className="text-xl text-gray-700 leading-relaxed">
-                          {(primaryReviewEntry.example || currentReviewWord.example || '').replace(new RegExp(currentReviewWord.word || '', 'gi'), '________')}
+                          {clozeExampleMain.replace(new RegExp(currentReviewWord.word || '', 'gi'), '________')}
                         </div>
-                        <div className="text-sm text-gray-500">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
-                        <input type="text" className="w-full border p-3 rounded-lg text-center" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        <div className="text-sm text-gray-500">{clozeTranslation}</div>
+                        <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        {feedback === 'incorrect' && (
+                          <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
+                        )}
                       </div>
                     )}
                     {reviewMode === 'dictation' && (
                       <div className="space-y-6 w-full flex flex-col items-center">
                         <button onClick={() => speak(currentReviewWord.word, preferredReviewAudio)} className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-200 transition animate-pulse"><Volume2 className="w-8 h-8" /></button>
-                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2" value={userAnswer} onChange={e => setUserAnswer(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                        {feedback === 'incorrect' && (
+                          <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
+                        )}
                       </div>
                     )}
                   </>
@@ -1571,9 +1801,25 @@ export default function VocabularyApp() {
                           {entry.definition && <p className="text-gray-600 text-sm mt-1">{entry.definition}</p>}
                           {entry.examples && entry.examples.length > 0 && (
                             <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">
-                              {entry.examples.map((example, exampleIndex) => (
-                                <p key={`${index}-review-ex-${exampleIndex}`} className="text-gray-700 italic">"{example}"</p>
-                              ))}
+                              {entry.examples.map((example, exampleIndex) => {
+                                const lines = splitExampleLines(example);
+                                return (
+                                  <p key={`${index}-review-ex-${exampleIndex}`} className="text-gray-700">
+                                    {lines.map((line, lineIndex) => {
+                                      const isCjkLine = /[\u4e00-\u9fff]/.test(line);
+                                      const highlightTarget = isCjkLine
+                                        ? (entry.translation || currentReviewWord.translation || '')
+                                        : (currentReviewWord.word || '');
+                                      return (
+                                        <React.Fragment key={`${index}-review-ex-${exampleIndex}-line-${lineIndex}`}>
+                                          {highlightWord(line, highlightTarget)}
+                                          {lineIndex < lines.length - 1 && <br />}
+                                        </React.Fragment>
+                                      );
+                                    })}
+                                  </p>
+                                );
+                              })}
                             </div>
                           )}
                         </div>
@@ -1589,7 +1835,19 @@ export default function VocabularyApp() {
                       </div>
                     )}
                     {reviewMode !== 'flashcard' && (
-                      <div className={`p-3 rounded-lg font-bold text-white ${feedback === 'correct' ? 'bg-green-500' : 'bg-red-500'}`}>{feedback === 'correct' ? '答對了！' : '答錯了，請再接再厲！'}</div>
+                      <div className={`p-3 rounded-lg font-bold text-white ${
+                        feedback === 'correct'
+                          ? 'bg-green-500'
+                          : feedback === 'typo'
+                          ? 'bg-amber-500'
+                          : 'bg-red-500'
+                      }`}>
+                        {feedback === 'correct'
+                          ? '答對了！'
+                          : feedback === 'typo'
+                          ? '小錯字！判定為困難 (Hard)。'
+                          : '答錯了，請再接再厲！'}
+                      </div>
                     )}
                   </div>
                 )}
@@ -1601,10 +1859,31 @@ export default function VocabularyApp() {
                   reviewMode === 'flashcard' ? (
                     <div>
                       <p className="text-center text-xs text-gray-400 mb-3 uppercase tracking-wider font-bold">自評理解程度</p>
-                      <div className="grid grid-cols-5 gap-2">
-                        {[1, 2, 3, 4, 5].map((val) => (
-                          <button key={val} onClick={() => processRating(val)} className={`text-white py-3 rounded-lg font-bold hover:opacity-90 active:scale-95 transition ${['bg-red-500','bg-orange-500','bg-yellow-500','bg-blue-500','bg-green-500'][val-1]}`}>{val}</button>
-                        ))}
+                      <div className="flex flex-wrap justify-center gap-2">
+                        <button
+                          onClick={() => processRating(1)}
+                          className="px-4 py-3 rounded-lg font-bold bg-red-100 text-red-700 hover:bg-red-200 transition"
+                        >
+                          1 - Again (忘記)
+                        </button>
+                        <button
+                          onClick={() => processRating(2)}
+                          className="px-4 py-3 rounded-lg font-bold bg-orange-100 text-orange-700 hover:bg-orange-200 transition"
+                        >
+                          2 - Hard (困難)
+                        </button>
+                        <button
+                          onClick={() => processRating(3)}
+                          className="px-5 py-3 rounded-lg font-extrabold bg-green-100 text-green-700 hover:bg-green-200 transition"
+                        >
+                          3 - Good (良好)
+                        </button>
+                        <button
+                          onClick={() => processRating(4)}
+                          className="px-4 py-3 rounded-lg font-bold bg-blue-100 text-blue-700 hover:bg-blue-200 transition"
+                        >
+                          4 - Easy (簡單)
+                        </button>
                       </div>
                     </div>
                   ) : (
@@ -1666,10 +1945,26 @@ export default function VocabularyApp() {
                     </div>
                     <ArrowRight className="w-5 h-5 text-gray-300" />
                   </button>
+
+                  <button 
+                    onClick={() => setSettingsView('review')}
+                    className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center text-amber-600">
+                        <Brain className="w-5 h-5" />
+                      </div>
+                      <div className="text-left">
+                        <div className="font-bold text-gray-800">複習設定</div>
+                        <div className="text-sm text-gray-500">調整記憶保留率</div>
+                      </div>
+                    </div>
+                    <ArrowRight className="w-5 h-5 text-gray-300" />
+                  </button>
                 </div>
                 
                 <div className="mt-8 text-center text-gray-400 text-sm">
-                  <p>VocabMaster v1.2.0 (Dual-AI Fallback)</p>
+                  <p>Made by Spaced</p>
                 </div>
               </>
             ) : (
@@ -1794,6 +2089,32 @@ export default function VocabularyApp() {
                     </div>
                   </>
                 )}
+
+                {settingsView === 'review' && (
+                  <>
+                    <h1 className="text-2xl font-bold mb-6">複習設定</h1>
+                    <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200">
+                      <h2 className="font-bold text-lg mb-4 flex items-center gap-2">
+                        <Brain className="w-5 h-5 text-amber-600" /> 複習難度
+                      </h2>
+                      <div className="flex items-center justify-between gap-4">
+                        <div>
+                          <div className="font-bold text-gray-800">記憶保留率</div>
+                          <div className="text-sm text-gray-500">數值越高，複習越頻繁</div>
+                        </div>
+                        <select
+                          className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 bg-white"
+                          value={requestRetention}
+                          onChange={(e) => setRequestRetention(Number(e.target.value))}
+                        >
+                          <option value={0.8}>0.8 (Light)</option>
+                          <option value={0.9}>0.9 (Standard)</option>
+                          <option value={0.95}>0.95 (Intense)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )}
           </div>
@@ -1804,10 +2125,20 @@ export default function VocabularyApp() {
   );
 }
 
-function Check({ className }) {
+function LogoIcon({ className }) {
   return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <polyline points="20 6 9 17 4 12"></polyline>
+    <svg 
+      xmlns="http://www.w3.org/2000/svg" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round" 
+      className={className}
+    >
+      <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+      <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
     </svg>
   );
 }

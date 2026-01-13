@@ -487,7 +487,7 @@ export default function VocabularyApp() {
       setFolders(allFolders);
 
       // 2. 載入單字庫 (User Library)
-      let query = supabase
+      const { data, error } = await supabase
         .from('user_library')
         .select(`
           *,
@@ -495,24 +495,6 @@ export default function VocabularyApp() {
           dictionary:word_id (*)
         `)
         .eq('user_id', userId);
-
-      switch (wordSortBy) {
-        case 'alphabetical_asc':
-          query = query.order('word', { foreignTable: 'dictionary', ascending: true });
-          break;
-        case 'proficiency_asc':
-          query = query.order('proficiency_score', { ascending: true });
-          break;
-        case 'next_review_asc':
-          query = query.order('next_review', { ascending: true });
-          break;
-        case 'added_desc':
-        default:
-          query = query.order('created_at', { ascending: false });
-          break;
-      }
-
-      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -551,7 +533,7 @@ export default function VocabularyApp() {
       console.error("Supabase 載入失敗:", e);
       setIsDataLoaded(true);
     }
-  }, [wordSortBy]);
+  }, []);
 
   useEffect(() => {
     const handleFocusOrVisible = () => {

@@ -103,6 +103,10 @@ const LibraryTab = () => {
 
   const selectAllFolders = () => {
     const selectableIds = sortedFolders.filter(folder => folder.id !== 'default').map(folder => folder.id);
+    if (selectedFolderIds.length === selectableIds.length) {
+      setFolderSelection([]);
+      return;
+    }
     setFolderSelection(selectableIds);
   };
 
@@ -128,6 +132,10 @@ const LibraryTab = () => {
 
   const selectAllWords = () => {
     const wordIds = sortedActiveFolderWords.map(word => word.id);
+    if (selectedWordIds.length === wordIds.length) {
+      setWordSelection([]);
+      return;
+    }
     setWordSelection(wordIds);
   };
 
@@ -277,23 +285,27 @@ const LibraryTab = () => {
         />
       )}
 
-      {!activeFolder && isFolderSelectionMode && selectedFolderCount > 0 && (
+      {!activeFolder && isFolderSelectionMode && (
         <SelectionActionBar
           count={selectedFolderCount}
           onSelectAll={selectAllFolders}
+          selectAllLabel={selectedFolderIds.length === sortedFolders.filter(folder => folder.id !== 'default').length ? '取消全選' : '全選'}
+          onClear={exitFolderSelectionMode}
           actions={[
-            { key: 'delete', label: '刪除', variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete' }
+            { key: 'delete', label: '刪除', variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete', disabled: selectedFolderCount === 0 }
           ]}
         />
       )}
 
-      {activeFolder && isWordSelectionMode && selectedWordCount > 0 && (
+      {activeFolder && isWordSelectionMode && (
         <SelectionActionBar
           count={selectedWordCount}
           onSelectAll={selectAllWords}
+          selectAllLabel={selectedWordIds.length === sortedActiveFolderWords.length ? '取消全選' : '全選'}
+          onClear={exitWordSelectionMode}
           actions={[
-            { key: 'move', label: '移動', variant: 'primary', onClick: openMoveModal, icon: 'move' },
-            { key: 'remove', label: '移除', variant: 'danger', onClick: removeSelectedWords, icon: 'delete' }
+            { key: 'move', label: '移動', variant: 'primary', onClick: openMoveModal, icon: 'move', disabled: selectedWordCount === 0 },
+            { key: 'remove', label: '移除', variant: 'danger', onClick: removeSelectedWords, icon: 'delete', disabled: selectedWordCount === 0 }
           ]}
         />
       )}

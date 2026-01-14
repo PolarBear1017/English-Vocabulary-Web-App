@@ -4,9 +4,10 @@ import SettingsMain from './SettingsMain';
 import SettingsAccount from './SettingsAccount';
 import SettingsApi from './SettingsApi';
 import SettingsReview from './SettingsReview';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
-const SettingsTab = ({ app }) => {
-  const { state, actions } = app;
+const SettingsTab = () => {
+  const settings = useSettingsContext();
   const {
     settingsView,
     session,
@@ -16,19 +17,7 @@ const SettingsTab = ({ app }) => {
     password,
     authLoading,
     requestRetention
-  } = state;
-  const {
-    setSettingsView,
-    setApiKey,
-    setGroqApiKey,
-    setEmail,
-    setPassword,
-    setRequestRetention,
-    handleLogin,
-    handleLogout,
-    handleEmailSignIn,
-    handleEmailSignUp
-  } = actions;
+  } = settings.state;
 
   return (
     <div className="max-w-xl mx-auto">
@@ -37,12 +26,12 @@ const SettingsTab = ({ app }) => {
           session={session}
           apiKey={apiKey}
           groqApiKey={groqApiKey}
-          onSelectView={setSettingsView}
+          onSelectView={settings.actions.setSettingsView}
         />
       ) : (
         <div className="animate-in slide-in-from-right duration-300">
           <button
-            onClick={() => setSettingsView('main')}
+            onClick={() => settings.actions.setSettingsView('main')}
             className="flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-4 transition"
           >
             <ArrowLeft className="w-4 h-4" /> 返回設定
@@ -54,12 +43,12 @@ const SettingsTab = ({ app }) => {
               email={email}
               password={password}
               authLoading={authLoading}
-              setEmail={setEmail}
-              setPassword={setPassword}
-              handleLogin={handleLogin}
-              handleLogout={handleLogout}
-              handleEmailSignIn={handleEmailSignIn}
-              handleEmailSignUp={handleEmailSignUp}
+              setEmail={settings.actions.setEmail}
+              setPassword={settings.actions.setPassword}
+              handleLogin={settings.actions.handleLogin}
+              handleLogout={settings.actions.handleLogout}
+              handleEmailSignIn={settings.actions.handleEmailSignIn}
+              handleEmailSignUp={settings.actions.handleEmailSignUp}
             />
           )}
 
@@ -67,15 +56,15 @@ const SettingsTab = ({ app }) => {
             <SettingsApi
               apiKey={apiKey}
               groqApiKey={groqApiKey}
-              setApiKey={setApiKey}
-              setGroqApiKey={setGroqApiKey}
+              setApiKey={settings.actions.setApiKey}
+              setGroqApiKey={settings.actions.setGroqApiKey}
             />
           )}
 
           {settingsView === 'review' && (
             <SettingsReview
               requestRetention={requestRetention}
-              setRequestRetention={setRequestRetention}
+              setRequestRetention={settings.actions.setRequestRetention}
             />
           )}
         </div>

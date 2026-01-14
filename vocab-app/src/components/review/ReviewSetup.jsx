@@ -5,7 +5,8 @@ import ReviewFoldersSelector from './ReviewFoldersSelector';
 const ReviewSetup = ({
   reviewSetupView,
   setReviewSetupView,
-  vocabData,
+  dueCount,
+  totalWords,
   selectedFolderLabel,
   selectedReviewFolders,
   startReview,
@@ -34,11 +35,11 @@ const ReviewSetup = ({
       <h1 className="text-2xl font-bold mb-6">複習中心</h1>
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8 flex justify-around">
         <div className="text-center">
-          <div className="text-3xl font-bold text-pink-600">{vocabData.filter(w => new Date(w.nextReview) <= new Date()).length}</div>
+          <div className="text-3xl font-bold text-pink-600">{dueCount}</div>
           <div className="text-sm text-gray-600">待複習</div>
         </div>
         <div className="text-center">
-          <div className="text-3xl font-bold text-blue-600">{vocabData.length}</div>
+          <div className="text-3xl font-bold text-blue-600">{totalWords}</div>
           <div className="text-sm text-gray-600">總單字量</div>
         </div>
       </div>

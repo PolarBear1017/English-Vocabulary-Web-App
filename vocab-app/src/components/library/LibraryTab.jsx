@@ -2,69 +2,63 @@ import React from 'react';
 import LibraryOverview from './LibraryOverview';
 import FolderDetail from './FolderDetail';
 import StoryModal from './StoryModal';
+import { useLibraryContext } from '../../contexts/LibraryContext';
+import { useReviewContext } from '../../contexts/ReviewContext';
+import { useNavigationContext } from '../../contexts/NavigationContext';
 
-const LibraryTab = ({ app }) => {
-  const { state, derived, actions } = app;
+const LibraryTab = () => {
+  const library = useLibraryContext();
+  const review = useReviewContext();
+  const navigation = useNavigationContext();
+
   const {
     activeFolder,
     sortedFolders,
-    sortedActiveFolderWords
-  } = derived;
+    sortedActiveFolderWords,
+    index
+  } = library.derived;
+
   const {
-    folders,
-    vocabData,
     folderSortBy,
     wordSortBy,
     story,
     isGeneratingStory,
     isDataLoaded
-  } = state;
-  const {
-    setViewingFolderId,
-    setSelectedReviewFolders,
-    setReviewSetupView,
-    setActiveTab,
-    setFolderSortBy,
-    setWordSortBy,
-    createFolder,
-    handleManualSync,
-    generateFolderStory,
-    handleDeleteFolder,
-    handleShowDetails,
-    handleRemoveWordFromFolder,
-    setStory,
-    setIsGeneratingStory
-  } = actions;
+  } = library.state;
 
   return (
     <div className="max-w-4xl mx-auto">
       {!activeFolder ? (
         <LibraryOverview
           sortedFolders={sortedFolders}
-          vocabData={vocabData}
           folderSortBy={folderSortBy}
-          setFolderSortBy={setFolderSortBy}
-          createFolder={createFolder}
-          handleManualSync={handleManualSync}
+          setFolderSortBy={library.actions.setFolderSortBy}
+          createFolder={library.actions.createFolder}
+          handleManualSync={library.actions.handleManualSync}
           isDataLoaded={isDataLoaded}
-          setSelectedReviewFolders={setSelectedReviewFolders}
-          setReviewSetupView={setReviewSetupView}
-          setActiveTab={setActiveTab}
-          generateFolderStory={generateFolderStory}
-          handleDeleteFolder={handleDeleteFolder}
-          setViewingFolderId={setViewingFolderId}
+          setSelectedReviewFolders={review.actions.setSelectedReviewFolders}
+          setReviewSetupView={review.actions.setReviewSetupView}
+          setActiveTab={navigation.actions.setActiveTab}
+          generateFolderStory={library.actions.generateFolderStory}
+          handleDeleteFolder={library.actions.handleDeleteFolder}
+          setViewingFolderId={library.actions.setViewingFolderId}
+          entriesByFolderId={index.entriesByFolderId}
+          statsByFolderId={index.statsByFolderId}
         />
       ) : (
         <FolderDetail
           activeFolder={activeFolder}
-          vocabData={vocabData}
           wordSortBy={wordSortBy}
-          setWordSortBy={setWordSortBy}
+          setWordSortBy={library.actions.setWordSortBy}
           sortedActiveFolderWords={sortedActiveFolderWords}
-          onBack={() => setViewingFolderId(null)}
-          onShowDetails={handleShowDetails}
-          onRemoveWordFromFolder={handleRemoveWordFromFolder}
-          onGoSearch={() => { setActiveTab('search'); setViewingFolderId(null); }}
+          activeFolderStats={index.statsByFolderId[activeFolder.id]}
+          onBack={() => library.actions.setViewingFolderId(null)}
+          onShowDetails={library.actions.openWordDetails}
+          onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
+          onGoSearch={() => {
+            navigation.actions.setActiveTab('search');
+            library.actions.setViewingFolderId(null);
+          }}
         />
       )}
 
@@ -72,7 +66,7 @@ const LibraryTab = ({ app }) => {
         <StoryModal
           story={story}
           isGeneratingStory={isGeneratingStory}
-          onClose={() => { setStory(null); setIsGeneratingStory(false); }}
+          onClose={() => { library.actions.setStory(null); library.actions.setIsGeneratingStory(false); }}
         />
       )}
     </div>

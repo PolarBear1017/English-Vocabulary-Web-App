@@ -1,8 +1,18 @@
 import React from 'react';
 import { Search, Book, RefreshCw, Settings } from 'lucide-react';
 import LogoIcon from '../common/LogoIcon';
+import { useNavigationContext } from '../../contexts/NavigationContext';
+import { useLibraryContext } from '../../contexts/LibraryContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
-const Navigation = ({ activeTab, setActiveTab, setViewingFolderId, setSettingsView }) => {
+const Navigation = () => {
+  const navigation = useNavigationContext();
+  const library = useLibraryContext();
+  const settings = useSettingsContext();
+  const { activeTab } = navigation.state;
+  const { setActiveTab } = navigation.actions;
+  const { setViewingFolderId } = library.actions;
+  const { setSettingsView } = settings.actions;
   const items = [
     { id: 'search', icon: Search, label: '查詢' },
     { id: 'library', icon: Book, label: '單字庫' },

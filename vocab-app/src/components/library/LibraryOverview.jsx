@@ -4,7 +4,6 @@ import FolderCard from './FolderCard';
 
 const LibraryOverview = ({
   sortedFolders,
-  vocabData,
   folderSortBy,
   setFolderSortBy,
   createFolder,
@@ -15,7 +14,9 @@ const LibraryOverview = ({
   setActiveTab,
   generateFolderStory,
   handleDeleteFolder,
-  setViewingFolderId
+  setViewingFolderId,
+  entriesByFolderId,
+  statsByFolderId
 }) => (
   <>
     <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
@@ -49,7 +50,8 @@ const LibraryOverview = ({
         <FolderCard
           key={folder.id}
           folder={folder}
-          vocabData={vocabData}
+          folderWords={entriesByFolderId[folder.id] || []}
+          folderStats={statsByFolderId[folder.id]}
           onOpen={() => setViewingFolderId(folder.id)}
           onDelete={() => handleDeleteFolder(folder.id)}
           onStartReview={() => {

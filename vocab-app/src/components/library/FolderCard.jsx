@@ -5,15 +5,16 @@ import { formatDate } from '../../utils/data';
 
 const FolderCard = ({
   folder,
-  vocabData,
+  folderWords,
+  folderStats,
   onOpen,
   onDelete,
   onStartReview,
   onGenerateStory
 }) => {
-  const folderWords = vocabData.filter(w => w.folderIds && w.folderIds.includes(folder.id));
-  const previewWords = folderWords.slice(0, 3);
-  const extraCount = folderWords.length - previewWords.length;
+  const words = folderWords || [];
+  const previewWords = words.slice(0, 3);
+  const extraCount = words.length - previewWords.length;
 
   return (
     <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group">
@@ -24,7 +25,7 @@ const FolderCard = ({
           </div>
           <div>
             <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
-            <p className="text-sm text-gray-500">{folderWords.length} 個單字</p>
+            <p className="text-sm text-gray-500">{folderStats?.count ?? words.length} 個單字</p>
           </div>
         </div>
         {folder.id !== 'default' && (
@@ -43,7 +44,7 @@ const FolderCard = ({
           </div>
         ))}
         {extraCount > 0 && <div className="text-center text-xs text-gray-400 pt-1">+{extraCount} words...</div>}
-        {folderWords.length === 0 && <div className="text-center text-xs text-gray-400 py-2">尚無單字，點擊查看詳情</div>}
+        {words.length === 0 && <div className="text-center text-xs text-gray-400 py-2">尚無單字，點擊查看詳情</div>}
       </div>
 
       <div className="flex gap-2 mt-2">

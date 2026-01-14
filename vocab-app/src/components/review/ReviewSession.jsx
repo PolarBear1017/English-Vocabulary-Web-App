@@ -2,7 +2,7 @@ import React from 'react';
 import { X, Volume2, Sparkles } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text.jsx';
-import { speak } from '../../utils/speech';
+import { speak } from '../../services/speechService';
 
 const ReviewSession = ({
   reviewQueue,

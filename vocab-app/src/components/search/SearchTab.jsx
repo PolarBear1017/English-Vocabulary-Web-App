@@ -1,59 +1,69 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ArrowLeft, Sparkles } from 'lucide-react';
 import SearchForm from './SearchForm';
 import SearchResultCard from './SearchResultCard';
-import { speak } from '../../utils/speech';
+import { speak } from '../../services/speechService';
+import { useSearchContext } from '../../contexts/SearchContext';
+import { useLibraryContext } from '../../contexts/LibraryContext';
+import { useNavigationContext } from '../../contexts/NavigationContext';
+import { useSettingsContext } from '../../contexts/SettingsContext';
+import { usePreferencesContext } from '../../contexts/PreferencesContext';
 
-const SearchTab = ({ app }) => {
-  const { state, derived, actions, refs } = app;
+const SearchTab = () => {
+  const search = useSearchContext();
+  const library = useLibraryContext();
+  const navigation = useNavigationContext();
+  const settings = useSettingsContext();
+  const preferences = usePreferencesContext();
+
+  const { apiKey, groqApiKey } = settings.state;
+  const { preferredAccent } = preferences.state;
+
   const {
-    apiKey,
-    groqApiKey,
-    isDataLoaded,
     query,
     searchResult,
     searchError,
     isSearching,
     aiLoading,
     suggestions,
-    returnFolderId,
     isSaveMenuOpen,
-    saveButtonFeedback,
+    saveButtonFeedback
+  } = search.state;
+
+  const { normalizedEntries } = search.derived;
+
+  const {
     folders,
-    preferredAccent
-  } = state;
-  const {
-    normalizedEntries,
-    preferredSearchAudio,
-    savedWordInSearch
-  } = derived;
-  const {
-    setActiveTab,
-    setViewingFolderId,
-    setReturnFolderId,
-    setQuery,
-    setSuggestions,
-    handleSearch,
-    setPreferredAccent,
-    setIsSaveMenuOpen,
-    saveWord,
-    handleRemoveWordFromFolder,
-    generateAiMnemonic
-  } = actions;
+    isDataLoaded
+  } = library.state;
+
+  const { returnFolderId } = navigation.state;
+
+  const preferredSearchAudio = useMemo(() => {
+    if (!searchResult) return null;
+    return preferredAccent === 'uk'
+      ? (searchResult.ukAudioUrl || searchResult.audioUrl || searchResult.usAudioUrl)
+      : (searchResult.usAudioUrl || searchResult.audioUrl || searchResult.ukAudioUrl);
+  }, [preferredAccent, searchResult]);
+
+  const savedWordInSearch = useMemo(() => {
+    if (!searchResult) return null;
+    return library.derived.index.wordByText.get(searchResult.word) || null;
+  }, [library.derived.index.wordByText, searchResult]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
       {returnFolderId && (
         <button
           onClick={() => {
-            setViewingFolderId(returnFolderId);
-            setActiveTab('library');
-            setReturnFolderId(null);
+            library.actions.setViewingFolderId(returnFolderId);
+            navigation.actions.setActiveTab('library');
+            navigation.actions.setReturnFolderId(null);
           }}
           className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition font-medium mb-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回 {folders.find(f => f.id === returnFolderId)?.name || '資料夾'}
+          返回 {folders.find(folder => folder.id === returnFolderId)?.name || '資料夾'}
         </button>
       )}
 
@@ -74,12 +84,12 @@ const SearchTab = ({ app }) => {
 
       <SearchForm
         query={query}
-        onQueryChange={setQuery}
-        onSearch={handleSearch}
+        onQueryChange={search.actions.setQuery}
+        onSearch={search.actions.handleSearch}
         suggestions={suggestions}
-        setSuggestions={setSuggestions}
+        setSuggestions={search.actions.setSuggestions}
         isSearching={isSearching}
-        inputRef={refs.searchInputRef}
+        inputRef={search.refs.searchInputRef}
       />
 
       {searchError && <div className="text-red-500 text-center p-4 bg-red-50 rounded-lg">{searchError}</div>}
@@ -89,21 +99,21 @@ const SearchTab = ({ app }) => {
           searchResult={searchResult}
           normalizedEntries={normalizedEntries}
           preferredAccent={preferredAccent}
-          setPreferredAccent={setPreferredAccent}
+          setPreferredAccent={preferences.actions.setPreferredAccent}
           preferredSearchAudio={preferredSearchAudio}
           onSpeak={speak}
           savedWordInSearch={savedWordInSearch}
           saveButtonFeedback={saveButtonFeedback}
           isSaveMenuOpen={isSaveMenuOpen}
-          setIsSaveMenuOpen={setIsSaveMenuOpen}
+          setIsSaveMenuOpen={search.actions.setIsSaveMenuOpen}
           folders={folders}
-          onSaveWord={saveWord}
-          onRemoveWordFromFolder={handleRemoveWordFromFolder}
+          onSaveWord={search.actions.saveFromSearch}
+          onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           apiKey={apiKey}
           aiLoading={aiLoading}
-          onGenerateMnemonic={generateAiMnemonic}
-          setQuery={setQuery}
-          onSearch={handleSearch}
+          onGenerateMnemonic={search.actions.generateAiMnemonic}
+          setQuery={search.actions.setQuery}
+          onSearch={search.actions.handleSearch}
         />
       )}
     </div>

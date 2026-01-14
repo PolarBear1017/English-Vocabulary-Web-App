@@ -1,6 +1,5 @@
 const speak = (text, audioUrl = null) => {
   if (audioUrl) {
-    // 如果有真人發音檔，優先播放
     new Audio(audioUrl).play().catch(e => console.error("播放失敗:", e));
     return;
   }

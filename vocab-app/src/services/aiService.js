@@ -93,13 +93,30 @@ Highlight the target words by wrapping them in **double asterisks** (e.g., **app
 After the story, provide a brief Traditional Chinese summary.
 `;
 
+const parseJsonContent = (text) => {
+  const cleanJson = text.replace(/```json|```/g, '').trim();
+  return JSON.parse(cleanJson);
+};
+
+const fetchDefinition = async ({ geminiKey, groqKey, word }) => {
+  const { text, source } = await callAi(geminiKey, groqKey, generateDefinitionPrompt(word));
+  return { data: parseJsonContent(text), source };
+};
+
+const fetchMnemonic = async ({ geminiKey, groqKey, word, definition }) => {
+  const { text } = await callAi(geminiKey, groqKey, generateMnemonicPrompt(word, definition));
+  return parseJsonContent(text);
+};
+
+const fetchStory = async ({ geminiKey, groqKey, words }) => {
+  const { text } = await callAi(geminiKey, groqKey, generateStoryPrompt(words));
+  return text;
+};
+
 export {
   GEMINI_API_URL,
   GROQ_API_URL,
-  callGemini,
-  callGroq,
-  callAi,
-  generateDefinitionPrompt,
-  generateMnemonicPrompt,
-  generateStoryPrompt
+  fetchDefinition,
+  fetchMnemonic,
+  fetchStory
 };

@@ -2,14 +2,14 @@ import React from 'react';
 import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
-import { speak } from '../../utils/speech';
+import { speak } from '../../services/speechService';
 
 const FolderDetail = ({
   activeFolder,
-  vocabData,
   wordSortBy,
   setWordSortBy,
   sortedActiveFolderWords,
+  activeFolderStats,
   onBack,
   onShowDetails,
   onRemoveWordFromFolder,
@@ -26,7 +26,7 @@ const FolderDetail = ({
             <Folder className="w-6 h-6 text-blue-500" />
             {activeFolder.name}
           </h1>
-          <p className="text-gray-500 text-sm">{vocabData.filter(w => w.folderIds && w.folderIds.includes(activeFolder.id)).length} 個單字</p>
+          <p className="text-gray-500 text-sm">{activeFolderStats?.count ?? sortedActiveFolderWords.length} 個單字</p>
         </div>
       </div>
       <div className="flex items-center gap-2 text-sm text-gray-600">

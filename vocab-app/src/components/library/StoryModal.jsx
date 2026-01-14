@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Sparkles, Loader2, Volume2 } from 'lucide-react';
-import { speak } from '../../utils/speech';
+import { speak } from '../../services/speechService';
 
 const StoryModal = ({ story, isGeneratingStory, onClose }) => (
   <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">

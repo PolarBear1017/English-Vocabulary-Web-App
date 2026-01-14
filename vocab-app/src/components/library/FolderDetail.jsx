@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book } from 'lucide-react';
+import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
 import { speak } from '../../services/speechService';
@@ -11,6 +11,8 @@ const FolderDetail = ({
   sortedActiveFolderWords,
   activeFolderStats,
   onBack,
+  onEditFolder,
+  onDeleteFolder,
   onShowDetails,
   onRemoveWordFromFolder,
   onGoSearch
@@ -27,20 +29,43 @@ const FolderDetail = ({
             {activeFolder.name}
           </h1>
           <p className="text-gray-500 text-sm">{activeFolderStats?.count ?? sortedActiveFolderWords.length} 個單字</p>
+          {activeFolder.description ? (
+            <p className="text-xs text-gray-400 mt-1">{activeFolder.description}</p>
+          ) : null}
         </div>
       </div>
-      <div className="flex items-center gap-2 text-sm text-gray-600">
-        <ArrowUpDown className="w-4 h-4" />
-        <select
-          className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"
-          value={wordSortBy}
-          onChange={(e) => setWordSortBy(e.target.value)}
-        >
-          <option value="added_desc">最新加入</option>
-          <option value="alphabetical_asc">A-Z</option>
-          <option value="proficiency_asc">最不熟</option>
-          <option value="next_review_asc">最先到期</option>
-        </select>
+      <div className="flex items-center gap-2">
+        {onEditFolder && (
+          <button
+            onClick={onEditFolder}
+            className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
+            title="編輯資料夾"
+          >
+            <Pencil className="w-4 h-4" />
+          </button>
+        )}
+        {onDeleteFolder && activeFolder.id !== 'default' && (
+          <button
+            onClick={onDeleteFolder}
+            className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 transition"
+            title="刪除資料夾"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        )}
+        <div className="flex items-center gap-2 text-sm text-gray-600">
+          <ArrowUpDown className="w-4 h-4" />
+          <select
+            className="border border-gray-200 rounded-lg px-2.5 py-2 text-sm bg-white"
+            value={wordSortBy}
+            onChange={(e) => setWordSortBy(e.target.value)}
+          >
+            <option value="added_desc">最新加入</option>
+            <option value="alphabetical_asc">A-Z</option>
+            <option value="proficiency_asc">最不熟</option>
+            <option value="next_review_asc">最先到期</option>
+          </select>
+        </div>
       </div>
     </header>
 

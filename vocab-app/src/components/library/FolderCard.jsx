@@ -1,7 +1,5 @@
 import React from 'react';
-import { Folder, Trash2, Sparkles } from 'lucide-react';
-import ProficiencyDots from '../common/ProficiencyDots';
-import { formatDate } from '../../utils/data';
+import { Folder, Trash2, Sparkles, Pencil } from 'lucide-react';
 
 const FolderCard = ({
   folder,
@@ -9,6 +7,7 @@ const FolderCard = ({
   folderStats,
   onOpen,
   onDelete,
+  onEdit,
   onStartReview,
   onGenerateStory
 }) => {
@@ -33,13 +32,31 @@ const FolderCard = ({
           <div>
             <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
             <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+            {folder.description ? (
+              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
+            ) : null}
           </div>
         </div>
-        {folder.id !== 'default' && (
-          <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition">
-            <Trash2 className="w-4 h-4" />
-          </button>
-        )}
+        <div className="flex items-center">
+          {onEdit && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onEdit(); }}
+              className="text-gray-400 hover:text-blue-500 p-2 opacity-0 group-hover:opacity-100 transition"
+              title="編輯資料夾"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+          {folder.id !== 'default' && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(); }}
+              className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition"
+              title="刪除資料夾"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="mb-4 space-y-3">

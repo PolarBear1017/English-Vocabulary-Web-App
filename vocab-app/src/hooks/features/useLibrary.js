@@ -14,6 +14,7 @@ import {
   fetchFolders,
   createFolder as createFolderRecord,
   deleteFolder as deleteFolderRecord,
+  updateFolder as updateFolderRecord,
   fetchUserLibrary,
   fetchDictionaryWord,
   insertDictionaryWord,
@@ -149,17 +150,40 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     }
   }, [loadData, session]);
 
-  const createFolder = useCallback(async () => {
-    const name = prompt("輸入資料夾名稱：");
-    if (!name) return;
+  const createFolder = useCallback(async ({ name, description }) => {
+    const nextName = (name || '').trim();
+    if (!nextName) {
+      alert('資料夾名稱不能為空');
+      return false;
+    }
+    const nextDescription = (description || '').trim();
 
     if (session?.user) {
-      const { data, error } = await createFolderRecord({ name, userId: session.user.id });
-      if (error) return alert("建立資料夾失敗: " + error.message);
+      const payload = {
+        name: nextName,
+        description: nextDescription ? nextDescription : null,
+        userId: session.user.id
+      };
+      const { data, error } = await createFolderRecord(payload);
+      if (error) {
+        let message = error.message;
+        if (message.includes('column "description" of relation "folders" does not exist')) {
+          message = '資料庫尚未更新。請新增 folders.description 欄位後再試。';
+        }
+        alert("建立資料夾失敗: " + message);
+        return false;
+      }
       setFolders(prev => [...prev, { ...data, id: data.id?.toString() }]);
-    } else {
-      setFolders(prev => [...prev, { id: Date.now().toString(), name, words: [] }]);
+      return true;
     }
+
+    setFolders(prev => [...prev, {
+      id: Date.now().toString(),
+      name: nextName,
+      description: nextDescription ? nextDescription : null,
+      words: []
+    }]);
+    return true;
   }, [session]);
 
   const handleDeleteFolder = useCallback(async (folderId) => {
@@ -173,6 +197,44 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     setFolders(prev => prev.filter(folder => folder.id !== folderId));
     if (viewingFolderId === folderId) setViewingFolderId(null);
   }, [session, viewingFolderId]);
+
+  const handleEditFolder = useCallback(async (folder, updates) => {
+    if (!folder) return false;
+    const nextName = (updates?.name || '').trim();
+    const nextDescription = (updates?.description || '').trim();
+
+    if (!nextName) {
+      alert('資料夾名稱不能為空');
+      return false;
+    }
+
+    const payload = {
+      name: nextName,
+      description: nextDescription ? nextDescription : null
+    };
+
+    if (session?.user && folder.id !== 'default') {
+      const { data, error } = await updateFolderRecord({
+        folderId: folder.id,
+        userId: session.user.id,
+        ...payload
+      });
+      if (error) {
+        let message = error.message;
+        if (message.includes('column "description" of relation "folders" does not exist')) {
+          message = '資料庫尚未更新。請新增 folders.description 欄位後再試。';
+        }
+        alert('更新失敗: ' + message);
+        return false;
+      }
+
+      setFolders(prev => prev.map(item => item.id === folder.id ? { ...item, ...data } : item));
+      return true;
+    }
+
+    setFolders(prev => prev.map(item => item.id === folder.id ? { ...item, ...payload } : item));
+    return true;
+  }, [session]);
 
   const saveWordToFolder = useCallback(async (searchResult, folderId) => {
     if (!searchResult || !session) {
@@ -441,6 +503,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       handleManualSync,
       createFolder,
       handleDeleteFolder,
+      handleEditFolder,
       saveWordToFolder,
       handleRemoveWordFromFolder,
       generateFolderStory,

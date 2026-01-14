@@ -6,7 +6,7 @@ const LibraryOverview = ({
   sortedFolders,
   folderSortBy,
   setFolderSortBy,
-  createFolder,
+  onOpenCreateFolder,
   handleManualSync,
   isDataLoaded,
   setSelectedReviewFolders,
@@ -14,6 +14,7 @@ const LibraryOverview = ({
   setActiveTab,
   generateFolderStory,
   handleDeleteFolder,
+  handleEditFolder,
   setViewingFolderId,
   entriesByFolderId,
   statsByFolderId
@@ -39,7 +40,7 @@ const LibraryOverview = ({
             <option value="count_desc">單字數多</option>
           </select>
         </div>
-        <button onClick={createFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
+        <button onClick={onOpenCreateFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
           <Plus className="w-4 h-4" /> 新增資料夾
         </button>
       </div>
@@ -54,6 +55,7 @@ const LibraryOverview = ({
           folderStats={statsByFolderId[folder.id]}
           onOpen={() => setViewingFolderId(folder.id)}
           onDelete={() => handleDeleteFolder(folder.id)}
+          onEdit={() => handleEditFolder(folder)}
           onStartReview={() => {
             setSelectedReviewFolders([folder.id]);
             setReviewSetupView('main');

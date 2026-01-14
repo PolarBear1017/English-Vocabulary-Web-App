@@ -8,10 +8,10 @@ const fetchFolders = async (userId) => {
     .order('created_at', { ascending: true });
 };
 
-const createFolder = async ({ name, userId }) => {
+const createFolder = async ({ name, description, userId }) => {
   return supabase
     .from('folders')
-    .insert({ name, user_id: userId })
+    .insert({ name, description, user_id: userId })
     .select()
     .single();
 };
@@ -21,6 +21,16 @@ const deleteFolder = async (folderId) => {
     .from('folders')
     .delete()
     .eq('id', folderId);
+};
+
+const updateFolder = async ({ folderId, name, description, userId }) => {
+  return supabase
+    .from('folders')
+    .update({ name, description })
+    .eq('id', folderId)
+    .eq('user_id', userId)
+    .select()
+    .single();
 };
 
 const fetchUserLibrary = async (userId) => {
@@ -96,6 +106,7 @@ export {
   fetchFolders,
   createFolder,
   deleteFolder,
+  updateFolder,
   fetchUserLibrary,
   fetchDictionaryWord,
   insertDictionaryWord,

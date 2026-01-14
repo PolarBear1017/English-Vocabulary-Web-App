@@ -8,6 +8,7 @@ const FolderCard = ({
   folderStats,
   isSelectionMode,
   isSelected,
+  dragHandleProps,
   onToggleSelect,
   onEnterSelectionMode,
   onOpen,
@@ -66,6 +67,8 @@ const FolderCard = ({
       {...bindLongPress()}
       onClick={handleClick}
       onContextMenu={(event) => event.preventDefault()}
+      data-select-id={folder.id}
+      data-select-type="folder"
     >
       <div className="flex justify-between items-start mb-4">
         <div className="flex items-start gap-3">
@@ -89,6 +92,7 @@ const FolderCard = ({
                 event.stopPropagation();
                 if (!disableSelect) onToggleSelect?.(folder.id);
               }}
+              {...dragHandleProps}
               className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${
                 isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
               } ${disableSelect ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-400'}`}

@@ -19,6 +19,7 @@ const FolderDetail = ({
   selectedWordIds,
   onToggleWord,
   onEnterSelectionMode,
+  dragHandleProps,
   onShowDetails,
   onRemoveWordFromFolder,
   onGoSearch
@@ -92,6 +93,7 @@ const FolderDetail = ({
               word={word}
               isSelectionMode={isSelectionMode}
               isSelected={selectedWordIds.includes(word.id)}
+              dragHandleProps={dragHandleProps}
               onToggleSelect={onToggleWord}
               onEnterSelectionMode={onEnterSelectionMode}
               onShowDetails={onShowDetails}
@@ -117,6 +119,7 @@ const WordRow = ({
   word,
   isSelectionMode,
   isSelected,
+  dragHandleProps,
   onToggleSelect,
   onEnterSelectionMode,
   onShowDetails,
@@ -160,6 +163,8 @@ const WordRow = ({
       className={`p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group ${isSelected ? 'bg-blue-50' : ''}`}
       {...bindLongPress()}
       onContextMenu={(event) => event.preventDefault()}
+      data-select-id={word.id}
+      data-select-type="word"
     >
       <div>
         <div className="flex items-center gap-2 mb-1">
@@ -178,6 +183,7 @@ const WordRow = ({
               event.stopPropagation();
               onToggleSelect?.(word.id);
             }}
+            {...dragHandleProps}
             className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${
               isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
             } hover:border-blue-400`}

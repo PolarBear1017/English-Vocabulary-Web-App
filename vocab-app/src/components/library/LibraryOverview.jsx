@@ -21,6 +21,7 @@ const LibraryOverview = ({
   selectedFolderIds,
   onToggleFolder,
   onEnterSelectionMode,
+  dragHandleProps,
   entriesByFolderId,
   statsByFolderId
 }) => (
@@ -68,6 +69,7 @@ const LibraryOverview = ({
           folderStats={statsByFolderId[folder.id]}
           isSelectionMode={isSelectionMode}
           isSelected={selectedFolderIds.includes(folder.id)}
+          dragHandleProps={dragHandleProps}
           onToggleSelect={onToggleFolder}
           onEnterSelectionMode={onEnterSelectionMode}
           onOpen={() => setViewingFolderId(folder.id)}

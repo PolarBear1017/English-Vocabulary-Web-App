@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Volume2, Sparkles } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
-import { highlightWord } from '../../utils/text.jsx';
+import { formatClozeSentence, highlightWord } from '../../utils/text.jsx';
 import { speak } from '../../services/speechService';
 
 const ReviewSession = ({
@@ -11,6 +11,7 @@ const ReviewSession = ({
   isFlipped,
   userAnswer,
   feedback,
+  lastResult,
   isAwaitingNext,
   answerHint,
   currentReviewWord,
@@ -55,7 +56,7 @@ const ReviewSession = ({
             {reviewMode === 'cloze' && (
               <div className="space-y-6 w-full">
                 <div className="text-xl text-gray-700 leading-relaxed">
-                  {clozeExampleMain.replace(new RegExp(currentReviewWord.word || '', 'gi'), '________')}
+                  {formatClozeSentence(clozeExampleMain, currentReviewWord.word)}
                 </div>
                 <div className="text-sm text-gray-500">{clozeTranslation}</div>
                 {currentReviewWord.pos && (
@@ -143,18 +144,31 @@ const ReviewSession = ({
               </div>
             )}
             {reviewMode !== 'flashcard' && (
-              <div className={`p-3 rounded-lg font-bold text-white ${
-                feedback === 'correct'
-                  ? 'bg-green-500'
+              <div className={`p-3 rounded-lg font-bold ${
+                lastResult?.feedbackType === 'root_match'
+                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                  : feedback === 'correct' || feedback === 'exact'
+                  ? 'bg-green-500 text-white'
                   : feedback === 'typo'
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
+                  ? 'bg-amber-500 text-white'
+                  : 'bg-red-500 text-white'
               }`}>
-                {feedback === 'correct'
-                  ? '答對了！'
-                  : feedback === 'typo'
-                  ? '小錯字！判定為困難 (Hard)。'
-                  : '答錯了，請再接再厲！'}
+                {lastResult?.feedbackType === 'root_match' ? (
+                  <div className="space-y-1">
+                    <div>意思正確！(接受原形)</div>
+                    {lastResult.correctContextWord && (
+                      <div className="text-sm font-semibold">
+                        本句實際用法：{lastResult.correctContextWord}
+                      </div>
+                    )}
+                  </div>
+                ) : feedback === 'correct' || feedback === 'exact' ? (
+                  '答對了！'
+                ) : feedback === 'typo' ? (
+                  '小錯字！判定為困難 (Hard)。'
+                ) : (
+                  '答錯了，請再接再厲！'
+                )}
               </div>
             )}
           </div>

@@ -7,6 +7,7 @@ import {
   normalizeEntries,
   splitExampleLines
 } from '../../utils/data';
+import { getClozeValidAnswers } from '../../utils/text.jsx';
 import { updateUserLibraryProgress } from '../../services/libraryService';
 import { speak } from '../../services/speechService';
 
@@ -27,6 +28,7 @@ const useReview = ({
   const [isFlipped, setIsFlipped] = useState(false);
   const [userAnswer, setUserAnswer] = useState('');
   const [feedback, setFeedback] = useState(null);
+  const [lastResult, setLastResult] = useState(null);
   const [isAwaitingNext, setIsAwaitingNext] = useState(false);
   const [pendingAutoGrade, setPendingAutoGrade] = useState(null);
   const [answerHint, setAnswerHint] = useState('');
@@ -296,24 +298,58 @@ const useReview = ({
       return;
     }
     const isStrictMode = reviewMode === 'spelling' || reviewMode === 'cloze' || reviewMode === 'dictation';
-    const result = isStrictMode
-      ? calculateReviewResult(userAnswer, currentWord.word)
-      : { grade: 3, feedbackType: 'correct', allowRetry: false };
+    let result = { grade: 3, feedbackType: 'correct', allowRetry: false };
+
+    if (isStrictMode) {
+      if (reviewMode === 'cloze') {
+        const { validAnswers, contextMatches } = getClozeValidAnswers(clozeExampleMain, currentWord.word);
+        result = validAnswers.reduce((bestResult, answer) => {
+          const candidate = calculateReviewResult(userAnswer, answer);
+          if (candidate.grade > bestResult.grade) return candidate;
+          if (candidate.grade === bestResult.grade && candidate.allowRetry === false) return candidate;
+          return bestResult;
+        }, { grade: 1, feedbackType: 'incorrect', allowRetry: true });
+
+        const normalizedAnswer = userAnswer.toLowerCase().trim();
+        const targetLower = (currentWord.word || '').toLowerCase().trim();
+        const contextLower = contextMatches.map((contextWord) => contextWord.toLowerCase());
+        const hasContextMatch = contextLower.includes(normalizedAnswer);
+        const hasDifferentContext = contextLower.some((contextWord) => contextWord && contextWord !== targetLower);
+        const contextWord = contextMatches.find((contextWord) => contextWord && contextWord.toLowerCase() !== targetLower)
+          || contextMatches[0]
+          || '';
+
+        if (result.grade >= 3) {
+          if (normalizedAnswer === targetLower && hasDifferentContext && !hasContextMatch) {
+            result = { ...result, feedbackType: 'root_match', correctContextWord: contextWord };
+          } else if (hasContextMatch || normalizedAnswer === targetLower) {
+            result = { ...result, feedbackType: 'exact', correctContextWord: contextWord };
+          }
+        }
+      } else {
+        result = calculateReviewResult(userAnswer, currentWord.word);
+      }
+    }
 
     if (reviewMode !== 'flashcard' && result.allowRetry) {
       setFeedback('incorrect');
+      setLastResult(result);
       setIsFlipped(false);
       setPendingAutoGrade(null);
       setIsAwaitingNext(false);
       setUserAnswer('');
       setAnswerHint(currentWord.word);
       setHasMistake(true);
-      return;
+      return result;
     }
 
     const finalIncorrect = isStrictMode && hasMistake;
-    const feedbackType = finalIncorrect ? 'incorrect' : result.feedbackType;
-    setFeedback(feedbackType);
+    const normalizedResult = finalIncorrect ? { ...result, feedbackType: 'incorrect', allowRetry: false } : result;
+    const uiFeedback = ['exact', 'root_match'].includes(normalizedResult.feedbackType)
+      ? 'correct'
+      : normalizedResult.feedbackType;
+    setFeedback(uiFeedback);
+    setLastResult(normalizedResult);
     setIsFlipped(true);
     setAnswerHint('');
 
@@ -323,6 +359,7 @@ const useReview = ({
       setPendingAutoGrade(autoGrade);
       setIsAwaitingNext(true);
     }
+    return normalizedResult;
   }
 
   function handleAnswerChange(value) {
@@ -346,6 +383,7 @@ const useReview = ({
       pendingAutoGrade,
       answerHint,
       hasMistake,
+      lastResult,
       selectedReviewFolders,
       reviewSetupView
     },

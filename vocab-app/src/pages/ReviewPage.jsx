@@ -21,6 +21,7 @@ const ReviewPage = () => {
         isFlipped={review.state.isFlipped}
         userAnswer={review.state.userAnswer}
         feedback={review.state.feedback}
+        lastResult={review.state.lastResult}
         isAwaitingNext={review.state.isAwaitingNext}
         answerHint={review.state.answerHint}
         currentReviewWord={review.derived.currentReviewWord}

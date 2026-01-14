@@ -106,6 +106,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
       onPointerMove: moveDragging,
       onPointerUp: stopDragging,
       onPointerCancel: stopDragging,
+      style: { touchAction: 'none' },
       onClickCapture: (event) => {
         if (!suppressClickRef.current) return;
         event.preventDefault();

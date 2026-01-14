@@ -32,16 +32,28 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
       return;
     }
 
+    const controller = new AbortController();
     const timeoutId = setTimeout(async () => {
       if (!query.trim() || query.length < 2) {
         setSuggestions([]);
         return;
       }
-      const data = await fetchSuggestions(query);
-      setSuggestions(data);
+      try {
+        const data = await fetchSuggestions(query, { signal: controller.signal });
+        if (!controller.signal.aborted) {
+          setSuggestions(data);
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          console.warn('Suggestion fetch failed', error);
+        }
+      }
     }, 100);
 
-    return () => clearTimeout(timeoutId);
+    return () => {
+      clearTimeout(timeoutId);
+      controller.abort();
+    };
   }, [query]);
 
   const setQuerySilently = useCallback((value) => {

@@ -6,29 +6,35 @@ const fetchDictionaryEntry = async (word) => {
   return res.json();
 };
 
-const fetchSuggestions = async (query) => {
+const fetchSuggestions = async (query, options = {}) => {
   if (!query.trim() || query.length < 2) return [];
+  const { signal } = options;
 
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('dictionary')
       .select('word')
       .ilike('word', `${query}%`)
-      .limit(5);
+      .limit(5)
+      .abortSignal(signal);
+
+    if (error) throw error;
 
     if (data && data.length > 0) {
       return data;
     }
   } catch (error) {
+    if (error.name === 'AbortError' || signal?.aborted) return [];
     console.warn('Suggestion fetch failed (supabase)', error);
   }
 
   try {
-    const res = await fetch(`https://api.datamuse.com/sug?s=${encodeURIComponent(query)}`);
+    const res = await fetch(`https://api.datamuse.com/sug?s=${encodeURIComponent(query)}`, { signal });
     if (!res.ok) return [];
     const extData = await res.json();
     return extData.slice(0, 5);
   } catch (error) {
+    if (error.name === 'AbortError' || signal?.aborted) return [];
     console.warn('Suggestion fetch failed (datamuse)', error);
   }
 

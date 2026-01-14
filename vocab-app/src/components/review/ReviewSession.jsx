@@ -44,7 +44,7 @@ const ReviewSession = ({
               <div className="space-y-4 w-full">
                 <div className="text-xl text-gray-600">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
                 {currentReviewWord.pos && (
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">{currentReviewWord.pos}</div>
+                  <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
                 <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
                 {feedback === 'incorrect' && (
@@ -59,7 +59,7 @@ const ReviewSession = ({
                 </div>
                 <div className="text-sm text-gray-500">{clozeTranslation}</div>
                 {currentReviewWord.pos && (
-                  <div className="text-xs text-gray-500 uppercase tracking-wider">{currentReviewWord.pos}</div>
+                  <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
                 <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
                 {feedback === 'incorrect' && (

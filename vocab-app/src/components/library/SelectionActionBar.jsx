@@ -8,7 +8,7 @@ const SelectionActionBar = ({
   selectAllLabel = '全選',
   onClear
 }) => (
-  <div className="fixed inset-x-0 bottom-0 z-[70] px-4 pb-4">
+  <div className="fixed inset-x-0 bottom-0 z-[70] px-4 pb-4" data-selection-action-bar="true">
     <div className="mx-auto max-w-4xl bg-white shadow-2xl border border-gray-200 rounded-2xl px-4 py-3 flex items-center justify-between">
       <span className="text-sm text-gray-600">{count} 個已選</span>
       <div className="flex items-center gap-2">

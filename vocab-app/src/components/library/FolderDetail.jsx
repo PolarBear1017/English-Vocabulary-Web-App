@@ -151,7 +151,7 @@ const WordRow = ({
     if (isSelectionMode) {
       event.preventDefault();
       event.stopPropagation();
-      onToggleSelect?.(word.id);
+      onToggleSelect?.(word.id, event);
       return;
     }
     onShowDetails(word);
@@ -181,7 +181,7 @@ const WordRow = ({
           <button
             onClick={(event) => {
               event.stopPropagation();
-              onToggleSelect?.(word.id);
+              onToggleSelect?.(word.id, event);
             }}
             {...dragHandleProps}
             className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${

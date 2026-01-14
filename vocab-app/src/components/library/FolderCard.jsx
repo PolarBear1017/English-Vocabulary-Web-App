@@ -55,7 +55,7 @@ const FolderCard = ({
     if (isSelectionMode) {
       event.preventDefault();
       event.stopPropagation();
-      if (!disableSelect) onToggleSelect?.(folder.id);
+      if (!disableSelect) onToggleSelect?.(folder.id, event);
       return;
     }
     onOpen?.();
@@ -90,7 +90,7 @@ const FolderCard = ({
             <button
               onClick={(event) => {
                 event.stopPropagation();
-                if (!disableSelect) onToggleSelect?.(folder.id);
+                if (!disableSelect) onToggleSelect?.(folder.id, event);
               }}
               {...dragHandleProps}
               className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${

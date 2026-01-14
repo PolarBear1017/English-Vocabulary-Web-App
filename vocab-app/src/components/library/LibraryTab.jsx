@@ -146,6 +146,14 @@ const LibraryTab = () => {
     }
   };
 
+  const handleFolderToggle = (folderId, event) => {
+    toggleFolderSelection(folderId, event, sortedFolders);
+  };
+
+  const handleWordToggle = (wordId, event) => {
+    toggleWordSelection(wordId, event, sortedActiveFolderWords);
+  };
+
   const removeSelectedWords = async () => {
     if (!activeFolder) return;
     const selectedWords = sortedActiveFolderWords.filter(word => selectedWordIds.includes(word.id));
@@ -190,13 +198,13 @@ const LibraryTab = () => {
   const folderDrag = useDragSelect({
     enabled: isFolderSelectionMode,
     onSelect: selectFolderId,
-    onToggle: toggleFolderSelection
+    onToggle: handleFolderToggle
   });
 
   const wordDrag = useDragSelect({
     enabled: isWordSelectionMode,
     onSelect: selectWordId,
-    onToggle: toggleWordSelection
+    onToggle: handleWordToggle
   });
 
   return (
@@ -219,7 +227,7 @@ const LibraryTab = () => {
           handleEditFolder={openEditFolder}
           setViewingFolderId={library.actions.setViewingFolderId}
           selectedFolderIds={selectedFolderIds}
-          onToggleFolder={toggleFolderSelection}
+          onToggleFolder={handleFolderToggle}
           onEnterSelectionMode={enterFolderSelectionMode}
           dragHandleProps={folderDrag.dragHandleProps}
           entriesByFolderId={index.entriesByFolderId}
@@ -238,7 +246,7 @@ const LibraryTab = () => {
           onEditFolder={() => openEditFolder(activeFolder)}
           onDeleteFolder={() => library.actions.handleDeleteFolder(activeFolder.id)}
           selectedWordIds={selectedWordIds}
-          onToggleWord={toggleWordSelection}
+          onToggleWord={handleWordToggle}
           onEnterSelectionMode={enterWordSelectionMode}
           dragHandleProps={wordDrag.dragHandleProps}
           onShowDetails={library.actions.openWordDetails}

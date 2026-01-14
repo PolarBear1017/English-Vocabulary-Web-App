@@ -7,8 +7,53 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
   const startIdRef = useRef(null);
   const suppressClickRef = useRef(false);
   const pointerIdRef = useRef(null);
+  const lastPointRef = useRef({ x: 0, y: 0 });
+  const rafIdRef = useRef(null);
+  const scrollSpeedRef = useRef(0);
   const prevTouchActionRef = useRef('');
   const prevUserSelectRef = useRef('');
+
+  const stopAutoScroll = useCallback(() => {
+    if (rafIdRef.current !== null) {
+      cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = null;
+    }
+    scrollSpeedRef.current = 0;
+  }, []);
+
+  const selectAtPoint = useCallback(() => {
+    const { x, y } = lastPointRef.current;
+    const element = document.elementFromPoint(x, y);
+    const root = element?.closest?.('[data-select-id]');
+    const id = root?.dataset?.selectId;
+    if (id && id !== lastIdRef.current) {
+      onSelect?.(id);
+      lastIdRef.current = id;
+    }
+  }, [onSelect]);
+
+  const getViewportBounds = useCallback(() => {
+    const viewport = window.visualViewport;
+    const topOffset = viewport?.offsetTop || 0;
+    const viewportHeight = viewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    const actionBar = document.querySelector('[data-selection-action-bar="true"]');
+    const actionBarHeight = actionBar?.getBoundingClientRect().height || 0;
+    return {
+      top: topOffset,
+      bottom: topOffset + viewportHeight,
+      bottomOffset: actionBarHeight
+    };
+  }, []);
+
+  const tickAutoScroll = useCallback(() => {
+    if (!isDraggingRef.current || scrollSpeedRef.current === 0) {
+      stopAutoScroll();
+      return;
+    }
+    window.scrollBy({ top: scrollSpeedRef.current });
+    selectAtPoint();
+    rafIdRef.current = requestAnimationFrame(tickAutoScroll);
+  }, [selectAtPoint, stopAutoScroll]);
 
   const restorePageState = useCallback(() => {
     document.body.style.touchAction = prevTouchActionRef.current || '';
@@ -32,6 +77,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     }
     pointerIdRef.current = null;
     restorePageState();
+    stopAutoScroll();
 
     if (!hasMoved && startId) {
       suppressClickRef.current = true;
@@ -44,7 +90,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
         suppressClickRef.current = false;
       }, 0);
     }
-  }, [onToggle, restorePageState]);
+  }, [onToggle, restorePageState, stopAutoScroll]);
 
   const startDragging = useCallback((event) => {
     if (!enabled) return;
@@ -63,6 +109,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     document.body.style.userSelect = 'none';
     event.currentTarget.setPointerCapture?.(event.pointerId);
     suppressClickRef.current = true;
+    lastPointRef.current = { x: event.clientX, y: event.clientY };
     event.preventDefault();
   }, [enabled]);
 
@@ -70,6 +117,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     if (!isDraggingRef.current) return;
     if (pointerIdRef.current !== null && event.pointerId !== pointerIdRef.current) return;
 
+    lastPointRef.current = { x: event.clientX, y: event.clientY };
     if (!hasMovedRef.current) {
       hasMovedRef.current = true;
       if (startIdRef.current) {
@@ -79,21 +127,35 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
       }
     }
 
-    const element = document.elementFromPoint(event.clientX, event.clientY);
-    const root = element?.closest?.('[data-select-id]');
-    const id = root?.dataset?.selectId;
-    if (id && id !== lastIdRef.current) {
-      onSelect?.(id);
-      lastIdRef.current = id;
+    selectAtPoint();
+
+    const edgeZone = 80;
+    const { top, bottom, bottomOffset } = getViewportBounds();
+    const y = event.clientY;
+    let speed = 0;
+    if (y < top + edgeZone) {
+      const intensity = (top + edgeZone - y) / edgeZone;
+      speed = -Math.max(2, Math.round(intensity * 16));
+    } else if (y > bottom - edgeZone - bottomOffset) {
+      const intensity = (y - (bottom - edgeZone - bottomOffset)) / edgeZone;
+      speed = Math.max(2, Math.round(intensity * 16));
+    }
+    scrollSpeedRef.current = speed;
+    if (speed !== 0 && rafIdRef.current === null) {
+      rafIdRef.current = requestAnimationFrame(tickAutoScroll);
+    }
+    if (speed === 0) {
+      stopAutoScroll();
     }
     event.preventDefault();
-  }, [onSelect]);
+  }, [getViewportBounds, onSelect, selectAtPoint, stopAutoScroll, tickAutoScroll]);
 
   useEffect(() => () => {
     if (isDraggingRef.current) {
       isDraggingRef.current = false;
       restorePageState();
     }
+    stopAutoScroll();
   }, [restorePageState]);
 
   if (!enabled) {

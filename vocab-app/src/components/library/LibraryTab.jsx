@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import LibraryOverview from './LibraryOverview';
 import FolderDetail from './FolderDetail';
 import StoryModal from './StoryModal';
 import FolderFormModal from './FolderFormModal';
+import MoveWordsModal from './MoveWordsModal';
+import SelectionActionBar from './SelectionActionBar';
 import { useLibraryContext } from '../../contexts/LibraryContext';
 import { useReviewContext } from '../../contexts/ReviewContext';
 import { useNavigationContext } from '../../contexts/NavigationContext';
+import useSelection from '../../hooks/useSelection';
 
 const LibraryTab = () => {
   const library = useLibraryContext();
@@ -24,12 +27,56 @@ const LibraryTab = () => {
     wordSortBy,
     story,
     isGeneratingStory,
-    isDataLoaded
+    isDataLoaded,
+    folders
   } = library.state;
 
   const [isFolderFormOpen, setIsFolderFormOpen] = useState(false);
   const [editingFolder, setEditingFolder] = useState(null);
   const [isSavingFolder, setIsSavingFolder] = useState(false);
+  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
+  const [isMovingWords, setIsMovingWords] = useState(false);
+
+  const {
+    isSelectionMode: isFolderSelectionMode,
+    selectedIds: selectedFolderIds,
+    count: selectedFolderCount,
+    enterSelectionMode: enterFolderSelectionMode,
+    exitSelectionMode: exitFolderSelectionMode,
+    toggleSelectionMode: toggleFolderSelectionMode,
+    toggleSelection: toggleFolderSelection,
+    setSelection: setFolderSelection
+  } = useSelection();
+  const {
+    isSelectionMode: isWordSelectionMode,
+    selectedIds: selectedWordIds,
+    count: selectedWordCount,
+    enterSelectionMode: enterWordSelectionMode,
+    exitSelectionMode: exitWordSelectionMode,
+    toggleSelectionMode: toggleWordSelectionMode,
+    toggleSelection: toggleWordSelection,
+    setSelection: setWordSelection
+  } = useSelection();
+
+  useEffect(() => {
+    exitWordSelectionMode();
+  }, [activeFolder?.id, exitWordSelectionMode]);
+
+  useEffect(() => {
+    const validFolderIds = new Set(sortedFolders.map(folder => folder.id));
+    const nextSelection = selectedFolderIds.filter(id => validFolderIds.has(id));
+    if (nextSelection.length !== selectedFolderIds.length) {
+      setFolderSelection(nextSelection);
+    }
+  }, [sortedFolders, selectedFolderIds, setFolderSelection]);
+
+  useEffect(() => {
+    const validWordIds = new Set(sortedActiveFolderWords.map(word => word.id));
+    const nextSelection = selectedWordIds.filter(id => validWordIds.has(id));
+    if (nextSelection.length !== selectedWordIds.length) {
+      setWordSelection(nextSelection);
+    }
+  }, [sortedActiveFolderWords, selectedWordIds, setWordSelection]);
 
   const openCreateFolder = () => {
     setEditingFolder(null);
@@ -53,6 +100,70 @@ const LibraryTab = () => {
     }
   };
 
+  const selectAllFolders = () => {
+    const selectableIds = sortedFolders.filter(folder => folder.id !== 'default').map(folder => folder.id);
+    setFolderSelection(selectableIds);
+  };
+
+  const deleteSelectedFolders = async () => {
+    const deletableIds = selectedFolderIds.filter(id => id !== 'default');
+    if (deletableIds.length === 0) {
+      alert('請先選取可刪除的資料夾');
+      return;
+    }
+    if (!confirm(`確定刪除選取的 ${deletableIds.length} 個資料夾？(資料夾內的單字不會被刪除，只會移除分類)`)) {
+      return;
+    }
+    const success = await library.actions.handleDeleteFolders(deletableIds);
+    if (success) exitFolderSelectionMode();
+  };
+
+  const selectAllWords = () => {
+    const wordIds = sortedActiveFolderWords.map(word => word.id);
+    setWordSelection(wordIds);
+  };
+
+  const removeSelectedWords = async () => {
+    if (!activeFolder) return;
+    const selectedWords = sortedActiveFolderWords.filter(word => selectedWordIds.includes(word.id));
+    if (selectedWords.length === 0) {
+      alert('請先選取要移除的單字');
+      return;
+    }
+    if (!confirm(`確定移除選取的 ${selectedWords.length} 個單字？`)) {
+      return;
+    }
+    const success = await library.actions.handleRemoveWordsFromFolder(selectedWords, activeFolder.id);
+    if (success) exitWordSelectionMode();
+  };
+
+  const openMoveModal = () => {
+    if (!activeFolder) return;
+    if (selectedWordIds.length === 0) {
+      alert('請先選取要移動的單字');
+      return;
+    }
+    const availableTargets = folders.filter(folder => folder.id !== activeFolder.id);
+    if (availableTargets.length === 0) {
+      alert('目前沒有可移動的目標資料夾');
+      return;
+    }
+    setIsMoveModalOpen(true);
+  };
+
+  const handleMoveWords = async (targetFolderId) => {
+    if (!activeFolder) return;
+    const selectedWords = sortedActiveFolderWords.filter(word => selectedWordIds.includes(word.id));
+    if (selectedWords.length === 0) return;
+    setIsMovingWords(true);
+    const success = await library.actions.handleMoveWordsToFolder(selectedWords, activeFolder.id, targetFolderId);
+    setIsMovingWords(false);
+    if (success) {
+      setIsMoveModalOpen(false);
+      exitWordSelectionMode();
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {!activeFolder ? (
@@ -63,6 +174,8 @@ const LibraryTab = () => {
           onOpenCreateFolder={openCreateFolder}
           handleManualSync={library.actions.handleManualSync}
           isDataLoaded={isDataLoaded}
+          isSelectionMode={isFolderSelectionMode}
+          onToggleSelectionMode={toggleFolderSelectionMode}
           setSelectedReviewFolders={review.actions.setSelectedReviewFolders}
           setReviewSetupView={review.actions.setReviewSetupView}
           setActiveTab={navigation.actions.setActiveTab}
@@ -70,6 +183,9 @@ const LibraryTab = () => {
           handleDeleteFolder={library.actions.handleDeleteFolder}
           handleEditFolder={openEditFolder}
           setViewingFolderId={library.actions.setViewingFolderId}
+          selectedFolderIds={selectedFolderIds}
+          onToggleFolder={toggleFolderSelection}
+          onEnterSelectionMode={enterFolderSelectionMode}
           entriesByFolderId={index.entriesByFolderId}
           statsByFolderId={index.statsByFolderId}
         />
@@ -81,8 +197,13 @@ const LibraryTab = () => {
           sortedActiveFolderWords={sortedActiveFolderWords}
           activeFolderStats={index.statsByFolderId[activeFolder.id]}
           onBack={() => library.actions.setViewingFolderId(null)}
+          isSelectionMode={isWordSelectionMode}
+          onToggleSelectionMode={toggleWordSelectionMode}
           onEditFolder={() => openEditFolder(activeFolder)}
           onDeleteFolder={() => library.actions.handleDeleteFolder(activeFolder.id)}
+          selectedWordIds={selectedWordIds}
+          onToggleWord={toggleWordSelection}
+          onEnterSelectionMode={enterWordSelectionMode}
           onShowDetails={library.actions.openWordDetails}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           onGoSearch={() => {
@@ -112,6 +233,39 @@ const LibraryTab = () => {
             }
           }}
           isSaving={isSavingFolder}
+        />
+      )}
+
+      {isMoveModalOpen && (
+        <MoveWordsModal
+          folders={folders}
+          currentFolderId={activeFolder?.id}
+          onSubmit={handleMoveWords}
+          onClose={() => {
+            if (!isMovingWords) setIsMoveModalOpen(false);
+          }}
+          isSaving={isMovingWords}
+        />
+      )}
+
+      {!activeFolder && isFolderSelectionMode && selectedFolderCount > 0 && (
+        <SelectionActionBar
+          count={selectedFolderCount}
+          onSelectAll={selectAllFolders}
+          actions={[
+            { key: 'delete', label: '刪除', variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete' }
+          ]}
+        />
+      )}
+
+      {activeFolder && isWordSelectionMode && selectedWordCount > 0 && (
+        <SelectionActionBar
+          count={selectedWordCount}
+          onSelectAll={selectAllWords}
+          actions={[
+            { key: 'move', label: '移動', variant: 'primary', onClick: openMoveModal, icon: 'move' },
+            { key: 'remove', label: '移除', variant: 'danger', onClick: removeSelectedWords, icon: 'delete' }
+          ]}
         />
       )}
     </div>

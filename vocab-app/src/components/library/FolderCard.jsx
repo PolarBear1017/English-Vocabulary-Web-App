@@ -1,10 +1,15 @@
-import React from 'react';
-import { Folder, Trash2, Sparkles, Pencil } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Folder, Trash2, Sparkles, Pencil, Check } from 'lucide-react';
+import { useLongPress } from 'use-long-press';
 
 const FolderCard = ({
   folder,
   folderWords,
   folderStats,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  onEnterSelectionMode,
   onOpen,
   onDelete,
   onEdit,
@@ -22,39 +27,97 @@ const FolderCard = ({
     ? Math.round((totalProficiency / (totalCount * 5)) * 100)
     : 0;
 
+  const disableSelect = folder.id === 'default';
+  const longPressTriggeredRef = useRef(false);
+  const bindLongPress = useLongPress(() => {
+    if (disableSelect) return;
+    longPressTriggeredRef.current = true;
+    onEnterSelectionMode?.(folder.id);
+  }, {
+    onCancel: () => {
+      longPressTriggeredRef.current = false;
+    },
+    threshold: 500,
+    captureEvent: true,
+    cancelOnMovement: 25,
+    detect: 'pointer',
+    filterEvents: () => true
+  });
+
+  const handleClick = (event) => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (isSelectionMode) {
+      event.preventDefault();
+      event.stopPropagation();
+      if (!disableSelect) onToggleSelect?.(folder.id);
+      return;
+    }
+    onOpen?.();
+  };
+
   return (
-    <div className="bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group">
+    <div
+      className={`bg-white p-5 rounded-xl shadow-sm border border-gray-200 hover:shadow-md transition relative group ${isSelected ? 'ring-2 ring-blue-500 bg-blue-50' : ''}`}
+      {...bindLongPress()}
+      onClick={handleClick}
+      onContextMenu={(event) => event.preventDefault()}
+    >
       <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3 cursor-pointer" onClick={onOpen}>
-          <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
-            <Folder className="w-5 h-5" />
-          </div>
-          <div>
-            <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
-            <p className="text-sm text-gray-500">{totalCount} 個單字</p>
-            {folder.description ? (
-              <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
-            ) : null}
+        <div className="flex items-start gap-3">
+          <div className="flex items-center gap-3 cursor-pointer">
+            <div className="w-10 h-10 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center">
+              <Folder className="w-5 h-5" />
+            </div>
+            <div>
+              <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
+              <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+              {folder.description ? (
+                <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
+              ) : null}
+            </div>
           </div>
         </div>
         <div className="flex items-center">
-          {onEdit && (
+          {isSelectionMode ? (
             <button
-              onClick={(e) => { e.stopPropagation(); onEdit(); }}
-              className="text-gray-400 hover:text-blue-500 p-2 opacity-0 group-hover:opacity-100 transition"
-              title="編輯資料夾"
+              onClick={(event) => {
+                event.stopPropagation();
+                if (!disableSelect) onToggleSelect?.(folder.id);
+              }}
+              className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${
+                isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
+              } ${disableSelect ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-400'}`}
+              title={disableSelect ? '預設資料夾無法刪除' : '選取資料夾'}
+              disabled={disableSelect}
             >
-              <Pencil className="w-4 h-4" />
+              <Check className="w-4 h-4" />
             </button>
-          )}
-          {folder.id !== 'default' && (
-            <button
-              onClick={(e) => { e.stopPropagation(); onDelete(); }}
-              className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition"
-              title="刪除資料夾"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
+          ) : (
+            <>
+              {onEdit && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
+                  className="text-gray-400 hover:text-blue-500 p-2 opacity-0 group-hover:opacity-100 transition"
+                  title="編輯資料夾"
+                >
+                  <Pencil className="w-4 h-4" />
+                </button>
+              )}
+              {folder.id !== 'default' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
+                  className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition"
+                  title="刪除資料夾"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -90,20 +153,22 @@ const FolderCard = ({
         </div>
       )}
 
-      <div className="flex gap-2 mt-2">
-        <button
-          onClick={onStartReview}
-          className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-        >
-          複習
-        </button>
-        <button
-          onClick={onGenerateStory}
-          className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"
-        >
-          <Sparkles className="w-3 h-3" /> 生成故事
-        </button>
-      </div>
+      {!isSelectionMode && (
+        <div className="flex gap-2 mt-2">
+          <button
+            onClick={onStartReview}
+            className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
+          >
+            複習
+          </button>
+          <button
+            onClick={onGenerateStory}
+            className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"
+          >
+            <Sparkles className="w-3 h-3" /> 生成故事
+          </button>
+        </div>
+      )}
     </div>
   );
 };

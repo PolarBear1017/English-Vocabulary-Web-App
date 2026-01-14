@@ -23,6 +23,14 @@ const deleteFolder = async (folderId) => {
     .eq('id', folderId);
 };
 
+const deleteFolders = async ({ folderIds, userId }) => {
+  return supabase
+    .from('folders')
+    .delete()
+    .in('id', folderIds)
+    .eq('user_id', userId);
+};
+
 const updateFolder = async ({ folderId, name, description, userId }) => {
   return supabase
     .from('folders')
@@ -106,6 +114,7 @@ export {
   fetchFolders,
   createFolder,
   deleteFolder,
+  deleteFolders,
   updateFolder,
   fetchUserLibrary,
   fetchDictionaryWord,

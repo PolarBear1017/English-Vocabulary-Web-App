@@ -9,6 +9,8 @@ const LibraryOverview = ({
   onOpenCreateFolder,
   handleManualSync,
   isDataLoaded,
+  isSelectionMode,
+  onToggleSelectionMode,
   setSelectedReviewFolders,
   setReviewSetupView,
   setActiveTab,
@@ -16,6 +18,9 @@ const LibraryOverview = ({
   handleDeleteFolder,
   handleEditFolder,
   setViewingFolderId,
+  selectedFolderIds,
+  onToggleFolder,
+  onEnterSelectionMode,
   entriesByFolderId,
   statsByFolderId
 }) => (
@@ -40,6 +45,14 @@ const LibraryOverview = ({
             <option value="count_desc">單字數多</option>
           </select>
         </div>
+        <button
+          onClick={onToggleSelectionMode}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
+            isSelectionMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
+          }`}
+        >
+          {isSelectionMode ? '取消選取' : '選取'}
+        </button>
         <button onClick={onOpenCreateFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
           <Plus className="w-4 h-4" /> 新增資料夾
         </button>
@@ -53,6 +66,10 @@ const LibraryOverview = ({
           folder={folder}
           folderWords={entriesByFolderId[folder.id] || []}
           folderStats={statsByFolderId[folder.id]}
+          isSelectionMode={isSelectionMode}
+          isSelected={selectedFolderIds.includes(folder.id)}
+          onToggleSelect={onToggleFolder}
+          onEnterSelectionMode={onEnterSelectionMode}
           onOpen={() => setViewingFolderId(folder.id)}
           onDelete={() => handleDeleteFolder(folder.id)}
           onEdit={() => handleEditFolder(folder)}

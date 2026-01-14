@@ -14,6 +14,7 @@ import {
   fetchFolders,
   createFolder as createFolderRecord,
   deleteFolder as deleteFolderRecord,
+  deleteFolders as deleteFoldersRecord,
   updateFolder as updateFolderRecord,
   fetchUserLibrary,
   fetchDictionaryWord,
@@ -196,6 +197,30 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
 
     setFolders(prev => prev.filter(folder => folder.id !== folderId));
     if (viewingFolderId === folderId) setViewingFolderId(null);
+  }, [session, viewingFolderId]);
+
+  const handleDeleteFolders = useCallback(async (folderIds) => {
+    const deletableIds = (Array.isArray(folderIds) ? folderIds : [])
+      .map(id => id?.toString())
+      .filter(id => id && id !== 'default');
+    if (deletableIds.length === 0) return false;
+
+    if (session?.user) {
+      const { error } = await deleteFoldersRecord({
+        folderIds: deletableIds,
+        userId: session.user.id
+      });
+      if (error) {
+        alert(`刪除失敗: ${error.message}`);
+        return false;
+      }
+    }
+
+    setFolders(prev => prev.filter(folder => !deletableIds.includes(folder.id)));
+    if (viewingFolderId && deletableIds.includes(viewingFolderId)) {
+      setViewingFolderId(null);
+    }
+    return true;
   }, [session, viewingFolderId]);
 
   const handleEditFolder = useCallback(async (folder, updates) => {
@@ -440,6 +465,107 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: nextFolders } : item));
   }, [session]);
 
+  const handleRemoveWordsFromFolder = useCallback(async (words, folderId) => {
+    const normalizedFolderId = folderId?.toString();
+    if (!normalizedFolderId) return false;
+    const targets = Array.isArray(words) ? words : [];
+    if (targets.length === 0) return false;
+
+    const updates = [];
+    const failed = [];
+
+    for (const word of targets) {
+      const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
+      if (!currentFolders.includes(normalizedFolderId)) continue;
+      const nextFolders = currentFolders.filter(id => id !== normalizedFolderId);
+
+      if (session?.user) {
+        if (!word.libraryId) {
+          failed.push(word.id);
+          continue;
+        }
+        const { error } = await updateUserLibraryFoldersByLibraryId({
+          userId: session.user.id,
+          libraryId: word.libraryId,
+          folderIds: nextFolders
+        });
+
+        if (error) {
+          failed.push(word.id);
+          continue;
+        }
+      }
+
+      updates.push({ id: word.id, folderIds: nextFolders });
+    }
+
+    if (updates.length > 0) {
+      setVocabData(prev => prev.map(item => {
+        const update = updates.find(entry => entry.id === item.id);
+        return update ? { ...item, folderIds: update.folderIds } : item;
+      }));
+    }
+
+    if (failed.length > 0) {
+      alert(`移除失敗: ${failed.length} 個單字未更新`);
+    }
+
+    return updates.length > 0;
+  }, [session]);
+
+  const handleMoveWordsToFolder = useCallback(async (words, fromFolderId, toFolderId) => {
+    const normalizedFromId = fromFolderId?.toString();
+    const normalizedToId = toFolderId?.toString();
+    if (!normalizedFromId || !normalizedToId) return false;
+    if (normalizedFromId === normalizedToId) return false;
+
+    const targets = Array.isArray(words) ? words : [];
+    if (targets.length === 0) return false;
+
+    const updates = [];
+    const failed = [];
+
+    for (const word of targets) {
+      const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
+      if (!currentFolders.includes(normalizedFromId)) continue;
+
+      const withoutFrom = currentFolders.filter(id => id !== normalizedFromId);
+      const nextFolders = Array.from(new Set([...withoutFrom, normalizedToId]));
+
+      if (session?.user) {
+        if (!word.libraryId) {
+          failed.push(word.id);
+          continue;
+        }
+        const { error } = await updateUserLibraryFoldersByLibraryId({
+          userId: session.user.id,
+          libraryId: word.libraryId,
+          folderIds: nextFolders
+        });
+
+        if (error) {
+          failed.push(word.id);
+          continue;
+        }
+      }
+
+      updates.push({ id: word.id, folderIds: nextFolders });
+    }
+
+    if (updates.length > 0) {
+      setVocabData(prev => prev.map(item => {
+        const update = updates.find(entry => entry.id === item.id);
+        return update ? { ...item, folderIds: update.folderIds } : item;
+      }));
+    }
+
+    if (failed.length > 0) {
+      alert(`移動失敗: ${failed.length} 個單字未更新`);
+    }
+
+    return updates.length > 0;
+  }, [session]);
+
   const generateFolderStory = useCallback(async (folder) => {
     if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
       if (onRequireApiKeys) onRequireApiKeys();
@@ -503,9 +629,12 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       handleManualSync,
       createFolder,
       handleDeleteFolder,
+      handleDeleteFolders,
       handleEditFolder,
       saveWordToFolder,
       handleRemoveWordFromFolder,
+      handleRemoveWordsFromFolder,
+      handleMoveWordsToFolder,
       generateFolderStory,
       updateWord
     }

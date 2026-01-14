@@ -1,8 +1,9 @@
-import React from 'react';
-import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil } from 'lucide-react';
+import React, { useRef } from 'react';
+import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil, Check } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
 import { speak } from '../../services/speechService';
+import { useLongPress } from 'use-long-press';
 
 const FolderDetail = ({
   activeFolder,
@@ -11,8 +12,13 @@ const FolderDetail = ({
   sortedActiveFolderWords,
   activeFolderStats,
   onBack,
+  isSelectionMode,
+  onToggleSelectionMode,
   onEditFolder,
   onDeleteFolder,
+  selectedWordIds,
+  onToggleWord,
+  onEnterSelectionMode,
   onShowDetails,
   onRemoveWordFromFolder,
   onGoSearch
@@ -35,7 +41,15 @@ const FolderDetail = ({
         </div>
       </div>
       <div className="flex items-center gap-2">
-        {onEditFolder && (
+        <button
+          onClick={onToggleSelectionMode}
+          className={`px-3 py-1.5 rounded-lg text-sm transition ${
+            isSelectionMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
+          }`}
+        >
+          {isSelectionMode ? '取消選取' : '選取'}
+        </button>
+        {onEditFolder && !isSelectionMode && (
           <button
             onClick={onEditFolder}
             className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
@@ -44,7 +58,7 @@ const FolderDetail = ({
             <Pencil className="w-4 h-4" />
           </button>
         )}
-        {onDeleteFolder && activeFolder.id !== 'default' && (
+        {onDeleteFolder && !isSelectionMode && activeFolder.id !== 'default' && (
           <button
             onClick={onDeleteFolder}
             className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 transition"
@@ -73,42 +87,17 @@ const FolderDetail = ({
       {sortedActiveFolderWords.length > 0 ? (
         <div className="divide-y divide-gray-100">
           {sortedActiveFolderWords.map(word => (
-            <div key={word.id} onClick={() => onShowDetails(word)} className="p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition">{word.word}</span>
-                  <button onClick={(e) => { e.stopPropagation(); speak(word.word); }} className="p-1 rounded-full hover:bg-gray-200 text-gray-400 hover:text-blue-600 transition">
-                    <Volume2 className="w-4 h-4" />
-                  </button>
-                  <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{word.pos}</span>
-                </div>
-                <p className="text-gray-600 text-sm">{word.translation || word.definition}</p>
-              </div>
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-xs text-gray-400">理解程度</span>
-                  <ProficiencyDots score={word.proficiencyScore} />
-                </div>
-                <div className="text-right min-w-[80px]">
-                  <div className="text-xs text-gray-400">下次複習</div>
-                  <div className={`text-sm font-medium ${new Date(word.nextReview) <= new Date() ? 'text-red-500' : 'text-green-600'}`}>
-                    {formatDate(word.nextReview)}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    if (confirm(`確定要將 "${word.word}" 從「${activeFolder.name}」移除嗎？`)) {
-                      onRemoveWordFromFolder(word, activeFolder.id);
-                    }
-                  }}
-                  className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"
-                  title="移除單字"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
+            <WordRow
+              key={word.id}
+              word={word}
+              isSelectionMode={isSelectionMode}
+              isSelected={selectedWordIds.includes(word.id)}
+              onToggleSelect={onToggleWord}
+              onEnterSelectionMode={onEnterSelectionMode}
+              onShowDetails={onShowDetails}
+              onRemoveWordFromFolder={onRemoveWordFromFolder}
+              activeFolder={activeFolder}
+            />
           ))}
         </div>
       ) : (
@@ -123,5 +112,108 @@ const FolderDetail = ({
     </div>
   </div>
 );
+
+const WordRow = ({
+  word,
+  isSelectionMode,
+  isSelected,
+  onToggleSelect,
+  onEnterSelectionMode,
+  onShowDetails,
+  onRemoveWordFromFolder,
+  activeFolder
+}) => {
+  const longPressTriggeredRef = useRef(false);
+  const bindLongPress = useLongPress(() => {
+    longPressTriggeredRef.current = true;
+    onEnterSelectionMode?.(word.id);
+  }, {
+    onCancel: () => {
+      longPressTriggeredRef.current = false;
+    },
+    threshold: 500,
+    captureEvent: true,
+    cancelOnMovement: 25,
+    detect: 'pointer',
+    filterEvents: () => true
+  });
+
+  const handleClick = (event) => {
+    if (longPressTriggeredRef.current) {
+      longPressTriggeredRef.current = false;
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+    if (isSelectionMode) {
+      event.preventDefault();
+      event.stopPropagation();
+      onToggleSelect?.(word.id);
+      return;
+    }
+    onShowDetails(word);
+  };
+
+  return (
+    <div
+      onClick={handleClick}
+      className={`p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 cursor-pointer group ${isSelected ? 'bg-blue-50' : ''}`}
+      {...bindLongPress()}
+      onContextMenu={(event) => event.preventDefault()}
+    >
+      <div>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition">{word.word}</span>
+          <button onClick={(e) => { e.stopPropagation(); speak(word.word); }} className="p-1 rounded-full hover:bg-gray-200 text-gray-400 hover:text-blue-600 transition">
+            <Volume2 className="w-4 h-4" />
+          </button>
+          <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{word.pos}</span>
+        </div>
+        <p className="text-gray-600 text-sm">{word.translation || word.definition}</p>
+      </div>
+      <div className="flex items-center gap-4">
+        {isSelectionMode ? (
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onToggleSelect?.(word.id);
+            }}
+            className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${
+              isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
+            } hover:border-blue-400`}
+            title="選取單字"
+          >
+            <Check className="w-4 h-4" />
+          </button>
+        ) : (
+          <>
+            <div className="flex flex-col items-end gap-1">
+              <span className="text-xs text-gray-400">理解程度</span>
+              <ProficiencyDots score={word.proficiencyScore} />
+            </div>
+            <div className="text-right min-w-[80px]">
+              <div className="text-xs text-gray-400">下次複習</div>
+              <div className={`text-sm font-medium ${new Date(word.nextReview) <= new Date() ? 'text-red-500' : 'text-green-600'}`}>
+                {formatDate(word.nextReview)}
+              </div>
+            </div>
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (confirm(`確定要將 "${word.word}" 從「${activeFolder.name}」移除嗎？`)) {
+                  onRemoveWordFromFolder(word, activeFolder.id);
+                }
+              }}
+              className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"
+              title="移除單字"
+            >
+              <Trash2 className="w-4 h-4" />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default FolderDetail;

@@ -55,6 +55,7 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
     const searchTerm = (typeof e === 'string' ? e : query).trim();
     if (!searchTerm) return;
 
+    setSuggestions([]);
     if (onSearchStart) onSearchStart();
 
     if (typeof e === 'string') {
@@ -64,7 +65,6 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
     setIsSearching(true);
     setSearchResult(null);
     setSearchError(null);
-    setSuggestions([]);
 
     const lowerQuery = searchTerm.toLowerCase();
 

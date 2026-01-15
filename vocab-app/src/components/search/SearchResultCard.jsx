@@ -186,6 +186,7 @@ const SearchResultCard = ({
         onCancelSave={handleCancelSave}
         onNextSave={handleNextSave}
         onBackSave={handleBackSave}
+        onSearchFullDefinition={() => onSearch(searchResult.word)}
       />
 
       <div className="p-6 space-y-6">

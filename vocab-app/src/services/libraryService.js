@@ -47,7 +47,18 @@ const fetchUserLibrary = async (userId) => {
     .select(`
       *,
       folder_ids,
-      dictionary:word_id (*)
+      dictionary (
+        word,
+        definition,
+        translation,
+        pos,
+        phonetic,
+        example,
+        mnemonics,
+        audio_url,
+        us_audio_url,
+        uk_audio_url
+      )
     `)
     .eq('user_id', userId);
 };

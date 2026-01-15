@@ -1,9 +1,10 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil, Check } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
 import { speak } from '../../services/speechService';
 import { useLongPress } from 'use-long-press';
+import LibraryWordDetail from './LibraryWordDetail';
 
 const FolderDetail = ({
   activeFolder,
@@ -20,14 +21,21 @@ const FolderDetail = ({
   onToggleWord,
   onEnterSelectionMode,
   dragHandleProps,
-  onShowDetails,
   onRemoveWordFromFolder,
-  onGoSearch
-}) => (
-  <div className="animate-in fade-in slide-in-from-right duration-300">
+  onGoSearch,
+  onSearchWord
+}) => {
+  const [viewingWord, setViewingWord] = useState(null);
+
+  return (
+    <div className="animate-in fade-in slide-in-from-right duration-300">
     <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
       <div className="flex items-center gap-4">
-        <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-full transition group">
+        <button
+          onClick={viewingWord ? () => setViewingWord(null) : onBack}
+          className="p-2 hover:bg-gray-100 rounded-full transition group"
+          title={viewingWord ? '返回單字列表' : '返回資料夾'}
+        >
           <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
         </button>
         <div>
@@ -84,36 +92,51 @@ const FolderDetail = ({
       </div>
     </header>
 
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-      {sortedActiveFolderWords.length > 0 ? (
-        <div className="divide-y divide-gray-100">
-          {sortedActiveFolderWords.map(word => (
-            <WordRow
-              key={word.id}
-              word={word}
-              isSelectionMode={isSelectionMode}
-              isSelected={selectedWordIds.includes(word.id)}
-              dragHandleProps={dragHandleProps}
-              onToggleSelect={onToggleWord}
-              onEnterSelectionMode={onEnterSelectionMode}
-              onShowDetails={onShowDetails}
-              onRemoveWordFromFolder={onRemoveWordFromFolder}
-              activeFolder={activeFolder}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="p-12 text-center text-gray-400 flex flex-col items-center">
-          <Book className="w-12 h-12 mb-3 opacity-20" />
-          <p>這個資料夾還是空的</p>
-          <button onClick={onGoSearch} className="mt-4 text-blue-600 hover:underline text-sm">
-            去查詢並新增單字
-          </button>
-        </div>
-      )}
-    </div>
+    {viewingWord ? (
+      <LibraryWordDetail
+        entry={viewingWord}
+        onSpeak={speak}
+        onNavigateToSearch={onSearchWord}
+        onDeleteWord={() => {
+          if (confirm(`確定要將 "${viewingWord.word}" 從「${activeFolder.name}」移除嗎？`)) {
+            onRemoveWordFromFolder(viewingWord, activeFolder.id);
+            setViewingWord(null);
+          }
+        }}
+      />
+    ) : (
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {sortedActiveFolderWords.length > 0 ? (
+          <div className="divide-y divide-gray-100">
+            {sortedActiveFolderWords.map(word => (
+              <WordRow
+                key={word.id}
+                word={word}
+                isSelectionMode={isSelectionMode}
+                isSelected={selectedWordIds.includes(word.id)}
+                dragHandleProps={dragHandleProps}
+                onToggleSelect={onToggleWord}
+                onEnterSelectionMode={onEnterSelectionMode}
+                onOpenDetail={setViewingWord}
+                onRemoveWordFromFolder={onRemoveWordFromFolder}
+                activeFolder={activeFolder}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="p-12 text-center text-gray-400 flex flex-col items-center">
+            <Book className="w-12 h-12 mb-3 opacity-20" />
+            <p>這個資料夾還是空的</p>
+            <button onClick={onGoSearch} className="mt-4 text-blue-600 hover:underline text-sm">
+              去查詢並新增單字
+            </button>
+          </div>
+        )}
+      </div>
+    )}
   </div>
-);
+  );
+};
 
 const WordRow = ({
   word,
@@ -122,7 +145,7 @@ const WordRow = ({
   dragHandleProps,
   onToggleSelect,
   onEnterSelectionMode,
-  onShowDetails,
+  onOpenDetail,
   onRemoveWordFromFolder,
   activeFolder
 }) => {
@@ -154,7 +177,7 @@ const WordRow = ({
       onToggleSelect?.(word.id, event);
       return;
     }
-    onShowDetails(word);
+    onOpenDetail?.(word);
   };
 
   const selectedPreview = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0

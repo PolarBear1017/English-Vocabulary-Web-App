@@ -55,7 +55,16 @@ const useVocabularyApp = () => {
   }, [library.actions, library.state.viewingFolderId, navigation.actions, search.actions]);
 
   const handleSaveFromSearch = useCallback(async (folderId, selectedDefinitions) => {
-    const saved = await library.actions.saveWordToFolder(search.state.searchResult, folderId, selectedDefinitions);
+    const base = search.state.searchResult;
+    const wordData = base
+      ? {
+        ...base,
+        audio: base.audioUrl || null,
+        us_audio: base.usAudioUrl || null,
+        uk_audio: base.ukAudioUrl || null
+      }
+      : base;
+    const saved = await library.actions.saveWordToFolder(wordData, folderId, selectedDefinitions);
     if (saved) {
       search.actions.triggerSaveButtonFeedback();
     }

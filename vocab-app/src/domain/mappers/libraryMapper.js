@@ -6,6 +6,9 @@ const mapLibraryRowToWord = (item) => {
 
   return createVocabularyWord({
     ...item.dictionary,
+    audioUrl: item.dictionary?.audioUrl ?? item.dictionary?.audio_url ?? null,
+    usAudioUrl: item.dictionary?.usAudioUrl ?? item.dictionary?.us_audio_url ?? null,
+    ukAudioUrl: item.dictionary?.ukAudioUrl ?? item.dictionary?.uk_audio_url ?? null,
     id: item.word_id?.toString() || '',
     libraryId: item.id,
     folderIds: normalizedFolderIds,

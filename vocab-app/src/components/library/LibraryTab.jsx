@@ -8,6 +8,7 @@ import SelectionActionBar from './SelectionActionBar';
 import { useLibraryContext } from '../../contexts/LibraryContext';
 import { useReviewContext } from '../../contexts/ReviewContext';
 import { useNavigationContext } from '../../contexts/NavigationContext';
+import { useSearchContext } from '../../contexts/SearchContext';
 import useSelection from '../../hooks/useSelection';
 import useDragSelect from '../../hooks/useDragSelect';
 
@@ -15,6 +16,7 @@ const LibraryTab = () => {
   const library = useLibraryContext();
   const review = useReviewContext();
   const navigation = useNavigationContext();
+  const search = useSearchContext();
 
   const {
     activeFolder,
@@ -249,11 +251,18 @@ const LibraryTab = () => {
           onToggleWord={handleWordToggle}
           onEnterSelectionMode={enterWordSelectionMode}
           dragHandleProps={wordDrag.dragHandleProps}
-          onShowDetails={library.actions.openWordDetails}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           onGoSearch={() => {
             navigation.actions.setActiveTab('search');
             library.actions.setViewingFolderId(null);
+          }}
+          onSearchWord={(word) => {
+            navigation.actions.setActiveTab('search');
+            library.actions.setViewingFolderId(null);
+            search.actions.handleSearch(word);
+            if (activeFolder?.id) {
+              navigation.actions.setReturnFolderId(activeFolder.id);
+            }
           }}
         />
       )}

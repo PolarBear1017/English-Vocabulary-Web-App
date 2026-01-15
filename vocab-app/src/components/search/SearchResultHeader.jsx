@@ -1,5 +1,5 @@
 import React from 'react';
-import { Volume2, Sparkles } from 'lucide-react';
+import { ExternalLink, Volume2, Sparkles } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 
 const SearchResultHeader = ({
@@ -15,7 +15,8 @@ const SearchResultHeader = ({
   onStartSave,
   onCancelSave,
   onNextSave,
-  onBackSave
+  onBackSave,
+  onSearchFullDefinition
 }) => (
   <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -57,6 +58,16 @@ const SearchResultHeader = ({
           {searchResult.source === 'Gemini AI' && <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3" /> Gemini AI</span>}
           {searchResult.source === 'Groq AI' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3" /> Groq AI</span>}
         </div>
+        {searchResult.source === 'Library' && onSearchFullDefinition && (
+          <button
+            type="button"
+            onClick={onSearchFullDefinition}
+            className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            查看完整解釋
+          </button>
+        )}
       </div>
       {saveStep === 'idle' && (
         <button

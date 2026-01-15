@@ -1,7 +1,6 @@
 import React from 'react';
 import { Volume2, Sparkles } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
-import SaveMenu from './SaveMenu';
 
 const SearchResultHeader = ({
   searchResult,
@@ -11,11 +10,12 @@ const SearchResultHeader = ({
   onSpeak,
   savedWordInSearch,
   saveButtonFeedback,
-  isSaveMenuOpen,
-  setIsSaveMenuOpen,
-  folders,
-  onSaveWord,
-  onRemoveWordFromFolder
+  saveButtonLabel,
+  saveStep,
+  onStartSave,
+  onCancelSave,
+  onNextSave,
+  onBackSave
 }) => (
   <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
     <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
@@ -58,16 +58,46 @@ const SearchResultHeader = ({
           {searchResult.source === 'Groq AI' && <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full flex items-center gap-1"><Sparkles className="w-3 h-3" /> Groq AI</span>}
         </div>
       </div>
-      <SaveMenu
-        isOpen={isSaveMenuOpen}
-        setIsOpen={setIsSaveMenuOpen}
-        folders={folders}
-        savedWordInSearch={savedWordInSearch}
-        searchResult={searchResult}
-        saveButtonFeedback={saveButtonFeedback}
-        onSave={onSaveWord}
-        onRemove={onRemoveWordFromFolder}
-      />
+      {saveStep === 'idle' && (
+        <button
+          onClick={onStartSave}
+          className="flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
+        >
+          {saveButtonFeedback ? '已加入' : (saveButtonLabel || '儲存')}
+        </button>
+      )}
+      {saveStep === 'selecting' && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onCancelSave}
+            className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+          >
+            取消
+          </button>
+          <button
+            onClick={onNextSave}
+            className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+          >
+            下一步
+          </button>
+        </div>
+      )}
+      {saveStep === 'folder' && (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBackSave}
+            className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+          >
+            上一步
+          </button>
+          <button
+            onClick={onCancelSave}
+            className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+          >
+            取消
+          </button>
+        </div>
+      )}
     </div>
   </div>
 );

@@ -9,7 +9,8 @@ const SaveMenu = ({
   searchResult,
   saveButtonFeedback,
   onSave,
-  onRemove
+  onRemove,
+  saveButtonLabel
 }) => (
   <div className="relative w-full sm:w-auto shrink-0 flex items-start sm:items-center">
     <button
@@ -22,7 +23,7 @@ const SaveMenu = ({
         </>
       ) : (
         <>
-          <Save className="w-4 h-4" /> 儲存
+          <Save className="w-4 h-4" /> {saveButtonLabel || '儲存'}
         </>
       )}
     </button>

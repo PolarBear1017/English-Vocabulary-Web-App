@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { Check } from 'lucide-react';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
@@ -13,8 +14,6 @@ const SearchResultCard = ({
   onSpeak,
   savedWordInSearch,
   saveButtonFeedback,
-  isSaveMenuOpen,
-  setIsSaveMenuOpen,
   folders,
   onSaveWord,
   onRemoveWordFromFolder,
@@ -24,21 +23,47 @@ const SearchResultCard = ({
   setQuery,
   onSearch
 }) => {
+  const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
 
   useEffect(() => {
+    setSaveStep('idle');
     setSelectedEntryIndices(null);
   }, [searchResult?.word]);
 
-  const selectedEntries = useMemo(() => {
+  const selectedDefinitionSet = useMemo(() => {
+    const raw = savedWordInSearch?.selectedDefinitions || savedWordInSearch?.selected_definitions;
+    if (!Array.isArray(raw)) return new Set();
+    return new Set(raw
+      .map((item) => (item?.definition || '').trim())
+      .filter(Boolean));
+  }, [savedWordInSearch]);
+
+  const orderedEntries = useMemo(() => {
     if (!Array.isArray(normalizedEntries) || normalizedEntries.length === 0) return [];
-    if (selectedEntryIndices === null) return normalizedEntries;
-    return normalizedEntries.filter((_, index) => selectedEntryIndices.has(index));
-  }, [normalizedEntries, selectedEntryIndices]);
+    if (selectedDefinitionSet.size === 0) return normalizedEntries;
+    const pinned = [];
+    const rest = [];
+    normalizedEntries.forEach((entry) => {
+      const key = (entry.definition || '').trim();
+      if (selectedDefinitionSet.has(key)) {
+        pinned.push(entry);
+      } else {
+        rest.push(entry);
+      }
+    });
+    return [...pinned, ...rest];
+  }, [normalizedEntries, selectedDefinitionSet]);
+
+  const selectedEntries = useMemo(() => {
+    if (orderedEntries.length === 0) return [];
+    if (selectedEntryIndices === null) return orderedEntries;
+    return orderedEntries.filter((_, index) => selectedEntryIndices.has(index));
+  }, [orderedEntries, selectedEntryIndices]);
 
   const handleToggleEntry = useCallback((index) => {
     setSelectedEntryIndices((prev) => {
-      const total = normalizedEntries.length;
+      const total = orderedEntries.length;
       if (total === 0) return prev;
       if (prev === null) {
         const next = new Set(Array.from({ length: total }, (_, i) => i));
@@ -57,7 +82,19 @@ const SearchResultCard = ({
       }
       return next.size === total ? null : next;
     });
-  }, [normalizedEntries.length]);
+  }, [orderedEntries.length]);
+
+  const handleToggleAll = useCallback(() => {
+    setSelectedEntryIndices((prev) => {
+      if (orderedEntries.length === 0) return prev;
+      return prev === null ? new Set() : null;
+    });
+  }, [orderedEntries.length]);
+
+  const resetSaveFlow = useCallback(() => {
+    setSaveStep('idle');
+    setSelectedEntryIndices(null);
+  }, []);
 
   const handleSaveWord = useCallback((folderId) => {
     const cleanText = (value) => (value || '')
@@ -77,6 +114,63 @@ const SearchResultCard = ({
     return onSaveWord(folderId, selectedDefinitions);
   }, [onSaveWord, searchResult.pos, selectedEntries]);
 
+  const handleFolderSave = useCallback(async (folderId) => {
+    const saved = await handleSaveWord(folderId);
+    if (saved) resetSaveFlow();
+  }, [handleSaveWord, resetSaveFlow]);
+
+  const handleFolderClick = useCallback(async (folderId, isSavedInFolder) => {
+    if (isSavedInFolder) {
+      if (confirm(`要將 "${searchResult.word}" 從該資料夾移除嗎？`)) {
+        onRemoveWordFromFolder?.(savedWordInSearch, folderId);
+      }
+      return;
+    }
+    await handleFolderSave(folderId);
+  }, [handleFolderSave, onRemoveWordFromFolder, savedWordInSearch, searchResult.word]);
+
+  const applySavedSelection = useCallback(() => {
+    if (selectedDefinitionSet.size === 0) {
+      setSelectedEntryIndices(null);
+      return;
+    }
+    const indices = [];
+    orderedEntries.forEach((entry, index) => {
+      const key = (entry.definition || '').trim();
+      if (selectedDefinitionSet.has(key)) indices.push(index);
+    });
+    if (indices.length === 0) {
+      setSelectedEntryIndices(new Set());
+      return;
+    }
+    if (indices.length === orderedEntries.length) {
+      setSelectedEntryIndices(null);
+      return;
+    }
+    setSelectedEntryIndices(new Set(indices));
+  }, [orderedEntries, selectedDefinitionSet]);
+
+  const handleStartSave = useCallback(() => {
+    if (saveStep !== 'idle') return;
+    applySavedSelection();
+    setSaveStep('selecting');
+  }, [applySavedSelection, saveStep]);
+
+  const handleCancelSave = useCallback(() => {
+    resetSaveFlow();
+  }, [resetSaveFlow]);
+
+  const handleNextSave = useCallback(() => {
+    setSaveStep('folder');
+  }, []);
+
+  const handleBackSave = useCallback(() => {
+    setSaveStep('selecting');
+  }, []);
+
+  const headerStep = saveStep === 'folder' ? 'selecting' : saveStep;
+  const isSelectingView = saveStep === 'selecting' || saveStep === 'folder';
+
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <SearchResultHeader
@@ -87,35 +181,78 @@ const SearchResultCard = ({
         onSpeak={onSpeak}
         savedWordInSearch={savedWordInSearch}
         saveButtonFeedback={saveButtonFeedback}
-        isSaveMenuOpen={isSaveMenuOpen}
-        setIsSaveMenuOpen={setIsSaveMenuOpen}
-        folders={folders}
-        onSaveWord={handleSaveWord}
-        onRemoveWordFromFolder={onRemoveWordFromFolder}
+        saveStep={headerStep}
+        onStartSave={handleStartSave}
+        onCancelSave={handleCancelSave}
+        onNextSave={handleNextSave}
+        onBackSave={handleBackSave}
       />
 
       <div className="p-6 space-y-6">
         <SearchResultEntries
-          normalizedEntries={normalizedEntries}
+          normalizedEntries={orderedEntries}
           searchWord={searchResult.word}
           selectedEntryIndices={selectedEntryIndices}
           onToggleEntry={handleToggleEntry}
+          onToggleAll={handleToggleAll}
+          allSelected={selectedEntryIndices === null}
+          readOnly={!isSelectingView}
         />
 
-        <SearchSimilarList
-          similarWords={searchResult.similar}
-          onSelect={(word) => {
-            setQuery(word);
-            onSearch({ preventDefault: () => {} });
-          }}
-        />
+        {saveStep === 'idle' && (
+          <>
+            <SearchSimilarList
+              similarWords={searchResult.similar}
+              onSelect={(word) => {
+                setQuery(word);
+                onSearch({ preventDefault: () => {} });
+              }}
+            />
 
-        <SearchMnemonic
-          mnemonics={searchResult.mnemonics}
-          apiKey={apiKey}
-          aiLoading={aiLoading}
-          onGenerate={onGenerateMnemonic}
-        />
+            <SearchMnemonic
+              mnemonics={searchResult.mnemonics}
+              apiKey={apiKey}
+              aiLoading={aiLoading}
+              onGenerate={onGenerateMnemonic}
+            />
+          </>
+        )}
+
+        {saveStep === 'folder' && (
+          <div className="fixed inset-0 z-40 flex items-center justify-center">
+            <div className="absolute inset-0 bg-black/40" onClick={handleCancelSave} />
+            <div className="relative z-50 w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-4">
+                <h4 className="text-sm font-bold text-gray-400 uppercase">選擇資料夾</h4>
+              </div>
+              <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+                {[...folders].reverse().map((folder) => {
+                  const isSavedInFolder = savedWordInSearch?.folderIds?.includes(folder.id);
+                  return (
+                    <button
+                      key={folder.id}
+                      type="button"
+                      onClick={() => handleFolderClick(folder.id, isSavedInFolder)}
+                      className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition flex items-center justify-between gap-3"
+                    >
+                      <span className="font-medium text-gray-800">{folder.name}</span>
+                      {isSavedInFolder && <Check className="w-4 h-4 text-green-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="mt-4 flex justify-end">
+                <button
+                  type="button"
+                  onClick={handleCancelSave}
+                  className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+                >
+                  完成
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

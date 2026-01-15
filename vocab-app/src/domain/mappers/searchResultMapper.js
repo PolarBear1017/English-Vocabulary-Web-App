@@ -31,7 +31,9 @@ const toSearchResultFromAi = (data, source) => {
 };
 
 const toSearchResultFromLibrary = (word) => {
-  const entries = normalizeEntries(word);
+  const entries = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
+    ? normalizeEntries({ entries: word.selectedDefinitions })
+    : normalizeEntries(word);
   return createSearchResult({
     ...word,
     entries,

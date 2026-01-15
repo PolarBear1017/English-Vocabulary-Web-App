@@ -110,6 +110,15 @@ const updateUserLibraryProgress = async ({ libraryId, payload }) => {
     .eq('id', libraryId);
 };
 
+const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
+  return supabase.rpc('save_word_with_preferences', {
+    word_data: wordData,
+    user_id: userId,
+    folder_id: folderId,
+    selected_defs: selectedDefinitions
+  });
+};
+
 export {
   fetchFolders,
   createFolder,
@@ -123,5 +132,6 @@ export {
   insertUserLibraryEntry,
   updateUserLibraryFoldersByWord,
   updateUserLibraryFoldersByLibraryId,
-  updateUserLibraryProgress
+  updateUserLibraryProgress,
+  saveWordWithPreferences
 };

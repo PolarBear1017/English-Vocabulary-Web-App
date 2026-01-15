@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { createEmptyCard } from 'ts-fsrs';
 import {
   loadCachedFolders,
   loadCachedVocab,
@@ -17,16 +16,11 @@ import {
   deleteFolders as deleteFoldersRecord,
   updateFolder as updateFolderRecord,
   fetchUserLibrary,
-  fetchDictionaryWord,
-  insertDictionaryWord,
-  fetchUserLibraryEntry,
-  insertUserLibraryEntry,
-  updateUserLibraryFoldersByWord,
-  updateUserLibraryFoldersByLibraryId
+  updateUserLibraryFoldersByLibraryId,
+  saveWordWithPreferences
 } from '../../services/libraryService';
 import { fetchStory } from '../../services/aiService';
 import { mapLibraryRowToWord } from '../../domain/mappers/libraryMapper';
-import { serializeFsrsCard } from '../../utils/data';
 import useLibraryIndex from './useLibraryIndex';
 
 const DEFAULT_FOLDERS = [{ id: 'default', name: '預設資料夾', words: [] }];
@@ -261,151 +255,71 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     return true;
   }, [session]);
 
-  const saveWordToFolder = useCallback(async (searchResult, folderId) => {
+  const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null) => {
     if (!searchResult || !session) {
       if (!session) alert("請先登入才能儲存單字！");
       return false;
     }
 
     const folderName = folders.find(folder => folder.id === folderId)?.name || '資料夾';
+    const normalizedFolderId = folderId?.toString();
+    const existingWord = vocabData.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
+
+    if (existingWord && normalizedFolderId && existingWord.folderIds?.includes(normalizedFolderId)) {
+      showToast?.(`「${searchResult.word}」已在「${folderName}」`, 'info');
+      return false;
+    }
 
     try {
-      let { data: dictWord, error: fetchError } = await fetchDictionaryWord(searchResult.word);
-      if (fetchError) throw fetchError;
-
-      if (!dictWord) {
-        const { data: newDictWord, error: dictError } = await insertDictionaryWord({
-          word: searchResult.word,
-          definition: searchResult.definition,
-          translation: searchResult.translation,
-          pos: searchResult.pos,
-          phonetic: searchResult.phonetic,
-          example: searchResult.example,
-          mnemonics: searchResult.mnemonics || null
-        });
-
-        if (dictError) {
-          if (dictError.code === '23505') {
-            const { data: retryWord, error: retryError } = await fetchDictionaryWord(searchResult.word);
-            if (retryError) throw retryError;
-            dictWord = retryWord;
-          } else {
-            throw dictError;
-          }
-        } else {
-          dictWord = newDictWord;
-        }
-      }
-
-      if (!dictWord) throw new Error("無法取得單字 ID (請稍後再試)");
-
-      const { data: existingEntry, error: libFetchError } = await fetchUserLibraryEntry({
+      const { data, error } = await saveWordWithPreferences({
+        wordData: searchResult,
         userId: session.user.id,
-        wordId: dictWord.id
+        folderId: normalizedFolderId,
+        selectedDefinitions
       });
-      if (libFetchError) throw libFetchError;
 
-      if (existingEntry) {
-        const currentFolders = Array.isArray(existingEntry.folder_ids) ? existingEntry.folder_ids : [];
-        const normalizedCurrentFolders = currentFolders.map(id => id?.toString());
-        const normalizedFolderId = folderId?.toString();
+      if (error) throw error;
 
-        if (!normalizedFolderId) {
-          throw new Error("無效的資料夾 ID，請重新整理後再試。");
+      const libraryEntry = Array.isArray(data) ? data[0] : data;
+      if (!libraryEntry) throw new Error("儲存失敗 (無回傳資料)");
+
+      const mergedFolderIds = Array.isArray(libraryEntry.folder_ids)
+        ? libraryEntry.folder_ids.map(id => id?.toString()).filter(Boolean)
+        : (normalizedFolderId ? [normalizedFolderId] : []);
+
+      const mergedSelectedDefinitions = Array.isArray(libraryEntry.selected_definitions)
+        ? libraryEntry.selected_definitions
+        : (Array.isArray(selectedDefinitions) ? selectedDefinitions : null);
+
+      setVocabData(prev => {
+        const existing = prev.find(word => word.id === libraryEntry.word_id?.toString());
+        if (existing) {
+          return prev.map(word => word.id === libraryEntry.word_id?.toString()
+            ? { ...word, folderIds: mergedFolderIds, selectedDefinitions: mergedSelectedDefinitions }
+            : word);
         }
 
-        if (normalizedCurrentFolders.includes(normalizedFolderId)) {
-          showToast?.(`「${searchResult.word}」已在「${folderName}」`, 'info');
-          return false;
-        }
-
-        const newFolders = Array.from(new Set([...normalizedCurrentFolders, normalizedFolderId]));
-
-        const { data: updatedEntry, error: updateError } = await updateUserLibraryFoldersByWord({
-          userId: session.user.id,
-          wordId: dictWord.id,
-          folderIds: newFolders
-        });
-
-        if (updateError) throw updateError;
-
-        const mergedFolderIds = Array.isArray(updatedEntry?.folder_ids)
-          ? updatedEntry.folder_ids.map(id => id?.toString())
-          : newFolders;
-        setVocabData(prev => prev.map(word => word.id === dictWord.id.toString() ? { ...word, folderIds: mergedFolderIds } : word));
-        showToast?.(`已加入「${folderName}」`);
-        return true;
-      }
-
-      const now = new Date();
-      const initialCard = createEmptyCard();
-      initialCard.due = now;
-      const fsrsState = serializeFsrsCard(initialCard);
-
-      const payload = {
-        user_id: session.user.id,
-        word_id: dictWord.id,
-        folder_ids: [folderId?.toString()],
-        next_review: fsrsState.due,
-        ...fsrsState
-      };
-
-      let { data: libraryEntry, error: libError } = await insertUserLibraryEntry(payload);
-
-      if (libError) {
-        if (libError.code === '23505') {
-          const { data: fallbackEntry, error: fallbackError } = await fetchUserLibraryEntry({
-            userId: session.user.id,
-            wordId: dictWord.id
-          });
-
-          if (fallbackError) throw fallbackError;
-          if (!fallbackEntry) throw new Error("無法取得既有單字紀錄，請稍後再試。");
-
-          const currentFolders = Array.isArray(fallbackEntry.folder_ids) ? fallbackEntry.folder_ids : [];
-          const normalizedCurrentFolders = currentFolders.map(id => id?.toString());
-          const normalizedFolderId = folderId?.toString();
-
-          if (!normalizedFolderId) {
-            throw new Error("無效的資料夾 ID，請重新整理後再試。");
-          }
-
-          if (normalizedCurrentFolders.includes(normalizedFolderId)) {
-            showToast?.(`「${searchResult.word}」已在「${folderName}」`, 'info');
-            return false;
-          }
-
-          const newFolders = Array.from(new Set([...normalizedCurrentFolders, normalizedFolderId]));
-          const { data: updatedEntry, error: updateError } = await updateUserLibraryFoldersByWord({
-            userId: session.user.id,
-            wordId: dictWord.id,
-            folderIds: newFolders
-          });
-
-          if (updateError) throw updateError;
-
-          const mergedFolderIds = Array.isArray(updatedEntry?.folder_ids)
-            ? updatedEntry.folder_ids.map(id => id?.toString())
-            : newFolders;
-          setVocabData(prev => prev.map(word => word.id === dictWord.id.toString() ? { ...word, folderIds: mergedFolderIds } : word));
-          showToast?.(`已加入「${folderName}」`);
-          return true;
-        }
-        throw libError;
-      }
-
-      const newWordState = {
-        ...searchResult,
-        id: dictWord.id.toString(),
-        libraryId: libraryEntry.id,
-        folderIds: [folderId?.toString()],
-        addedAt: libraryEntry.created_at || new Date().toISOString(),
-        nextReview: libraryEntry.next_review || fsrsState.due,
-        ...fsrsState,
-        proficiencyScore: 0
-      };
-
-      setVocabData(prev => [...prev, newWordState]);
+        const nowIso = new Date().toISOString();
+        return [...prev, {
+          ...searchResult,
+          id: libraryEntry.word_id?.toString(),
+          libraryId: libraryEntry.id,
+          folderIds: mergedFolderIds,
+          selectedDefinitions: mergedSelectedDefinitions,
+          addedAt: libraryEntry.created_at || nowIso,
+          nextReview: libraryEntry.next_review || libraryEntry.due || nowIso,
+          due: libraryEntry.due || libraryEntry.next_review || nowIso,
+          stability: libraryEntry.stability ?? null,
+          difficulty: libraryEntry.difficulty ?? null,
+          elapsed_days: libraryEntry.elapsed_days ?? null,
+          scheduled_days: libraryEntry.scheduled_days ?? null,
+          reps: libraryEntry.reps ?? null,
+          lapses: libraryEntry.lapses ?? null,
+          state: libraryEntry.state ?? null,
+          last_review: libraryEntry.last_review ?? null,
+          proficiencyScore: libraryEntry.proficiency_score ?? 0
+        }];
+      });
 
       showToast?.(`已儲存到「${folderName}」`);
       return true;
@@ -416,11 +330,13 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
         message = "資料庫權限不足。請在 Supabase SQL Editor 執行 RLS 政策指令以開放寫入權限。";
       } else if (message.includes('column "folder_ids" of relation "user_library" does not exist')) {
         message = "資料庫尚未更新。請在 Supabase SQL Editor 執行: ALTER TABLE user_library ADD COLUMN folder_ids text[] DEFAULT '{}';";
+      } else if (message.includes('column "selected_definitions" of relation "user_library" does not exist')) {
+        message = "資料庫尚未更新。請先新增 selected_definitions 欄位。";
       }
       alert("儲存失敗: " + message);
       return false;
     }
-  }, [folders, session, showToast]);
+  }, [folders, session, showToast, vocabData]);
 
   const handleRemoveWordFromFolder = useCallback(async (word, folderId) => {
     const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];

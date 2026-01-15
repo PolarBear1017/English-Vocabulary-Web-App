@@ -9,6 +9,7 @@ const mapLibraryRowToWord = (item) => {
     id: item.word_id?.toString() || '',
     libraryId: item.id,
     folderIds: normalizedFolderIds,
+    selectedDefinitions: Array.isArray(item.selected_definitions) ? item.selected_definitions : null,
     addedAt: item.created_at || null,
     nextReview: item.next_review || item.due || new Date().toISOString(),
     proficiencyScore: item.proficiency_score,

@@ -43,9 +43,19 @@ const useReview = ({
   const fsrs = useMemo(() => new FSRS(fsrsParams), [fsrsParams]);
 
   const currentReviewWord = reviewQueue[currentCardIndex] || {};
-  const currentReviewEntries = reviewQueue.length > 0
-    ? normalizeEntries(currentReviewWord)
-    : [];
+  const currentReviewEntries = useMemo(() => {
+    if (reviewQueue.length === 0) return [];
+    const selectedDefs = Array.isArray(currentReviewWord.selectedDefinitions)
+      ? currentReviewWord.selectedDefinitions
+      : (Array.isArray(currentReviewWord.selected_definitions)
+        ? currentReviewWord.selected_definitions
+        : []);
+    if (selectedDefs.length === 0) return normalizeEntries(currentReviewWord);
+    const normalizedSelected = normalizeEntries({ entries: selectedDefs });
+    if (normalizedSelected.length === 0) return normalizeEntries(currentReviewWord);
+    const randomIndex = Math.floor(Math.random() * normalizedSelected.length);
+    return [normalizedSelected[randomIndex]];
+  }, [currentReviewWord, reviewQueue.length]);
   const primaryReviewEntry = currentReviewEntries[0] || {};
   const clozeExample = primaryReviewEntry.example || currentReviewWord.example || '';
   const clozeExampleLines = splitExampleLines(clozeExample);

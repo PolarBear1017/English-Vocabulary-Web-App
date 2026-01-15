@@ -157,6 +157,14 @@ const WordRow = ({
     onShowDetails(word);
   };
 
+  const selectedPreview = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
+    ? word.selectedDefinitions[0]
+    : null;
+  const previewText = selectedPreview?.translation
+    || selectedPreview?.definition
+    || word.translation
+    || word.definition;
+
   return (
     <div
       onClick={handleClick}
@@ -174,7 +182,7 @@ const WordRow = ({
           </button>
           <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{word.pos}</span>
         </div>
-        <p className="text-gray-600 text-sm">{word.translation || word.definition}</p>
+        <p className="text-gray-600 text-sm">{previewText}</p>
       </div>
       <div className="flex items-center gap-4">
         {isSelectionMode ? (

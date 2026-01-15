@@ -9,6 +9,38 @@ import {
 } from '../../domain/mappers/searchResultMapper';
 import { normalizeEntries } from '../../utils/data';
 
+const SEARCH_HISTORY_KEY = 'vocab_search_history';
+const HISTORY_LIMIT = 50;
+const SUGGESTION_LIMIT = 5;
+
+const loadSearchHistory = () => {
+  try {
+    const raw = localStorage.getItem(SEARCH_HISTORY_KEY);
+    const parsed = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((item) => typeof item?.word === 'string');
+  } catch (error) {
+    console.warn('Failed to load search history', error);
+    return [];
+  }
+};
+
+const saveSearchHistory = (history) => {
+  try {
+    localStorage.setItem(SEARCH_HISTORY_KEY, JSON.stringify(history));
+  } catch (error) {
+    console.warn('Failed to save search history', error);
+  }
+};
+
+const removeSearchHistory = () => {
+  try {
+    localStorage.removeItem(SEARCH_HISTORY_KEY);
+  } catch (error) {
+    console.warn('Failed to remove search history', error);
+  }
+};
+
 const useSearch = ({ apiKeys, onSearchStart }) => {
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
@@ -16,6 +48,7 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
   const [aiLoading, setAiLoading] = useState(false);
   const [searchError, setSearchError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
+  const [searchHistory, setSearchHistory] = useState(() => loadSearchHistory());
   const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
   const [saveButtonFeedback, setSaveButtonFeedback] = useState(false);
 
@@ -32,29 +65,73 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
       return;
     }
 
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery || normalizedQuery.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+
+    const historyMatches = searchHistory
+      .filter((item) => item.word.toLowerCase().startsWith(normalizedQuery))
+      .map((item) => ({ word: item.word, isHistory: true }))
+      .slice(0, SUGGESTION_LIMIT);
+
+    setSuggestions(historyMatches);
+
     const controller = new AbortController();
     const timeoutId = setTimeout(async () => {
-      if (!query.trim() || query.length < 2) {
-        setSuggestions([]);
-        return;
-      }
       try {
-        const data = await fetchSuggestions(query, { signal: controller.signal });
+        const data = await fetchSuggestions(normalizedQuery, { signal: controller.signal });
         if (!controller.signal.aborted) {
-          setSuggestions(data);
+          const remoteSuggestions = (data || [])
+            .map((item) => ({
+              word: typeof item === 'string' ? item : item.word,
+              isHistory: false,
+              matchType: typeof item === 'string' ? null : item.match_type,
+              score: typeof item === 'string' ? null : item.score
+            }))
+            .filter((item) => item.word);
+
+          const seen = new Set();
+          const merged = [...historyMatches, ...remoteSuggestions].filter((item) => {
+            const key = item.word.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          });
+
+          setSuggestions(merged.slice(0, SUGGESTION_LIMIT));
         }
       } catch (error) {
         if (error.name !== 'AbortError') {
           console.warn('Suggestion fetch failed', error);
         }
       }
-    }, 100);
+    }, 300);
 
     return () => {
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [query]);
+  }, [query, searchHistory]);
+
+  const updateSearchHistory = useCallback((word) => {
+    const normalized = word.trim();
+    if (!normalized) return;
+    setSearchHistory((prev) => {
+      const next = [
+        { word: normalized, lastUsed: Date.now() },
+        ...prev.filter((item) => item.word.toLowerCase() !== normalized.toLowerCase())
+      ].slice(0, HISTORY_LIMIT);
+      saveSearchHistory(next);
+      return next;
+    });
+  }, []);
+
+  const clearSearchHistory = useCallback(() => {
+    setSearchHistory([]);
+    removeSearchHistory();
+  }, []);
 
   const setQuerySilently = useCallback((value) => {
     ignoreNextQueryUpdate.current = true;
@@ -67,6 +144,7 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
     const searchTerm = (typeof e === 'string' ? e : query).trim();
     if (!searchTerm) return;
 
+    updateSearchHistory(searchTerm);
     setSuggestions([]);
     if (onSearchStart) onSearchStart();
 
@@ -178,7 +256,8 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
       setIsSaveMenuOpen,
       handleSearch,
       generateAiMnemonic,
-      triggerSaveButtonFeedback
+      triggerSaveButtonFeedback,
+      clearSearchHistory
     },
     refs: {
       searchInputRef

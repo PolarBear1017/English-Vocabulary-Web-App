@@ -1,6 +1,6 @@
 import React from 'react';
 import { Combobox } from '@headlessui/react';
-import { Search, X, Loader2 } from 'lucide-react';
+import { Search, X, Loader2, Clock } from 'lucide-react';
 
 const SearchForm = ({
   query,
@@ -8,11 +8,37 @@ const SearchForm = ({
   onSearch,
   suggestions,
   setSuggestions,
+  clearSearchHistory,
   isSearching,
   inputRef
 }) => {
-  const suggestionOptions = suggestions.map((s) => (typeof s === 'string' ? s : s.word));
+  const suggestionOptions = suggestions.map((s) => (
+    typeof s === 'string'
+      ? { word: s, isHistory: false, matchType: null }
+      : {
+        word: s.word,
+        isHistory: Boolean(s.isHistory),
+        matchType: s.matchType ?? null
+      }
+  ));
   const hasSuggestions = suggestionOptions.length > 0;
+  const hasHistory = suggestionOptions.some((item) => item.isHistory);
+  const trimmedQuery = query.trim();
+
+  const renderHighlightedWord = (word) => {
+    if (!trimmedQuery) return word;
+    const lowerWord = word.toLowerCase();
+    const lowerQuery = trimmedQuery.toLowerCase();
+    if (!lowerWord.startsWith(lowerQuery)) return word;
+    const prefix = word.slice(0, trimmedQuery.length);
+    const rest = word.slice(trimmedQuery.length);
+    return (
+      <>
+        <span className="font-bold">{prefix}</span>
+        <span>{rest}</span>
+      </>
+    );
+  };
 
   return (
     <Combobox
@@ -78,16 +104,44 @@ const SearchForm = ({
 
             {open && hasSuggestions && (
               <Combobox.Options className="absolute top-full left-0 right-0 bg-white border border-t-0 border-gray-200 rounded-b-xl shadow-xl z-50 overflow-hidden divide-y divide-gray-100">
-                {suggestionOptions.map((word, index) => (
+                {suggestionOptions.map((item, index) => (
                   <Combobox.Option
-                    key={`${word}-${index}`}
-                    value={word}
+                    key={`${item.word}-${index}`}
+                    value={item.word}
                     className={({ active }) => `px-4 py-3 cursor-pointer text-gray-700 flex items-center gap-2 transition ${active ? 'bg-blue-50' : ''}`}
                   >
                     <Search className="w-4 h-4 text-gray-300" />
-                    <span>{word}</span>
+                    <span className={item.isHistory ? 'text-gray-700' : ''}>
+                      {renderHighlightedWord(item.word)}
+                    </span>
+                    <span className="ml-auto flex items-center gap-2">
+                      {item.matchType === 'fuzzy' && (
+                        <span className="text-xs text-gray-400">(拼字修正)</span>
+                      )}
+                      {item.isHistory && (
+                        <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          歷史
+                        </span>
+                      )}
+                    </span>
                   </Combobox.Option>
                 ))}
+                {hasHistory && (
+                  <div className="flex justify-end px-4 py-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        clearSearchHistory?.();
+                        setSuggestions([]);
+                        inputRef.current?.blur();
+                      }}
+                      className="text-xs text-gray-400 hover:text-red-500 transition"
+                    >
+                      清除歷史
+                    </button>
+                  </div>
+                )}
               </Combobox.Options>
             )}
           </>

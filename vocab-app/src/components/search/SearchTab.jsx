@@ -88,6 +88,7 @@ const SearchTab = () => {
         onSearch={search.actions.handleSearch}
         suggestions={suggestions}
         setSuggestions={search.actions.setSuggestions}
+        clearSearchHistory={search.actions.clearSearchHistory}
         isSearching={isSearching}
         inputRef={search.refs.searchInputRef}
       />

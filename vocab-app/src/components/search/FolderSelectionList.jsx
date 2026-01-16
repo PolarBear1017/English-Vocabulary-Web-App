@@ -20,7 +20,9 @@ const FolderSelectionList = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfirming, setIsConfirming] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
+  const [showShortcutTip, setShowShortcutTip] = useState(false);
   const tooltipRef = useRef(null);
+  const shortcutTipRef = useRef(null);
   const lastNotifiedSelection = useRef('');
   const confirmLockRef = useRef(false);
 
@@ -57,6 +59,18 @@ const FolderSelectionList = ({
     document.addEventListener('mousedown', handleOutsideClick);
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showTooltip]);
+
+  useEffect(() => {
+    if (!showShortcutTip) return;
+    const handleOutsideClick = (event) => {
+      if (!shortcutTipRef.current) return;
+      if (!shortcutTipRef.current.contains(event.target)) {
+        setShowShortcutTip(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showShortcutTip]);
 
   const sortedFolders = useMemo(() => {
     const reversed = [...(folders || [])].reverse();
@@ -166,11 +180,45 @@ const FolderSelectionList = ({
     }
   };
 
+  useEffect(() => {
+    if (!onConfirm) return;
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Enter') return;
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTypingField = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
+      if (isTypingField) return;
+      if (!(hasChanges || hasDefinitionChanges) || isConfirming) return;
+      event.preventDefault();
+      handleConfirm();
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleConfirm, hasChanges, hasDefinitionChanges, isConfirming, onConfirm]);
+
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <h4 className="text-sm font-bold text-gray-500">儲存至...</h4>
+          <button
+            type="button"
+            onClick={() => setShowShortcutTip((prev) => !prev)}
+            className="relative group"
+            ref={shortcutTipRef}
+            aria-label="快捷鍵提示"
+          >
+            <Info className="w-4 h-4 text-gray-400 cursor-help" />
+            <div
+              className={`absolute left-0 top-full mt-2 w-56 p-2 bg-white text-gray-700 text-xs rounded-lg shadow-lg border border-gray-100 transition-all duration-200 z-50 ${
+                showShortcutTip ? 'opacity-100 visible' : 'opacity-0 invisible'
+              } group-hover:opacity-100 group-hover:visible`}
+            >
+              小技巧：系統已預設勾選您上次使用的資料夾，直接按 Enter 鍵即可快速儲存！
+              <div className="absolute left-3 bottom-full w-0 h-0 border-4 border-transparent border-b-white" />
+            </div>
+          </button>
           <button
             type="button"
             onClick={() => setShowTooltip((prev) => !prev)}

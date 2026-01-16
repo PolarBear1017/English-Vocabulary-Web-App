@@ -204,7 +204,7 @@ const useReview = ({
         return;
       }
 
-      if ((key === 'Enter' || key === ' ') && !isAwaitingNext) {
+      if (key === 'Enter' && !isAwaitingNext) {
         if (!isFlipped) {
           event.preventDefault();
           if (reviewMode === 'flashcard') {

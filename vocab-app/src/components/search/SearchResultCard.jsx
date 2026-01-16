@@ -121,7 +121,7 @@ const SearchResultCard = ({
     setDraftFolderIds(null);
   }, []);
 
-  const handleSaveWord = useCallback((folderId) => {
+  const handleSaveWord = useCallback((folderId, overrideWord = null) => {
     const cleanText = (value) => (value || '')
       .replace(/\s*\n\s*/g, '\n')
       .trim();
@@ -136,7 +136,7 @@ const SearchResultCard = ({
         pos: entry.pos || searchResult.pos || ''
       };
     });
-    return onSaveWord(folderId, selectedDefinitions, { showToast: false });
+    return onSaveWord(folderId, selectedDefinitions, { showToast: false }, overrideWord);
   }, [onSaveWord, searchResult.pos, selectedEntries]);
 
   const handleConfirmFolders = useCallback(async ({ addIds, removeIds, selectedIds }) => {
@@ -148,27 +148,39 @@ const SearchResultCard = ({
     let isDefinitionsUpdated = false;
     let hasAddSuccess = false;
     const hasRemove = removeList.length > 0;
+    const normalizeFolderIds = (ids) => (Array.isArray(ids) ? ids.map(id => id?.toString()).filter(Boolean) : []);
+    let currentWordState = savedWordInSearch
+      ? { ...savedWordInSearch, folderIds: normalizeFolderIds(savedWordInSearch.folderIds) }
+      : { ...searchResult, folderIds: [] };
 
     try {
       if (addList.length > 0) {
         for (const folderId of addList) {
-          const saved = await handleSaveWord(folderId);
+          const saved = await handleSaveWord(folderId, currentWordState);
           if (saved) {
             isDefinitionsUpdated = true;
             hasAddSuccess = true;
+            currentWordState = {
+              ...currentWordState,
+              folderIds: Array.from(new Set([...(currentWordState.folderIds || []), folderId?.toString()].filter(Boolean)))
+            };
           }
         }
       }
 
       if (removeList.length > 0) {
         for (const folderId of removeList) {
-          await onRemoveWordFromFolder?.(savedWordInSearch, folderId);
+          await onRemoveWordFromFolder?.(currentWordState, folderId);
+          currentWordState = {
+            ...currentWordState,
+            folderIds: (currentWordState.folderIds || []).filter(id => id !== folderId?.toString())
+          };
         }
       }
 
       if (hasDefinitionChanges && !isDefinitionsUpdated) {
         const targetFolderId = Array.isArray(selectedIds) ? selectedIds[0] : null;
-        const updated = await handleSaveWord(targetFolderId || null);
+        const updated = await handleSaveWord(targetFolderId || null, currentWordState);
         if (updated) {
           isDefinitionsUpdated = true;
         }

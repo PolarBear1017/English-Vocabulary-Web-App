@@ -54,8 +54,8 @@ const useVocabularyApp = () => {
     library.actions.setViewingFolderId(null);
   }, [library.actions, library.state.viewingFolderId, navigation.actions, search.actions]);
 
-  const handleSaveFromSearch = useCallback(async (folderId, selectedDefinitions, options = {}) => {
-    const base = search.state.searchResult;
+  const handleSaveFromSearch = useCallback(async (folderId, selectedDefinitions, options = {}, overrideWord = null) => {
+    const base = overrideWord || search.state.searchResult;
     const wordData = base
       ? {
         ...base,

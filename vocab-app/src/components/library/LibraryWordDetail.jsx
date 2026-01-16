@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from 'react';
-import { Pencil, Search, Sparkles, Trash2, Volume2 } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2 } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
@@ -8,10 +8,16 @@ const LibraryWordDetail = ({
   entry,
   onSpeak,
   onNavigateToSearch,
+  onPrevWord,
+  onNextWord,
+  hasPrevWord,
+  hasNextWord,
   onEditWord,
   onDeleteWord
 }) => {
   const [preferredAccent, setPreferredAccent] = useState('us');
+  const [tipOpen, setTipOpen] = useState(false);
+  const tipRef = useRef(null);
   const selectedDefs = Array.isArray(entry?.selectedDefinitions)
     ? entry.selectedDefinitions
     : (Array.isArray(entry?.selected_definitions)
@@ -36,6 +42,38 @@ const LibraryWordDetail = ({
     ? (ukSource || generalSource || usSource)
     : (usSource || generalSource || ukSource);
   const resolvedSource = entry?.source || (entry?.isAiGenerated ? 'AI' : 'Cambridge');
+
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      if (target?.isContentEditable) return;
+      const tagName = target?.tagName?.toLowerCase();
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return;
+      if (event.key === 'ArrowLeft' && hasPrevWord) {
+        event.preventDefault();
+        onPrevWord?.();
+      }
+      if (event.key === 'ArrowRight' && hasNextWord) {
+        event.preventDefault();
+        onNextWord?.();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [hasNextWord, hasPrevWord, onNextWord, onPrevWord]);
+
+  useEffect(() => {
+    if (!tipOpen) return;
+    const handlePointerDown = (event) => {
+      if (!tipRef.current) return;
+      if (tipRef.current.contains(event.target)) return;
+      setTipOpen(false);
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [tipOpen]);
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -110,8 +148,56 @@ const LibraryWordDetail = ({
               查看完整解釋
             </button>
           </div>
-          {(onEditWord || onDeleteWord) && (
+          {(onPrevWord || onNextWord || onEditWord || onDeleteWord) && (
             <div className="flex items-center gap-2">
+              {(onPrevWord || onNextWord) && (
+                <div className="flex items-center gap-1 mr-1">
+                  <div className="relative" ref={tipRef}>
+                    <button
+                      type="button"
+                      onClick={() => setTipOpen((prev) => !prev)}
+                      onMouseEnter={() => setTipOpen(true)}
+                      onMouseLeave={() => setTipOpen(false)}
+                      onFocus={() => setTipOpen(true)}
+                      onBlur={() => setTipOpen(false)}
+                      className="w-6 h-6 inline-flex items-center justify-center rounded-full text-gray-500 bg-white hover:bg-gray-50 transition"
+                      aria-label="顯示小技巧"
+                    >
+                      <Info className="w-3.5 h-3.5" />
+                    </button>
+                    {tipOpen && (
+                      <div
+                        role="tooltip"
+                        className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg bg-white px-3 py-2 text-xs text-gray-900 shadow-lg"
+                      >
+                        可以用鍵盤左右方向鍵切換上一張、下一張單字卡。
+                      </div>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={onPrevWord || undefined}
+                    className={`p-2 rounded-full transition ${
+                      hasPrevWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
+                    }`}
+                    title="上一張"
+                    disabled={!hasPrevWord}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onNextWord || undefined}
+                    className={`p-2 rounded-full transition ${
+                      hasNextWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
+                    }`}
+                    title="下一張"
+                    disabled={!hasNextWord}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
               {onEditWord && (
                 <button
                   type="button"

@@ -54,7 +54,7 @@ const useVocabularyApp = () => {
     library.actions.setViewingFolderId(null);
   }, [library.actions, library.state.viewingFolderId, navigation.actions, search.actions]);
 
-  const handleSaveFromSearch = useCallback(async (folderId, selectedDefinitions) => {
+  const handleSaveFromSearch = useCallback(async (folderId, selectedDefinitions, options = {}) => {
     const base = search.state.searchResult;
     const wordData = base
       ? {
@@ -64,10 +64,11 @@ const useVocabularyApp = () => {
         uk_audio: base.ukAudioUrl || null
       }
       : base;
-    const saved = await library.actions.saveWordToFolder(wordData, folderId, selectedDefinitions);
+    const saved = await library.actions.saveWordToFolder(wordData, folderId, selectedDefinitions, options);
     if (saved) {
       search.actions.triggerSaveButtonFeedback();
     }
+    return saved;
   }, [library.actions, search.actions, search.state.searchResult]);
 
   return {

@@ -1,4 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
@@ -28,6 +29,9 @@ const SearchResultCard = ({
 }) => {
   const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
+  const [draftFolderIds, setDraftFolderIds] = useState(null);
+  const [isConfirmingFolders, setIsConfirmingFolders] = useState(false);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     setSaveStep('idle');
@@ -64,6 +68,23 @@ const SearchResultCard = ({
     return orderedEntries.filter((_, index) => selectedEntryIndices.has(index));
   }, [orderedEntries, selectedEntryIndices]);
 
+  const hasDefinitionChanges = useMemo(() => {
+    if (!savedWordInSearch) return false;
+    const currentDefs = selectedEntries
+      .map((entry) => (entry.definition || '').trim())
+      .filter(Boolean);
+    const originalDefsRaw = savedWordInSearch.selectedDefinitions || [];
+    const originalDefs = originalDefsRaw
+      .map((item) => (typeof item === 'string' ? item : item?.definition)?.trim())
+      .filter(Boolean);
+    if (currentDefs.length !== originalDefs.length) return true;
+    const originalSet = new Set(originalDefs);
+    for (const def of currentDefs) {
+      if (!originalSet.has(def)) return true;
+    }
+    return false;
+  }, [savedWordInSearch, selectedEntries]);
+
   const handleToggleEntry = useCallback((index) => {
     setSelectedEntryIndices((prev) => {
       const total = orderedEntries.length;
@@ -97,6 +118,7 @@ const SearchResultCard = ({
   const resetSaveFlow = useCallback(() => {
     setSaveStep('idle');
     setSelectedEntryIndices(null);
+    setDraftFolderIds(null);
   }, []);
 
   const handleSaveWord = useCallback((folderId) => {
@@ -114,30 +136,65 @@ const SearchResultCard = ({
         pos: entry.pos || searchResult.pos || ''
       };
     });
-    return onSaveWord(folderId, selectedDefinitions);
+    return onSaveWord(folderId, selectedDefinitions, { showToast: false });
   }, [onSaveWord, searchResult.pos, selectedEntries]);
 
   const handleConfirmFolders = useCallback(async ({ addIds, removeIds, selectedIds }) => {
-    const tasks = [];
+    if (isProcessingRef.current || isConfirmingFolders) return;
+    isProcessingRef.current = true;
+    setIsConfirmingFolders(true);
+    const removeList = Array.isArray(removeIds) ? removeIds : [];
+    const addList = Array.isArray(addIds) ? addIds : [];
+    let isDefinitionsUpdated = false;
+    let hasAddSuccess = false;
+    const hasRemove = removeList.length > 0;
 
-    if (Array.isArray(removeIds) && removeIds.length > 0) {
-      tasks.push(...removeIds.map((folderId) => onRemoveWordFromFolder?.(savedWordInSearch, folderId)));
+    try {
+      if (addList.length > 0) {
+        for (const folderId of addList) {
+          const saved = await handleSaveWord(folderId);
+          if (saved) {
+            isDefinitionsUpdated = true;
+            hasAddSuccess = true;
+          }
+        }
+      }
+
+      if (removeList.length > 0) {
+        for (const folderId of removeList) {
+          await onRemoveWordFromFolder?.(savedWordInSearch, folderId);
+        }
+      }
+
+      if (hasDefinitionChanges && !isDefinitionsUpdated) {
+        const targetFolderId = Array.isArray(selectedIds) ? selectedIds[0] : null;
+        const updated = await handleSaveWord(targetFolderId || null);
+        if (updated) {
+          isDefinitionsUpdated = true;
+        }
+      }
+
+      if (hasAddSuccess && hasRemove) {
+        toast.success('資料夾更新成功');
+      } else if (hasAddSuccess) {
+        toast.success('已加入資料夾');
+      } else if (hasRemove) {
+        toast.success('已從資料夾移除');
+      }
+
+      if (isDefinitionsUpdated && hasDefinitionChanges) {
+        toast.success('已更新解釋');
+      }
+
+      if (Array.isArray(selectedIds)) {
+        onUpdateLastUsedFolderIds?.(selectedIds);
+      }
+    } finally {
+      setIsConfirmingFolders(false);
+      isProcessingRef.current = false;
+      resetSaveFlow();
     }
-
-    if (Array.isArray(addIds) && addIds.length > 0) {
-      tasks.push(...addIds.map((folderId) => handleSaveWord(folderId)));
-    }
-
-    if (tasks.length > 0) {
-      await Promise.all(tasks.map((task) => Promise.resolve(task)));
-    }
-
-    if (Array.isArray(selectedIds)) {
-      onUpdateLastUsedFolderIds?.(selectedIds);
-    }
-
-    resetSaveFlow();
-  }, [handleSaveWord, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch]);
+  }, [handleSaveWord, hasDefinitionChanges, isConfirmingFolders, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch]);
 
   const applySavedSelection = useCallback(() => {
     if (selectedDefinitionSet.size === 0) {
@@ -163,7 +220,8 @@ const SearchResultCard = ({
   const handleStartSave = useCallback(() => {
     if (saveStep !== 'idle') return;
     applySavedSelection();
-    setSaveStep('selecting');
+    setDraftFolderIds(null);
+    setSaveStep('folder');
   }, [applySavedSelection, saveStep]);
 
   const handleCancelSave = useCallback(() => {
@@ -174,12 +232,12 @@ const SearchResultCard = ({
     setSaveStep('folder');
   }, []);
 
-  const handleBackSave = useCallback(() => {
+  const handleEditDefinitions = useCallback(() => {
     setSaveStep('selecting');
   }, []);
 
-  const headerStep = saveStep === 'folder' ? 'selecting' : saveStep;
-  const isSelectingView = saveStep === 'selecting' || saveStep === 'folder';
+  const headerStep = saveStep;
+  const isSelectingView = saveStep === 'selecting';
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -195,7 +253,7 @@ const SearchResultCard = ({
         onStartSave={handleStartSave}
         onCancelSave={handleCancelSave}
         onNextSave={handleNextSave}
-        onBackSave={handleBackSave}
+        onBackSave={handleEditDefinitions}
         onSearchFullDefinition={() => onSearch(searchResult.word)}
       />
 
@@ -238,11 +296,15 @@ const SearchResultCard = ({
               </div>
               <FolderSelectionList
                 folders={folders}
-                savedFolderIds={savedWordInSearch?.folderIds || []}
+                savedFolderIds={savedWordInSearch?.folderIds}
                 lastUsedFolderIds={lastUsedFolderIds}
+                initialSelectedIds={draftFolderIds}
                 searchWord={searchResult.word}
                 onConfirm={handleConfirmFolders}
+                onSelectionChange={setDraftFolderIds}
                 onCancel={handleCancelSave}
+                onEditDefinitions={handleEditDefinitions}
+                hasDefinitionChanges={hasDefinitionChanges}
                 onCreateFolder={onCreateFolder}
               />
             </div>

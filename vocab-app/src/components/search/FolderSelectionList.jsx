@@ -1,13 +1,17 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Circle, Info, Plus, Search } from 'lucide-react';
+import { CheckCircle, Circle, FileText, Info, Plus, Search } from 'lucide-react';
 
 const FolderSelectionList = ({
   folders,
   savedFolderIds,
   lastUsedFolderIds,
+  initialSelectedIds,
   searchWord,
   onConfirm,
   onCancel,
+  onEditDefinitions,
+  onSelectionChange,
+  hasDefinitionChanges,
   onCreateFolder
 }) => {
   const [query, setQuery] = useState('');
@@ -17,24 +21,30 @@ const FolderSelectionList = ({
   const [isConfirming, setIsConfirming] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const tooltipRef = useRef(null);
+  const lastNotifiedSelection = useRef('');
+  const confirmLockRef = useRef(false);
 
   const normalizedQuery = query.trim();
   const normalizedCreateValue = createValue.trim();
 
-  const savedIdSet = useMemo(() => new Set(
-    (savedFolderIds || []).map((id) => id?.toString()).filter(Boolean)
+  const savedFolderIdList = useMemo(() => (
+    Array.isArray(savedFolderIds) ? savedFolderIds : []
   ), [savedFolderIds]);
 
+  const savedIdSet = useMemo(() => new Set(
+    savedFolderIdList.map((id) => id?.toString()).filter(Boolean)
+  ), [savedFolderIdList]);
+
   const initialSelected = useMemo(() => {
+    const normalizedInitial = Array.isArray(initialSelectedIds)
+      ? initialSelectedIds.map((id) => id?.toString()).filter(Boolean)
+      : [];
+    if (normalizedInitial.length > 0) return normalizedInitial;
     if (savedIdSet.size > 0) return Array.from(savedIdSet);
     return (lastUsedFolderIds || []).map((id) => id?.toString()).filter(Boolean);
-  }, [lastUsedFolderIds, savedIdSet]);
+  }, [initialSelectedIds, lastUsedFolderIds, savedIdSet]);
 
   const [selectedIds, setSelectedIds] = useState(() => new Set(initialSelected));
-
-  useEffect(() => {
-    setSelectedIds(new Set(initialSelected));
-  }, [initialSelected]);
 
   useEffect(() => {
     if (!showTooltip) return;
@@ -88,6 +98,13 @@ const FolderSelectionList = ({
       setSelectedIds((prev) => {
         const next = new Set(prev);
         next.add(createdId?.toString());
+        if (onSelectionChange) {
+          const snapshot = Array.from(next).sort().join('|');
+          if (snapshot !== lastNotifiedSelection.current) {
+            lastNotifiedSelection.current = snapshot;
+            onSelectionChange(Array.from(next));
+          }
+        }
         return next;
       });
       setQuery('');
@@ -108,6 +125,13 @@ const FolderSelectionList = ({
       } else {
         next.add(normalizedId);
       }
+      if (onSelectionChange) {
+        const snapshot = Array.from(next).sort().join('|');
+        if (snapshot !== lastNotifiedSelection.current) {
+          lastNotifiedSelection.current = snapshot;
+          onSelectionChange(Array.from(next));
+        }
+      }
       return next;
     });
   };
@@ -122,7 +146,8 @@ const FolderSelectionList = ({
   }, [savedIdSet, selectedIds]);
 
   const handleConfirm = async () => {
-    if (!onConfirm || isConfirming) return;
+    if (!onConfirm || isConfirming || confirmLockRef.current) return;
+    confirmLockRef.current = true;
     const selected = Array.from(selectedIds);
     const addIds = selected.filter((id) => !savedIdSet.has(id));
     const removeIds = Array.from(savedIdSet).filter((id) => !selectedIds.has(id));
@@ -137,6 +162,7 @@ const FolderSelectionList = ({
       });
     } finally {
       setIsConfirming(false);
+      confirmLockRef.current = false;
     }
   };
 
@@ -167,17 +193,29 @@ const FolderSelectionList = ({
             </div>
           </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setIsCreating((prev) => !prev)}
-          className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
-            isCreating
-              ? 'bg-blue-100 text-blue-600'
-              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-          }`}
-        >
-          <Plus className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-1">
+          {onEditDefinitions && (
+            <button
+              type="button"
+              onClick={onEditDefinitions}
+              title="修改儲存的解釋"
+              className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setIsCreating((prev) => !prev)}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
+              isCreating
+                ? 'bg-blue-100 text-blue-600'
+                : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+            }`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       <div className="relative">
@@ -281,7 +319,7 @@ const FolderSelectionList = ({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!hasChanges || isConfirming}
+          disabled={!(hasChanges || hasDefinitionChanges) || isConfirming}
           className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           確認

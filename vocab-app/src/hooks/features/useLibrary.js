@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'react-hot-toast';
 import {
   loadCachedFolders,
   loadCachedVocab,
   saveCachedFolders,
   saveCachedVocab,
+  loadLastUsedFolders,
+  saveLastUsedFolders,
   loadFolderSortBy,
   saveFolderSortBy,
   loadWordSortBy,
@@ -21,6 +24,7 @@ import {
 } from '../../services/libraryService';
 import { fetchStory } from '../../services/aiService';
 import { mapLibraryRowToWord } from '../../domain/mappers/libraryMapper';
+import { createVocabularyWord } from '../../domain/models';
 import useLibraryIndex from './useLibraryIndex';
 
 const DEFAULT_FOLDERS = [{ id: 'default', name: '預設資料夾', words: [] }];
@@ -34,6 +38,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);
   const [folderSortBy, setFolderSortBy] = useState(() => loadFolderSortBy());
   const [wordSortBy, setWordSortBy] = useState(() => loadWordSortBy());
+  const isSyncing = useRef(false);
+  const [lastUsedFolderIds, setLastUsedFolderIds] = useState(() => loadLastUsedFolders());
 
   const index = useLibraryIndex({ folders, vocabData });
 
@@ -129,6 +135,10 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   }, [folders, vocabData]);
 
   useEffect(() => {
+    saveLastUsedFolders(lastUsedFolderIds);
+  }, [lastUsedFolderIds]);
+
+  useEffect(() => {
     saveFolderSortBy(folderSortBy);
   }, [folderSortBy]);
 
@@ -149,7 +159,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     const nextName = (name || '').trim();
     if (!nextName) {
       alert('資料夾名稱不能為空');
-      return false;
+      return null;
     }
     const nextDescription = (description || '').trim();
 
@@ -166,19 +176,21 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
           message = '資料庫尚未更新。請新增 folders.description 欄位後再試。';
         }
         alert("建立資料夾失敗: " + message);
-        return false;
+        return null;
       }
-      setFolders(prev => [...prev, { ...data, id: data.id?.toString() }]);
-      return true;
+      const created = { ...data, id: data.id?.toString() };
+      setFolders(prev => [...prev, created]);
+      return created;
     }
 
-    setFolders(prev => [...prev, {
+    const created = {
       id: Date.now().toString(),
       name: nextName,
       description: nextDescription ? nextDescription : null,
       words: []
-    }]);
-    return true;
+    };
+    setFolders(prev => [...prev, created]);
+    return created;
   }, [session]);
 
   const handleDeleteFolder = useCallback(async (folderId) => {
@@ -256,10 +268,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   }, [session]);
 
   const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null) => {
-    if (!searchResult || !session) {
-      if (!session) alert("請先登入才能儲存單字！");
-      return false;
-    }
+    if (!searchResult) return false;
 
     const folderName = folders.find(folder => folder.id === folderId)?.name || '資料夾';
     const normalizedFolderId = folderId?.toString();
@@ -269,6 +278,94 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       showToast?.(`「${searchResult.word}」已在「${folderName}」`, 'info');
       return false;
     }
+
+    const nowIso = new Date().toISOString();
+    const normalizedSelectedDefinitions = Array.isArray(selectedDefinitions) ? selectedDefinitions : null;
+
+    if (!session) {
+      if (existingWord) {
+        const nextFolderIds = normalizedFolderId
+          ? Array.from(new Set([...(existingWord.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
+          : (existingWord.folderIds || []);
+        const updatedLocal = createVocabularyWord({
+          ...existingWord,
+          folderIds: nextFolderIds,
+          selectedDefinitions: normalizedSelectedDefinitions ?? existingWord.selectedDefinitions ?? null
+        });
+        setVocabData(prev => prev.map(word => word.id === existingWord.id ? { ...updatedLocal, isLocal: true } : word));
+      } else {
+        const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        const localWord = createVocabularyWord({
+          ...searchResult,
+          id: tempId,
+          folderIds: normalizedFolderId ? [normalizedFolderId] : [],
+          selectedDefinitions: normalizedSelectedDefinitions,
+          addedAt: nowIso,
+          nextReview: nowIso,
+          due: nowIso,
+          proficiencyScore: 0
+        });
+        setVocabData(prev => [...prev, { ...localWord, isLocal: true }]);
+      }
+      toast.success('已暫存於本機 (訪客模式)');
+      return true;
+    }
+
+    const buildWordFromEntry = (libraryEntry, baseWord) => {
+      const mergedFolderIds = Array.isArray(libraryEntry.folder_ids)
+        ? libraryEntry.folder_ids.map(id => id?.toString()).filter(Boolean)
+        : (normalizedFolderId ? [normalizedFolderId] : []);
+
+      const mergedSelectedDefinitions = Array.isArray(libraryEntry.selected_definitions)
+        ? libraryEntry.selected_definitions
+        : normalizedSelectedDefinitions;
+
+      return createVocabularyWord({
+        ...baseWord,
+        id: libraryEntry.word_id?.toString() || baseWord.id,
+        libraryId: libraryEntry.id,
+        folderIds: mergedFolderIds,
+        selectedDefinitions: mergedSelectedDefinitions,
+        addedAt: libraryEntry.created_at || nowIso,
+        nextReview: libraryEntry.next_review || libraryEntry.due || nowIso,
+        due: libraryEntry.due || libraryEntry.next_review || nowIso,
+        stability: libraryEntry.stability ?? null,
+        difficulty: libraryEntry.difficulty ?? null,
+        elapsed_days: libraryEntry.elapsed_days ?? null,
+        scheduled_days: libraryEntry.scheduled_days ?? null,
+        reps: libraryEntry.reps ?? null,
+        lapses: libraryEntry.lapses ?? null,
+        state: libraryEntry.state ?? null,
+        last_review: libraryEntry.last_review ?? null,
+        proficiencyScore: libraryEntry.proficiency_score ?? 0
+      });
+    };
+
+    const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const optimisticFolderIds = normalizedFolderId
+      ? Array.from(new Set([...(existingWord?.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
+      : (existingWord?.folderIds || []);
+
+    const optimisticWord = createVocabularyWord({
+      ...(existingWord || searchResult),
+      id: existingWord?.id || optimisticId,
+      folderIds: optimisticFolderIds,
+      selectedDefinitions: normalizedSelectedDefinitions ?? existingWord?.selectedDefinitions ?? null,
+      addedAt: existingWord?.addedAt || nowIso,
+      nextReview: existingWord?.nextReview || nowIso,
+      due: existingWord?.due || nowIso,
+      proficiencyScore: existingWord?.proficiencyScore ?? 0
+    });
+
+    const previousWord = existingWord ? { ...existingWord } : null;
+
+    if (existingWord) {
+      setVocabData(prev => prev.map(word => word.id === existingWord.id ? optimisticWord : word));
+    } else {
+      setVocabData(prev => [...prev, optimisticWord]);
+    }
+
+    toast.success('已加入單字庫！');
 
     try {
       const { data, error } = await saveWordWithPreferences({
@@ -283,49 +380,19 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       const libraryEntry = Array.isArray(data) ? data[0] : data;
       if (!libraryEntry) throw new Error("儲存失敗 (無回傳資料)");
 
-      const mergedFolderIds = Array.isArray(libraryEntry.folder_ids)
-        ? libraryEntry.folder_ids.map(id => id?.toString()).filter(Boolean)
-        : (normalizedFolderId ? [normalizedFolderId] : []);
-
-      const mergedSelectedDefinitions = Array.isArray(libraryEntry.selected_definitions)
-        ? libraryEntry.selected_definitions
-        : (Array.isArray(selectedDefinitions) ? selectedDefinitions : null);
+      const reconciledWord = buildWordFromEntry(libraryEntry, optimisticWord);
 
       setVocabData(prev => {
-        const existing = prev.find(word => word.id === libraryEntry.word_id?.toString());
-        if (existing) {
-          return prev.map(word => word.id === libraryEntry.word_id?.toString()
-            ? { ...word, folderIds: mergedFolderIds, selectedDefinitions: mergedSelectedDefinitions }
-            : word);
+        const existingOptimistic = prev.find(word => word.id === optimisticWord.id);
+        if (existingOptimistic) {
+          return prev.map(word => word.id === optimisticWord.id ? reconciledWord : word);
         }
-
-        const nowIso = new Date().toISOString();
-        return [...prev, {
-          ...searchResult,
-          id: libraryEntry.word_id?.toString(),
-          libraryId: libraryEntry.id,
-          folderIds: mergedFolderIds,
-          selectedDefinitions: mergedSelectedDefinitions,
-          addedAt: libraryEntry.created_at || nowIso,
-          nextReview: libraryEntry.next_review || libraryEntry.due || nowIso,
-          due: libraryEntry.due || libraryEntry.next_review || nowIso,
-          stability: libraryEntry.stability ?? null,
-          difficulty: libraryEntry.difficulty ?? null,
-          elapsed_days: libraryEntry.elapsed_days ?? null,
-          scheduled_days: libraryEntry.scheduled_days ?? null,
-          reps: libraryEntry.reps ?? null,
-          lapses: libraryEntry.lapses ?? null,
-          state: libraryEntry.state ?? null,
-          last_review: libraryEntry.last_review ?? null,
-          proficiencyScore: libraryEntry.proficiency_score ?? 0
-        }];
+        return prev.map(word => word.id === reconciledWord.id ? reconciledWord : word);
       });
-
-      showToast?.(`已儲存到「${folderName}」`);
       return true;
     } catch (error) {
       console.error("儲存失敗:", error);
-      let message = error.message || "請稍後再試";
+      let message = error?.message || "請稍後再試";
       if (message.includes("row-level security")) {
         message = "資料庫權限不足。請在 Supabase SQL Editor 執行 RLS 政策指令以開放寫入權限。";
       } else if (message.includes('column "folder_ids" of relation "user_library" does not exist')) {
@@ -333,10 +400,108 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       } else if (message.includes('column "selected_definitions" of relation "user_library" does not exist')) {
         message = "資料庫尚未更新。請先新增 selected_definitions 欄位。";
       }
-      alert("儲存失敗: " + message);
+      console.error("儲存失敗細節:", message);
+      if (previousWord) {
+        setVocabData(prev => prev.map(word => word.id === previousWord.id ? previousWord : word));
+      } else {
+        setVocabData(prev => prev.filter(word => word.id !== optimisticWord.id));
+      }
+      toast.error('儲存失敗，請再試一次');
       return false;
     }
   }, [folders, session, showToast, vocabData]);
+
+  const syncLocalWords = useCallback(async () => {
+    if (!session?.user?.id) return;
+    if (isSyncing.current) return;
+
+    const localWords = vocabData.filter(word => word.isLocal);
+    if (localWords.length === 0) return;
+
+    const buildWordFromEntry = (libraryEntry, baseWord) => {
+      const mergedFolderIds = Array.isArray(libraryEntry.folder_ids)
+        ? libraryEntry.folder_ids.map(id => id?.toString()).filter(Boolean)
+        : (baseWord.folderIds || []);
+
+      const mergedSelectedDefinitions = Array.isArray(libraryEntry.selected_definitions)
+        ? libraryEntry.selected_definitions
+        : (Array.isArray(baseWord.selectedDefinitions) ? baseWord.selectedDefinitions : null);
+
+      return createVocabularyWord({
+        ...baseWord,
+        id: libraryEntry.word_id?.toString() || baseWord.id,
+        libraryId: libraryEntry.id,
+        folderIds: mergedFolderIds,
+        selectedDefinitions: mergedSelectedDefinitions,
+        addedAt: libraryEntry.created_at || baseWord.addedAt || null,
+        nextReview: libraryEntry.next_review || libraryEntry.due || baseWord.nextReview || null,
+        due: libraryEntry.due || libraryEntry.next_review || baseWord.due || null,
+        stability: libraryEntry.stability ?? null,
+        difficulty: libraryEntry.difficulty ?? null,
+        elapsed_days: libraryEntry.elapsed_days ?? null,
+        scheduled_days: libraryEntry.scheduled_days ?? null,
+        reps: libraryEntry.reps ?? null,
+        lapses: libraryEntry.lapses ?? null,
+        state: libraryEntry.state ?? null,
+        last_review: libraryEntry.last_review ?? null,
+        proficiencyScore: libraryEntry.proficiency_score ?? baseWord.proficiencyScore ?? 0
+      });
+    };
+
+    isSyncing.current = true;
+    const toastId = toast.loading('正在同步本機單字...');
+
+    try {
+      const results = await Promise.allSettled(localWords.map(async (word) => {
+        const { data, error } = await saveWordWithPreferences({
+          wordData: word,
+          userId: session.user.id,
+          folderId: word.folderIds?.[0]?.toString() || null,
+          selectedDefinitions: Array.isArray(word.selectedDefinitions) ? word.selectedDefinitions : null
+        });
+
+        if (error) throw error;
+
+        const libraryEntry = Array.isArray(data) ? data[0] : data;
+        if (!libraryEntry) throw new Error('同步失敗 (無回傳資料)');
+
+        return { word, libraryEntry };
+      }));
+
+      const successfulUpdates = new Map();
+      results.forEach((result, index) => {
+        const sourceWord = localWords[index];
+        if (!sourceWord) return;
+        if (result.status === 'fulfilled') {
+          successfulUpdates.set(
+            sourceWord.id,
+            buildWordFromEntry(result.value.libraryEntry, sourceWord)
+          );
+        } else {
+          console.error('本機單字同步失敗:', result.reason);
+        }
+      });
+
+      if (successfulUpdates.size > 0) {
+        setVocabData(prev => prev.map(word => {
+          const updated = successfulUpdates.get(word.id);
+          return updated ? updated : word;
+        }));
+        toast.success('本機單字已同步至雲端！');
+      } else {
+        toast.error('同步失敗，請檢查網路連線');
+      }
+    } finally {
+      toast.dismiss(toastId);
+      isSyncing.current = false;
+    }
+  }, [saveWordWithPreferences, session?.user?.id, vocabData]);
+
+  useEffect(() => {
+    if (session?.user?.id) {
+      syncLocalWords();
+    }
+  }, [session?.user?.id, syncLocalWords]);
 
   const handleRemoveWordFromFolder = useCallback(async (word, folderId) => {
     const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
@@ -518,6 +683,14 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     setVocabData(prev => prev.map(word => word.id === wordId ? { ...word, ...updates } : word));
   }, []);
 
+  const updateLastUsedFolderIds = useCallback((folderIds) => {
+    const normalized = (Array.isArray(folderIds) ? folderIds : [])
+      .map(id => id?.toString())
+      .filter(Boolean);
+    const unique = Array.from(new Set(normalized));
+    setLastUsedFolderIds(unique);
+  }, []);
+
   return {
     state: {
       folders,
@@ -527,7 +700,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       story,
       isGeneratingStory,
       folderSortBy,
-      wordSortBy
+      wordSortBy,
+      lastUsedFolderIds
     },
     derived: {
       activeFolder,
@@ -552,7 +726,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       handleRemoveWordsFromFolder,
       handleMoveWordsToFolder,
       generateFolderStory,
-      updateWord
+      updateWord,
+      updateLastUsedFolderIds
     }
   };
 };

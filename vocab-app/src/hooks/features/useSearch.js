@@ -49,7 +49,6 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
   const [searchError, setSearchError] = useState(null);
   const [suggestions, setSuggestions] = useState([]);
   const [searchHistory, setSearchHistory] = useState(() => loadSearchHistory());
-  const [isSaveMenuOpen, setIsSaveMenuOpen] = useState(false);
   const [saveButtonFeedback, setSaveButtonFeedback] = useState(false);
 
   const ignoreNextQueryUpdate = useRef(false);
@@ -242,7 +241,6 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
       aiLoading,
       searchError,
       suggestions,
-      isSaveMenuOpen,
       saveButtonFeedback
     },
     derived: {
@@ -253,7 +251,6 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
       setQuerySilently,
       setSearchResult,
       setSuggestions,
-      setIsSaveMenuOpen,
       handleSearch,
       generateAiMnemonic,
       triggerSaveButtonFeedback,

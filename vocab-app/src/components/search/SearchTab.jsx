@@ -26,7 +26,6 @@ const SearchTab = () => {
     isSearching,
     aiLoading,
     suggestions,
-    isSaveMenuOpen,
     saveButtonFeedback
   } = search.state;
 
@@ -34,7 +33,8 @@ const SearchTab = () => {
 
   const {
     folders,
-    isDataLoaded
+    isDataLoaded,
+    lastUsedFolderIds
   } = library.state;
 
   const { returnFolderId } = navigation.state;
@@ -105,11 +105,12 @@ const SearchTab = () => {
           onSpeak={speak}
           savedWordInSearch={savedWordInSearch}
           saveButtonFeedback={saveButtonFeedback}
-          isSaveMenuOpen={isSaveMenuOpen}
-          setIsSaveMenuOpen={search.actions.setIsSaveMenuOpen}
           folders={folders}
+          lastUsedFolderIds={lastUsedFolderIds}
           onSaveWord={search.actions.saveFromSearch}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
+          onUpdateLastUsedFolderIds={library.actions.updateLastUsedFolderIds}
+          onCreateFolder={library.actions.createFolder}
           apiKey={apiKey}
           aiLoading={aiLoading}
           onGenerateMnemonic={search.actions.generateAiMnemonic}

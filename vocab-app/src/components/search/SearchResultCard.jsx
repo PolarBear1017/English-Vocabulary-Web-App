@@ -1,9 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Check } from 'lucide-react';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
 import SearchMnemonic from './SearchMnemonic';
+import FolderSelectionList from './FolderSelectionList';
 
 const SearchResultCard = ({
   searchResult,
@@ -15,8 +15,11 @@ const SearchResultCard = ({
   savedWordInSearch,
   saveButtonFeedback,
   folders,
+  lastUsedFolderIds,
   onSaveWord,
   onRemoveWordFromFolder,
+  onUpdateLastUsedFolderIds,
+  onCreateFolder,
   apiKey,
   aiLoading,
   onGenerateMnemonic,
@@ -114,20 +117,27 @@ const SearchResultCard = ({
     return onSaveWord(folderId, selectedDefinitions);
   }, [onSaveWord, searchResult.pos, selectedEntries]);
 
-  const handleFolderSave = useCallback(async (folderId) => {
-    const saved = await handleSaveWord(folderId);
-    if (saved) resetSaveFlow();
-  }, [handleSaveWord, resetSaveFlow]);
+  const handleConfirmFolders = useCallback(async ({ addIds, removeIds, selectedIds }) => {
+    const tasks = [];
 
-  const handleFolderClick = useCallback(async (folderId, isSavedInFolder) => {
-    if (isSavedInFolder) {
-      if (confirm(`要將 "${searchResult.word}" 從該資料夾移除嗎？`)) {
-        onRemoveWordFromFolder?.(savedWordInSearch, folderId);
-      }
-      return;
+    if (Array.isArray(removeIds) && removeIds.length > 0) {
+      tasks.push(...removeIds.map((folderId) => onRemoveWordFromFolder?.(savedWordInSearch, folderId)));
     }
-    await handleFolderSave(folderId);
-  }, [handleFolderSave, onRemoveWordFromFolder, savedWordInSearch, searchResult.word]);
+
+    if (Array.isArray(addIds) && addIds.length > 0) {
+      tasks.push(...addIds.map((folderId) => handleSaveWord(folderId)));
+    }
+
+    if (tasks.length > 0) {
+      await Promise.all(tasks.map((task) => Promise.resolve(task)));
+    }
+
+    if (Array.isArray(selectedIds)) {
+      onUpdateLastUsedFolderIds?.(selectedIds);
+    }
+
+    resetSaveFlow();
+  }, [handleSaveWord, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch]);
 
   const applySavedSelection = useCallback(() => {
     if (selectedDefinitionSet.size === 0) {
@@ -226,31 +236,15 @@ const SearchResultCard = ({
               <div className="flex items-center justify-between mb-4">
                 <h4 className="text-sm font-bold text-gray-400 uppercase">選擇資料夾</h4>
               </div>
-              <div className="space-y-2 max-h-[50vh] overflow-y-auto">
-                {[...folders].reverse().map((folder) => {
-                  const isSavedInFolder = savedWordInSearch?.folderIds?.includes(folder.id);
-                  return (
-                    <button
-                      key={folder.id}
-                      type="button"
-                      onClick={() => handleFolderClick(folder.id, isSavedInFolder)}
-                      className="w-full text-left px-4 py-3 rounded-xl border border-gray-200 hover:bg-gray-50 transition flex items-center justify-between gap-3"
-                    >
-                      <span className="font-medium text-gray-800">{folder.name}</span>
-                      {isSavedInFolder && <Check className="w-4 h-4 text-green-600" />}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="mt-4 flex justify-end">
-                <button
-                  type="button"
-                  onClick={handleCancelSave}
-                  className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
-                >
-                  完成
-                </button>
-              </div>
+              <FolderSelectionList
+                folders={folders}
+                savedFolderIds={savedWordInSearch?.folderIds || []}
+                lastUsedFolderIds={lastUsedFolderIds}
+                searchWord={searchResult.word}
+                onConfirm={handleConfirmFolders}
+                onCancel={handleCancelSave}
+                onCreateFolder={onCreateFolder}
+              />
             </div>
           </div>
         )}

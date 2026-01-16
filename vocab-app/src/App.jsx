@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { Toaster } from 'react-hot-toast';
 import useVocabularyApp from './hooks/useVocabularyApp';
 import Navigation from './components/layout/Navigation';
 import SearchTab from './components/search/SearchTab';
@@ -38,6 +39,7 @@ export default function VocabularyApp() {
                   <main className="flex-1 overflow-y-auto p-4 md:p-8">
                     <ActivePage />
                     <Toast toast={app.toast.toast} />
+                    <Toaster position="bottom-right" />
                   </main>
                 </div>
               </ReviewContext.Provider>

@@ -72,6 +72,23 @@ const splitExampleLines = (example = '') => {
   return [trimmed];
 };
 
+const parseReviewDate = (value) => {
+  if (!value) return null;
+  const date = value instanceof Date ? value : new Date(value);
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const getReviewTimestamp = (value, fallback = 0) => {
+  const date = parseReviewDate(value);
+  return date ? date.getTime() : fallback;
+};
+
+const isReviewDue = (value, referenceDate = new Date()) => {
+  const date = parseReviewDate(value);
+  if (!date) return true;
+  return date.getTime() <= referenceDate.getTime();
+};
+
 const getLevenshteinDistance = (a = '', b = '') => {
   if (a === b) return 0;
   const aLen = a.length;
@@ -123,5 +140,8 @@ export {
   mapGradeToFsrsRating,
   formatDate,
   splitExampleLines,
+  parseReviewDate,
+  getReviewTimestamp,
+  isReviewDue,
   calculateReviewResult
 };

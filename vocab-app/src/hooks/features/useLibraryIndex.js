@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { isReviewDue } from '../../utils/data';
 
 const useLibraryIndex = ({ folders, vocabData }) => {
   const allFolderIds = useMemo(() => folders.map(folder => folder.id), [folders]);
@@ -25,7 +26,7 @@ const useLibraryIndex = ({ folders, vocabData }) => {
       const words = entriesByFolderId[folder.id] || [];
       stats[folder.id] = {
         count: words.length,
-        dueCount: words.filter(word => new Date(word.nextReview) <= new Date()).length
+        dueCount: words.filter(word => isReviewDue(word.nextReview)).length
       };
     });
     return stats;
@@ -49,7 +50,7 @@ const useLibraryIndex = ({ folders, vocabData }) => {
     return map;
   }, [vocabData]);
 
-  const dueCount = useMemo(() => vocabData.filter(word => new Date(word.nextReview) <= new Date()).length, [vocabData]);
+  const dueCount = useMemo(() => vocabData.filter(word => isReviewDue(word.nextReview)).length, [vocabData]);
 
   return {
     allFolderIds,

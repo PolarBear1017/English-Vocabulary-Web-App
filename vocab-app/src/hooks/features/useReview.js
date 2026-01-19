@@ -1,10 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FSRS, Rating, generatorParameters } from 'ts-fsrs';
 import {
   buildFsrsCard,
   serializeFsrsCard,
   calculateReviewResult,
   normalizeEntries,
+  getReviewTimestamp,
+  isReviewDue,
   splitExampleLines
 } from '../../utils/data';
 import { getClozeValidAnswers } from '../../utils/text.jsx';
@@ -35,6 +37,8 @@ const useReview = ({
   const [hasMistake, setHasMistake] = useState(false);
   const [selectedReviewFolders, setSelectedReviewFolders] = useState(['all']);
   const [reviewSetupView, setReviewSetupView] = useState('main');
+  const processRatingRef = useRef(null);
+  const advanceToNextCardRef = useRef(null);
 
   const fsrsParams = useMemo(() => generatorParameters({
     enable_fuzzing: true,
@@ -98,8 +102,8 @@ const useReview = ({
     const rolloverCutoff = new Date(now);
     rolloverCutoff.setHours(24, 0, 0, 0);
     const dueWords = words
-      .filter(word => new Date(word.nextReview) < rolloverCutoff)
-      .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview));
+      .filter(word => isReviewDue(word.nextReview, rolloverCutoff))
+      .sort((a, b) => getReviewTimestamp(a.nextReview) - getReviewTimestamp(b.nextReview));
 
     if (dueWords.length >= batchSize) {
       return dueWords.slice(0, batchSize);
@@ -115,8 +119,9 @@ const useReview = ({
     let fillNotDue = [];
     if (remainingSlots > 0) {
       fillNotDue = words
-        .filter(word => new Date(word.nextReview) >= rolloverCutoff && !selectedIds.has(word.id))
-        .sort((a, b) => new Date(a.nextReview) - new Date(b.nextReview))
+        .filter(word => !isReviewDue(word.nextReview, rolloverCutoff) && !selectedIds.has(word.id))
+        .sort((a, b) => getReviewTimestamp(a.nextReview, Number.MAX_SAFE_INTEGER)
+          - getReviewTimestamp(b.nextReview, Number.MAX_SAFE_INTEGER))
         .slice(0, remainingSlots);
     }
 
@@ -155,9 +160,9 @@ const useReview = ({
     setActiveTab('review_session');
   }, [allFolderIds, buildReviewBatch, setActiveTab, vocabData]);
 
-  function advanceToNextCard() {
+  const advanceToNextCard = useCallback(() => {
     if (pendingAutoGrade !== null) {
-      processRating(pendingAutoGrade, { advance: false });
+      processRatingRef.current?.(pendingAutoGrade, { advance: false });
       setPendingAutoGrade(null);
     }
 
@@ -173,57 +178,27 @@ const useReview = ({
       alert("複習完成！");
       setActiveTab('review');
     }
-  }
+  }, [currentCardIndex, pendingAutoGrade, reviewQueue.length, setActiveTab]);
+
+  useEffect(() => {
+    advanceToNextCardRef.current = advanceToNextCard;
+  }, [advanceToNextCard]);
+
+  const handleAdvanceKeyDown = useCallback((event) => {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      advanceToNextCard();
+    }
+  }, [advanceToNextCard]);
 
   useEffect(() => {
     if (!(activeTab === 'review_session' && reviewMode !== 'flashcard' && isFlipped && isAwaitingNext)) {
       return;
     }
 
-    const handleKeyDown = (event) => {
-      if (event.key === 'Enter') {
-        event.preventDefault();
-        advanceToNextCard();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, advanceToNextCard, isAwaitingNext, isFlipped, reviewMode]);
-
-  useEffect(() => {
-    if (activeTab !== 'review_session' || reviewQueue.length === 0) return;
-
-    const handleKeyDown = (event) => {
-      if (event.repeat) return;
-      const key = event.key;
-
-      if (['1', '2', '3', '4'].includes(key) && isFlipped && reviewMode === 'flashcard') {
-        event.preventDefault();
-        processRating(Number(key));
-        return;
-      }
-
-      if (key === 'Enter' && !isAwaitingNext) {
-        if (!isFlipped) {
-          event.preventDefault();
-          if (reviewMode === 'flashcard') {
-            setIsFlipped(true);
-          } else {
-            checkAnswer();
-          }
-          return;
-        }
-
-        if (reviewMode === 'flashcard') {
-          event.preventDefault();
-        }
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [activeTab, checkAnswer, isAwaitingNext, isFlipped, processRating, reviewMode, reviewQueue.length]);
+    window.addEventListener('keydown', handleAdvanceKeyDown);
+    return () => window.removeEventListener('keydown', handleAdvanceKeyDown);
+  }, [activeTab, handleAdvanceKeyDown, isAwaitingNext, isFlipped, reviewMode]);
 
   useEffect(() => {
     if (activeTab !== 'review_session' || !isFlipped) return;
@@ -238,7 +213,7 @@ const useReview = ({
     speak(currentReviewWord.word, preferredReviewAudio);
   }, [activeTab, currentReviewWord?.word, isFlipped, preferredReviewAudio, reviewMode]);
 
-  function processRating(grade, options = {}) {
+  const processRating = useCallback((grade, options = {}) => {
     const currentWord = reviewQueue[currentCardIndex];
     if (!currentWord) {
       setActiveTab('review');
@@ -297,11 +272,15 @@ const useReview = ({
 
     const shouldAdvance = options.advance !== false;
     if (shouldAdvance) {
-      advanceToNextCard();
+      advanceToNextCardRef.current?.();
     }
-  }
+  }, [currentCardIndex, fsrs, reviewQueue, session, setActiveTab, updateWord]);
 
-  function checkAnswer() {
+  useEffect(() => {
+    processRatingRef.current = processRating;
+  }, [processRating]);
+
+  const checkAnswer = useCallback(() => {
     const currentWord = reviewQueue[currentCardIndex];
     if (!currentWord) {
       setActiveTab('review');
@@ -370,16 +349,59 @@ const useReview = ({
       setIsAwaitingNext(true);
     }
     return normalizedResult;
-  }
+  }, [
+    clozeExampleMain,
+    currentCardIndex,
+    hasMistake,
+    isAwaitingNext,
+    reviewMode,
+    reviewQueue,
+    setActiveTab,
+    userAnswer
+  ]);
 
-  function handleAnswerChange(value) {
+  const handleReviewKeyDown = useCallback((event) => {
+    if (event.repeat) return;
+    const key = event.key;
+
+    if (['1', '2', '3', '4'].includes(key) && isFlipped && reviewMode === 'flashcard') {
+      event.preventDefault();
+      processRating(Number(key));
+      return;
+    }
+
+    if (key === 'Enter' && !isAwaitingNext) {
+      if (!isFlipped) {
+        event.preventDefault();
+        if (reviewMode === 'flashcard') {
+          setIsFlipped(true);
+        } else {
+          checkAnswer();
+        }
+        return;
+      }
+
+      if (reviewMode === 'flashcard') {
+        event.preventDefault();
+      }
+    }
+  }, [checkAnswer, isAwaitingNext, isFlipped, processRating, reviewMode]);
+
+  useEffect(() => {
+    if (activeTab !== 'review_session' || reviewQueue.length === 0) return;
+
+    window.addEventListener('keydown', handleReviewKeyDown);
+    return () => window.removeEventListener('keydown', handleReviewKeyDown);
+  }, [activeTab, handleReviewKeyDown, reviewQueue.length]);
+
+  const handleAnswerChange = useCallback((value) => {
     setUserAnswer(value);
     if (feedback === 'incorrect') {
       setFeedback(null);
       setIsAwaitingNext(false);
     }
     if (answerHint) setAnswerHint('');
-  }
+  }, [answerHint, feedback]);
 
   return {
     state: {

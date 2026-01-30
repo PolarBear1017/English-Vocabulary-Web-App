@@ -269,7 +269,7 @@ const SearchResultCard = ({
         onSearchFullDefinition={() => onSearch(searchResult.word)}
       />
 
-      <div className="p-6 space-y-6">
+      <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>
         <SearchResultEntries
           normalizedEntries={orderedEntries}
           searchWord={searchResult.word}

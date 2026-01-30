@@ -37,7 +37,7 @@ const ReviewSession = ({
     </div>
 
     <div className="flex-1 bg-white rounded-3xl shadow-lg border border-gray-200 relative overflow-hidden flex flex-col">
-      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center overflow-y-auto">
+      <div className={`flex-1 flex flex-col p-8 overflow-y-auto ${isFlipped ? 'items-center justify-start text-center' : 'items-center justify-center text-center'}`}>
         {!isFlipped ? (
           <>
             {reviewMode === 'flashcard' && <h2 className="text-4xl font-bold text-gray-800">{currentReviewWord.word}</h2>}

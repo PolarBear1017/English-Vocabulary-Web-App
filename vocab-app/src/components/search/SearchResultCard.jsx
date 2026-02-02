@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
+import { Info } from 'lucide-react';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
@@ -31,12 +32,26 @@ const SearchResultCard = ({
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
   const [draftFolderIds, setDraftFolderIds] = useState(null);
   const [isConfirmingFolders, setIsConfirmingFolders] = useState(false);
+  const [showDefaultTip, setShowDefaultTip] = useState(false);
   const isProcessingRef = useRef(false);
+  const defaultTipRef = useRef(null);
 
   useEffect(() => {
     setSaveStep('idle');
     setSelectedEntryIndices(null);
   }, [searchResult?.word]);
+
+  useEffect(() => {
+    if (!showDefaultTip) return;
+    const handleOutsideClick = (event) => {
+      if (!defaultTipRef.current) return;
+      if (!defaultTipRef.current.contains(event.target)) {
+        setShowDefaultTip(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [showDefaultTip]);
 
   const selectedDefinitionSet = useMemo(() => {
     const raw = savedWordInSearch?.selectedDefinitions || savedWordInSearch?.selected_definitions;
@@ -209,8 +224,13 @@ const SearchResultCard = ({
   }, [handleSaveWord, hasDefinitionChanges, isConfirmingFolders, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch]);
 
   const applySavedSelection = useCallback(() => {
+    if (orderedEntries.length === 0) {
+      setSelectedEntryIndices(new Set());
+      return;
+    }
     if (selectedDefinitionSet.size === 0) {
-      setSelectedEntryIndices(null);
+      // Default to saving only the first definition for new words.
+      setSelectedEntryIndices(new Set([0]));
       return;
     }
     const indices = [];
@@ -219,7 +239,7 @@ const SearchResultCard = ({
       if (selectedDefinitionSet.has(key)) indices.push(index);
     });
     if (indices.length === 0) {
-      setSelectedEntryIndices(new Set());
+      setSelectedEntryIndices(new Set([0]));
       return;
     }
     if (indices.length === orderedEntries.length) {
@@ -304,7 +324,24 @@ const SearchResultCard = ({
             <div className="absolute inset-0 bg-black/40" onClick={handleCancelSave} />
             <div className="relative z-50 w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
-                <h4 className="text-sm font-bold text-gray-400 uppercase">選擇資料夾</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-sm font-bold text-gray-400 uppercase">選擇資料夾</h4>
+                  <button
+                    type="button"
+                    onClick={() => setShowDefaultTip((prev) => !prev)}
+                    className="relative group"
+                    ref={defaultTipRef}
+                    aria-label="解釋儲存提示"
+                  >
+                    <Info className="w-4 h-4 text-gray-400 cursor-help" />
+                    <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${
+                      showDefaultTip ? 'opacity-100 visible' : 'opacity-0 invisible'
+                    } group-hover:opacity-100 group-hover:visible`}>
+                      預設只儲存第一個解釋
+                      <div className="absolute left-2 top-full w-0 h-0 border-4 border-transparent border-t-gray-800" />
+                    </div>
+                  </button>
+                </div>
               </div>
               <FolderSelectionList
                 folders={folders}

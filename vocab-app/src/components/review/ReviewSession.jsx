@@ -47,7 +47,7 @@ const ReviewSession = ({
                 {currentReviewWord.pos && (
                   <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
-                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}
@@ -62,7 +62,7 @@ const ReviewSession = ({
                 {currentReviewWord.pos && (
                   <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
-                <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}
@@ -71,7 +71,7 @@ const ReviewSession = ({
             {reviewMode === 'dictation' && (
               <div className="space-y-6 w-full flex flex-col items-center">
                 <button onClick={() => speak(currentReviewWord.word, preferredReviewAudio)} className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-200 transition animate-pulse"><Volume2 className="w-8 h-8" /></button>
-                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoFocus />
+                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}

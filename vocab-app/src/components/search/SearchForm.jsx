@@ -70,6 +70,9 @@ const SearchForm = ({
               value={query}
               onChange={(e) => onQueryChange(e.target.value)}
               onKeyDown={handleKeyDown}
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck={false}
               placeholder="輸入單字"
               className={`w-full p-4 pl-12 pr-32 shadow-sm border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none ${open && hasSuggestions ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
             />

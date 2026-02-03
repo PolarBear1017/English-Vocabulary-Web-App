@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AI_ERROR_CODES, fetchDefinition, fetchMnemonic } from '../../services/aiService';
 import { fetchDictionaryEntry, fetchSuggestions } from '../../services/dictionaryService';
-import { fetchDictionaryAiData, upsertDictionaryAiData } from '../../services/libraryService';
 import { MOCK_DICTIONARY_DB } from '../../utils/mockData';
 import {
   toSearchResultFromAi,
@@ -42,7 +41,7 @@ const removeSearchHistory = () => {
   }
 };
 
-const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
+const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -56,53 +55,6 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
 
   const ignoreNextQueryUpdate = useRef(false);
   const searchInputRef = useRef(null);
-
-  const loadCachedAiData = useCallback(async (word) => {
-    if (!word) return null;
-    if (!session) return null;
-    try {
-      const { data, error } = await fetchDictionaryAiData(word);
-      if (error) {
-        if (error.message?.includes('column "ai_data" of relation "dictionary" does not exist')) {
-          return null;
-        }
-        console.warn('AI cache fetch failed', error);
-        return null;
-      }
-      return data?.ai_data || null;
-    } catch (error) {
-      console.warn('AI cache fetch failed', error);
-      return null;
-    }
-  }, [session]);
-
-  const saveAiData = useCallback(async (word, patch) => {
-    if (!word) return;
-    if (!session) return;
-    try {
-      const { data, error } = await fetchDictionaryAiData(word);
-      if (error) {
-        if (error.message?.includes('column "ai_data" of relation "dictionary" does not exist')) {
-          return;
-        }
-        console.warn('AI cache prefetch failed', error);
-      }
-      const existing = data?.ai_data && typeof data.ai_data === 'object' ? data.ai_data : {};
-      const next = {
-        ...existing,
-        ...patch,
-        updatedAt: new Date().toISOString()
-      };
-      const { error: upsertError } = await upsertDictionaryAiData({ word, aiData: next });
-      if (upsertError) {
-        if (!upsertError.message?.includes('column "ai_data" of relation "dictionary" does not exist')) {
-          console.warn('AI cache save failed', upsertError);
-        }
-      }
-    } catch (error) {
-      console.warn('AI cache save failed', error);
-    }
-  }, [session]);
 
   useEffect(() => {
     setSaveButtonFeedback(false);
@@ -234,25 +186,18 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
       if (dictionaryData) {
         setSearchResult(toSearchResultFromDictionary(dictionaryData));
       } else {
-        const cachedAi = await loadCachedAiData(lowerQuery);
-        if (cachedAi?.definition) {
-          const cachedSource = cachedAi.definitionSource || 'AI';
-          setSearchResult(toSearchResultFromAi(cachedAi.definition, cachedSource));
-        } else {
-          if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
-            const error = new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
-            error.code = AI_ERROR_CODES.MISSING_API_KEYS;
-            throw error;
-          }
-          setIsAiLoading(true);
-          const { data, source } = await fetchDefinition({
-            geminiKey: apiKeys.geminiKey,
-            groqKey: apiKeys.groqKey,
-            word: lowerQuery
-          });
-          setSearchResult(toSearchResultFromAi(data, source));
-          saveAiData(lowerQuery, { definition: data, definitionSource: source });
+        if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
+          const error = new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
+          error.code = AI_ERROR_CODES.MISSING_API_KEYS;
+          throw error;
         }
+        setIsAiLoading(true);
+        const { data, source } = await fetchDefinition({
+          geminiKey: apiKeys.geminiKey,
+          groqKey: apiKeys.groqKey,
+          word: lowerQuery
+        });
+        setSearchResult(toSearchResultFromAi(data, source));
       }
     } catch (error) {
       console.error(error);
@@ -265,7 +210,7 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, loadCachedAiData, onRequireApiKeys, onSearchStart, query, saveAiData, setQuerySilently]);
+  }, [apiKeys, onRequireApiKeys, onSearchStart, query, setQuerySilently]);
 
   const generateAiMnemonic = useCallback(async () => {
     if (!searchResult) return;
@@ -275,15 +220,6 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
       setAiError({ code: error.code, message: error.message });
       onRequireApiKeys?.();
       alert(error.message);
-      return;
-    }
-    const cachedAi = await loadCachedAiData(searchResult.word);
-    if (cachedAi?.mnemonic) {
-      setSearchResult(prev => ({
-        ...prev,
-        mnemonics: cachedAi.mnemonic,
-        isAiGenerated: true
-      }));
       return;
     }
     setAiLoading(true);
@@ -300,13 +236,12 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys, session }) => {
         mnemonics,
         isAiGenerated: true
       }));
-      saveAiData(searchResult.word, { mnemonic: mnemonics });
     } catch (error) {
       alert("生成失敗: " + error.message);
     } finally {
       setAiLoading(false);
     }
-  }, [apiKeys, loadCachedAiData, onRequireApiKeys, saveAiData, searchResult]);
+  }, [apiKeys, onRequireApiKeys, searchResult]);
 
   const triggerSaveButtonFeedback = useCallback(() => {
     setSaveButtonFeedback(true);

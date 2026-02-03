@@ -28,7 +28,6 @@ const useVocabularyApp = () => {
 
   const search = useSearch({
     apiKeys,
-    session: settings.state.session,
     onSearchStart: () => navigation.actions.setReturnFolderId(null),
     onRequireApiKeys: () => navigation.actions.setActiveTab('settings')
   });

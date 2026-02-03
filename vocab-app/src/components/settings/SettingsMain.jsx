@@ -1,7 +1,7 @@
 import React from 'react';
 import { ArrowRight, User, Key, Brain } from 'lucide-react';
 
-const SettingsMain = ({ session, apiKey, groqApiKey, onSelectView }) => (
+const SettingsMain = ({ session, groqApiKey, onSelectView }) => (
   <>
     <h1 className="text-2xl font-bold mb-6">設定</h1>
     <div className="space-y-4">
@@ -36,7 +36,7 @@ const SettingsMain = ({ session, apiKey, groqApiKey, onSelectView }) => (
           <div className="text-left">
             <div className="font-bold text-gray-800">API 金鑰設定</div>
             <div className="text-sm text-gray-500">
-              {apiKey || groqApiKey ? '已設定' : '未設定'}
+              {groqApiKey ? '已設定' : '未設定'}
             </div>
           </div>
         </div>

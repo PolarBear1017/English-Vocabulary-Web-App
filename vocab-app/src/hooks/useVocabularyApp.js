@@ -15,9 +15,8 @@ const useVocabularyApp = () => {
   const preferences = useAudioPreferences();
 
   const apiKeys = useMemo(() => ({
-    geminiKey: settings.state.apiKey,
     groqKey: settings.state.groqApiKey
-  }), [settings.state.apiKey, settings.state.groqApiKey]);
+  }), [settings.state.groqApiKey]);
 
   const library = useLibrary({
     session: settings.state.session,

@@ -108,9 +108,9 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   }, [wordSortBy]);
 
   const generateFolderStory = useCallback(async (folder) => {
-    if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
+    if (!apiKeys?.groqKey) {
       if (onRequireApiKeys) onRequireApiKeys();
-      alert("請先設定 API Key 才能使用故事生成功能！");
+      alert("請先設定 Groq API Key 才能使用故事生成功能！");
       return;
     }
 
@@ -127,7 +127,6 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
 
     try {
       const storyText = await fetchStory({
-        geminiKey: apiKeys.geminiKey,
         groqKey: apiKeys.groqKey,
         words: targetWords
       });

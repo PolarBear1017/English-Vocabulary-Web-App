@@ -16,7 +16,7 @@ const SearchTab = () => {
   const settings = useSettingsContext();
   const preferences = usePreferencesContext();
 
-  const { apiKey, groqApiKey } = settings.state;
+  const { groqApiKey } = settings.state;
   const { preferredAccent } = preferences.state;
 
   const {
@@ -70,7 +70,7 @@ const SearchTab = () => {
       <header>
         <h1 className="text-2xl font-bold mb-2">單字查詢</h1>
         <div className="text-sm text-gray-500 flex items-center gap-2">
-          {(apiKey || groqApiKey) && (
+          {groqApiKey && (
             <span className="text-green-600 flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI 功能已啟用</span>
           )}
         </div>
@@ -111,7 +111,7 @@ const SearchTab = () => {
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           onUpdateLastUsedFolderIds={library.actions.updateLastUsedFolderIds}
           onCreateFolder={library.actions.createFolder}
-          apiKey={apiKey}
+          groqApiKey={groqApiKey}
           aiLoading={aiLoading}
           onGenerateMnemonic={search.actions.generateAiMnemonic}
           setQuery={search.actions.setQuery}

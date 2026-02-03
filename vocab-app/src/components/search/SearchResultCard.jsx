@@ -22,7 +22,7 @@ const SearchResultCard = ({
   onRemoveWordFromFolder,
   onUpdateLastUsedFolderIds,
   onCreateFolder,
-  apiKey,
+  groqApiKey,
   aiLoading,
   onGenerateMnemonic,
   setQuery,
@@ -312,7 +312,7 @@ const SearchResultCard = ({
 
             <SearchMnemonic
               mnemonics={searchResult.mnemonics}
-              apiKey={apiKey}
+              groqApiKey={groqApiKey}
               aiLoading={aiLoading}
               onGenerate={onGenerateMnemonic}
             />

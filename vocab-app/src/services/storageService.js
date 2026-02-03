@@ -4,7 +4,6 @@ const STORAGE_KEYS = {
   folders: 'vocab_folders',
   vocabData: 'vocab_data',
   lastUsedFolders: 'last_used_folders',
-  geminiKey: 'gemini_api_key',
   groqKey: 'groq_api_key',
   requestRetention: 'request_retention',
   folderSortBy: 'folder_sort_by',
@@ -52,9 +51,6 @@ const saveCachedVocab = (vocabData) => writeJSON(STORAGE_KEYS.vocabData, vocabDa
 const loadLastUsedFolders = () => readJSON(STORAGE_KEYS.lastUsedFolders, []);
 const saveLastUsedFolders = (folderIds) => writeJSON(STORAGE_KEYS.lastUsedFolders, folderIds);
 
-const loadGeminiKey = () => readString(STORAGE_KEYS.geminiKey, '');
-const saveGeminiKey = (value) => writeString(STORAGE_KEYS.geminiKey, value);
-
 const loadGroqKey = () => readString(STORAGE_KEYS.groqKey, '');
 const saveGroqKey = (value) => writeString(STORAGE_KEYS.groqKey, value);
 
@@ -85,8 +81,6 @@ export {
   saveCachedVocab,
   loadLastUsedFolders,
   saveLastUsedFolders,
-  loadGeminiKey,
-  saveGeminiKey,
   loadGroqKey,
   saveGroqKey,
   loadRequestRetention,

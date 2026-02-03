@@ -1,10 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import {
   ensureStorageVersion,
-  loadGeminiKey,
   loadGroqKey,
   loadRequestRetention,
-  saveGeminiKey,
   saveGroqKey,
   saveRequestRetention
 } from '../../services/storageService';
@@ -20,7 +18,6 @@ import {
 
 const useSettings = () => {
   const [settingsView, setSettingsView] = useState('main');
-  const [apiKey, setApiKey] = useState(() => loadGeminiKey());
   const [groqApiKey, setGroqApiKey] = useState(() => loadGroqKey());
   const [requestRetention, setRequestRetention] = useState(() => loadRequestRetention());
 
@@ -32,10 +29,6 @@ const useSettings = () => {
   useEffect(() => {
     ensureStorageVersion();
   }, []);
-
-  useEffect(() => {
-    saveGeminiKey(apiKey);
-  }, [apiKey]);
 
   useEffect(() => {
     saveGroqKey(groqApiKey);
@@ -98,7 +91,6 @@ const useSettings = () => {
   return {
     state: {
       settingsView,
-      apiKey,
       groqApiKey,
       requestRetention,
       session,
@@ -108,7 +100,6 @@ const useSettings = () => {
     },
     actions: {
       setSettingsView,
-      setApiKey,
       setGroqApiKey,
       setRequestRetention,
       setEmail,

@@ -60,7 +60,7 @@ const toSearchResultFallback = (word) => {
     phonetic: '/?/',
     definition: '查無此字 (請檢查拼字，或在設定頁面輸入 API Key 以啟用 AI 救援)',
     translation: '未知',
-    example: 'Please enter your Gemini or Groq API Key to unlock infinite dictionary.',
+    example: 'Please enter your Groq API Key to unlock infinite dictionary.',
     similar: [],
     audioUrl: null,
     usAudioUrl: null,

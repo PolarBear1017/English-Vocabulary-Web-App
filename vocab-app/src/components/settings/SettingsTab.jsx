@@ -11,7 +11,6 @@ const SettingsTab = () => {
   const {
     settingsView,
     session,
-    apiKey,
     groqApiKey,
     email,
     password,
@@ -24,7 +23,6 @@ const SettingsTab = () => {
       {settingsView === 'main' ? (
         <SettingsMain
           session={session}
-          apiKey={apiKey}
           groqApiKey={groqApiKey}
           onSelectView={settings.actions.setSettingsView}
         />
@@ -54,9 +52,7 @@ const SettingsTab = () => {
 
           {settingsView === 'api' && (
             <SettingsApi
-              apiKey={apiKey}
               groqApiKey={groqApiKey}
-              setApiKey={settings.actions.setApiKey}
               setGroqApiKey={settings.actions.setGroqApiKey}
             />
           )}

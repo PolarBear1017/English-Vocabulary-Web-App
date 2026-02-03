@@ -1,12 +1,12 @@
-import { supabase } from '../supabase';
+import { supabase, supabaseAnonKey } from '../supabase';
 
 const AI_ERROR_CODES = {
   MISSING_API_KEYS: 'MISSING_API_KEYS'
 };
 
-const callAi = async ({ geminiKey, groqKey, word, definition, promptType }) => {
-  if (!geminiKey && !groqKey) {
-    const error = new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
+const callAi = async ({ groqKey, word, definition, words, promptType }) => {
+  if (!groqKey) {
+    const error = new Error("請在設定頁面輸入 Groq API Key。");
     error.code = AI_ERROR_CODES.MISSING_API_KEYS;
     throw error;
   }
@@ -15,11 +15,15 @@ const callAi = async ({ geminiKey, groqKey, word, definition, promptType }) => {
     body: {
       word,
       definition,
+      words,
       promptType,
       apiKeys: {
-        geminiKey,
         groqKey
       }
+    },
+    headers: {
+      Authorization: `Bearer ${supabaseAnonKey}`,
+      apikey: supabaseAnonKey
     }
   });
 
@@ -134,8 +138,8 @@ const normalizeMnemonic = (data) => {
   return { method, content: (content || fallback || '').trim() };
 };
 
-const fetchDefinition = async ({ geminiKey, groqKey, word }) => {
-  const response = await callAi({ geminiKey, groqKey, word, promptType: 'definition' });
+const fetchDefinition = async ({ groqKey, word }) => {
+  const response = await callAi({ groqKey, word, promptType: 'definition' });
   const raw = response?.data;
   const parsed = typeof raw === 'string' ? parseJsonContent(raw) : raw;
   return {
@@ -144,9 +148,8 @@ const fetchDefinition = async ({ geminiKey, groqKey, word }) => {
   };
 };
 
-const fetchMnemonic = async ({ geminiKey, groqKey, word, definition }) => {
+const fetchMnemonic = async ({ groqKey, word, definition }) => {
   const response = await callAi({
-    geminiKey,
     groqKey,
     word,
     definition,
@@ -157,8 +160,18 @@ const fetchMnemonic = async ({ geminiKey, groqKey, word, definition }) => {
   return normalizeMnemonic(parsed);
 };
 
+const fetchStory = async ({ groqKey, words }) => {
+  const response = await callAi({
+    groqKey,
+    words,
+    promptType: 'story'
+  });
+  return response?.data || '';
+};
+
 export {
   AI_ERROR_CODES,
   fetchDefinition,
-  fetchMnemonic
+  fetchMnemonic,
+  fetchStory
 };

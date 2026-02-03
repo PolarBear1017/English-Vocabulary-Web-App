@@ -7,8 +7,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type'
 };
 
-const GEMINI_MODEL = 'gemini-2.0-flash';
-const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`;
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
 const GROQ_MODEL = 'llama-3.1-8b-instant';
 
@@ -65,6 +63,13 @@ If you need quotation marks, use fullwidth brackets like 「」 or 『』 instea
   "method": "方法名稱 (例如: Etymology)",
   "content": "用繁體中文。請包含字根/字首/字尾拆解 + 連結記憶的有趣或合理聯想。"
 }`;
+
+const buildStoryPrompt = (words: string[]) => `
+Write a short, engaging story (max 150 words) using ALL of the following English words: ${words.join(', ')}.
+The story should be easy to read for an intermediate learner.
+Highlight the target words by wrapping them in **double asterisks** (e.g., **apple**).
+After the story, provide a brief Traditional Chinese summary.
+`;
 
 const escapeNewlinesInStrings = (input: string) => {
   let inString = false;
@@ -176,24 +181,6 @@ const parseJsonContent = (text: string) => {
   }
 };
 
-const callGemini = async (apiKey: string, prompt: string) => {
-  const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
-    })
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Gemini API 呼叫失敗: ${errorData.error?.message}`);
-  }
-
-  const data = await response.json();
-  return { text: data.candidates[0].content.parts[0].text, source: 'Gemini AI', model: GEMINI_MODEL };
-};
-
 const callGroq = async (apiKey: string, prompt: string) => {
   const response = await fetch(GROQ_API_URL, {
     method: 'POST',
@@ -216,21 +203,9 @@ const callGroq = async (apiKey: string, prompt: string) => {
   return { text: data.choices[0].message.content, source: 'Groq AI', model: GROQ_MODEL };
 };
 
-const callAi = async (geminiKey: string | undefined, groqKey: string | undefined, prompt: string) => {
-  if (geminiKey) {
-    try {
-      return await callGemini(geminiKey, prompt);
-    } catch (error) {
-      if (groqKey) {
-        return await callGroq(groqKey, prompt);
-      }
-      throw error;
-    }
-  }
-  if (groqKey) {
-    return await callGroq(groqKey, prompt);
-  }
-  const error = new Error('請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。');
+const callAi = async (groqKey: string | undefined, prompt: string) => {
+  if (groqKey) return await callGroq(groqKey, prompt);
+  const error = new Error('請在設定頁面輸入 Groq API Key。');
   (error as Error & { code?: string }).code = AI_ERROR_CODES.MISSING_API_KEYS;
   throw error;
 };
@@ -250,6 +225,7 @@ serve(async (req) => {
     const word = String(body?.word || '').trim().toLowerCase();
     const promptType = String(body?.promptType || '').trim();
     const definition = String(body?.definition || '').trim();
+    const words = Array.isArray(body?.words) ? body.words.filter(Boolean) : [];
     const apiKeys = body?.apiKeys || {};
 
     if (!word || !promptType) {
@@ -259,44 +235,50 @@ serve(async (req) => {
       });
     }
 
-    const { data: cached, error: cacheError } = await supabase
-      .from('word_ai_cache')
-      .select('content, source, model')
-      .eq('word', word)
-      .eq('prompt_type', promptType)
-      .maybeSingle();
+    if (promptType !== 'story') {
+      const { data: cached, error: cacheError } = await supabase
+        .from('word_ai_cache')
+        .select('content, source, model')
+        .eq('word', word)
+        .eq('prompt_type', promptType)
+        .maybeSingle();
 
-    if (!cacheError && cached?.content) {
-      return new Response(JSON.stringify({
-        data: cached.content,
-        source: cached.source || 'AI',
-        model: cached.model || null,
-        cached: true
-      }), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
+      if (!cacheError && cached?.content) {
+        return new Response(JSON.stringify({
+          data: cached.content,
+          source: cached.source || 'AI',
+          model: cached.model || null,
+          cached: true
+        }), {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
+      }
     }
 
     const prompt = promptType === 'mnemonic'
       ? buildMnemonicPrompt(word, definition)
-      : buildDefinitionPrompt(word);
+      : (promptType === 'story'
+        ? buildStoryPrompt(words)
+        : buildDefinitionPrompt(word));
 
-    const { text, source, model } = await callAi(apiKeys.geminiKey, apiKeys.groqKey, prompt);
-    const parsed = parseJsonContent(text);
+    const { text, source, model } = await callAi(apiKeys.groqKey, prompt);
+    const parsed = promptType === 'story' ? text : parseJsonContent(text);
 
-    const { error: upsertError } = await supabase
-      .from('word_ai_cache')
-      .upsert({
-        word,
-        prompt_type: promptType,
-        content: parsed,
-        source,
-        model,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'word,prompt_type' });
+    if (promptType !== 'story') {
+      const { error: upsertError } = await supabase
+        .from('word_ai_cache')
+        .upsert({
+          word,
+          prompt_type: promptType,
+          content: parsed,
+          source,
+          model,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'word,prompt_type' });
 
-    if (upsertError) {
-      console.warn('Cache upsert failed', upsertError);
+      if (upsertError) {
+        console.warn('Cache upsert failed', upsertError);
+      }
     }
 
     return new Response(JSON.stringify({ data: parsed, source, model, cached: false }), {

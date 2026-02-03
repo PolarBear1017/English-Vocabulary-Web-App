@@ -186,14 +186,13 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
       if (dictionaryData) {
         setSearchResult(toSearchResultFromDictionary(dictionaryData));
       } else {
-        if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
-          const error = new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
+        if (!apiKeys?.groqKey) {
+          const error = new Error("請在設定頁面輸入 Groq API Key。");
           error.code = AI_ERROR_CODES.MISSING_API_KEYS;
           throw error;
         }
         setIsAiLoading(true);
         const { data, source } = await fetchDefinition({
-          geminiKey: apiKeys.geminiKey,
           groqKey: apiKeys.groqKey,
           word: lowerQuery
         });
@@ -214,8 +213,8 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
 
   const generateAiMnemonic = useCallback(async () => {
     if (!searchResult) return;
-    if (!apiKeys?.geminiKey && !apiKeys?.groqKey) {
-      const error = new Error("請先在設定頁面輸入至少一組 API Key");
+    if (!apiKeys?.groqKey) {
+      const error = new Error("請先在設定頁面輸入 Groq API Key");
       error.code = AI_ERROR_CODES.MISSING_API_KEYS;
       setAiError({ code: error.code, message: error.message });
       onRequireApiKeys?.();
@@ -225,7 +224,6 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
     setAiLoading(true);
     try {
       const mnemonics = await fetchMnemonic({
-        geminiKey: apiKeys.geminiKey,
         groqKey: apiKeys.groqKey,
         word: searchResult.word,
         definition: searchResult.definition

@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Sparkles, Loader2 } from 'lucide-react';
 
-const SearchMnemonic = ({ mnemonics, apiKey, aiLoading, onGenerate }) => {
+const SearchMnemonic = ({ mnemonics, groqApiKey, aiLoading, onGenerate }) => {
   const displayText = useMemo(() => {
     if (!mnemonics) return '';
     if (typeof mnemonics === 'string') return mnemonics;
@@ -21,7 +21,7 @@ const SearchMnemonic = ({ mnemonics, apiKey, aiLoading, onGenerate }) => {
         <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{displayText}</p>
       ) : (
         <div className="text-center py-2">
-          {apiKey ? (
+          {groqApiKey ? (
             <button
               onClick={onGenerate}
               disabled={aiLoading}

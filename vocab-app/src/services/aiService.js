@@ -1,5 +1,6 @@
 const GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent";
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
+const GROQ_MODEL = "llama-3.1-8b-instant";
 
 const callGemini = async (apiKey, prompt) => {
   if (!apiKey) throw new Error("請先在設定頁面輸入 Gemini API Key");
@@ -31,7 +32,7 @@ const callGroq = async (apiKey, prompt) => {
       "Authorization": `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: "llama3-8b-8192",
+      model: GROQ_MODEL,
       messages: [{ role: "user", content: prompt }]
     })
   });

@@ -16,7 +16,7 @@
  * @property {string} example
  * @property {SearchEntry[]} entries
  * @property {string[]} similar
- * @property {string|null} mnemonics
+ * @property {object|string|null} mnemonics
  * @property {string|null} audioUrl
  * @property {string|null} usAudioUrl
  * @property {string|null} ukAudioUrl
@@ -34,7 +34,7 @@
  * @property {string} translation
  * @property {string} example
  * @property {string[]} similar
- * @property {string|null} mnemonics
+ * @property {object|string|null} mnemonics
  * @property {string[]} folderIds
  * @property {string|number|null} libraryId
  * @property {string|null} addedAt

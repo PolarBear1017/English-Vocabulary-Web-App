@@ -3,6 +3,10 @@ const GEMINI_API_URL = `https://generativelanguage.googleapis.com/v1beta/models/
 const GROQ_API_URL = "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = "llama-3.1-8b-instant";
 
+const AI_ERROR_CODES = {
+  MISSING_API_KEYS: 'MISSING_API_KEYS'
+};
+
 const callGemini = async (apiKey, prompt) => {
   if (!apiKey) throw new Error("請先在設定頁面輸入 Gemini API Key");
 
@@ -64,7 +68,9 @@ const callAi = async (geminiKey, groqKey, prompt) => {
     console.log("未設定 Gemini Key，正在使用 Groq AI...");
     return await callGroq(groqKey, prompt);
   }
-  throw new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
+  const error = new Error("請至少在設定頁面輸入一種 AI API Key (Gemini 或 Groq)。");
+  error.code = AI_ERROR_CODES.MISSING_API_KEYS;
+  throw error;
 };
 
 const generateDefinitionPrompt = (word) => `
@@ -100,7 +106,8 @@ const generateMnemonicPrompt = (word, definition) => `
 Create a memory aid for the English word "${word}" (meaning: ${definition}).
 Return ONLY a valid JSON object (no markdown) with this key:
 {
-  "mnemonics": "用繁體中文。請包含字根/字首/字尾拆解 + 連結記憶的有趣或合理聯想。"
+  "method": "方法名稱 (例如: Etymology)",
+  "content": "用繁體中文。請包含字根/字首/字尾拆解 + 連結記憶的有趣或合理聯想。"
 }`;
 
 const generateStoryPrompt = (words) => `
@@ -152,33 +159,70 @@ const parseJsonContent = (text) => {
   try {
     return JSON.parse(cleanJson);
   } catch (error) {
-    const extracted = extractJsonObject(cleanJson);
-    if (!extracted) throw error;
-    const escaped = escapeNewlinesInStrings(extracted);
-    return JSON.parse(escaped);
+    try {
+      const extracted = extractJsonObject(cleanJson);
+      if (!extracted) {
+        return { rawText: cleanJson, parseError: error.message };
+      }
+      const escaped = escapeNewlinesInStrings(extracted);
+      return JSON.parse(escaped);
+    } catch (secondError) {
+      return { rawText: cleanJson, parseError: secondError.message };
+    }
   }
+};
+
+const normalizeDefinition = (word, data) => {
+  if (!data || typeof data !== 'object') {
+    return {
+      word,
+      pos: '',
+      phonetic: '',
+      definition: '',
+      translation: '',
+      examples: [],
+      practicalTips: '',
+      memoryZone: ''
+    };
+  }
+  const rawText = data.rawText || data.raw || '';
+  return {
+    word: data.word || word,
+    pos: data.pos || '',
+    phonetic: data.phonetic || '',
+    definition: data.definition || rawText || '',
+    translation: data.translation || '',
+    examples: Array.isArray(data.examples) ? data.examples : (data.example ? [data.example] : []),
+    practicalTips: data.practicalTips || data.practical_tips || '',
+    memoryZone: data.memoryZone || data.memory_zone || ''
+  };
 };
 
 const fetchDefinition = async ({ geminiKey, groqKey, word }) => {
   const { text, source } = await callAi(geminiKey, groqKey, generateDefinitionPrompt(word));
-  return { data: parseJsonContent(text), source };
+  const parsed = parseJsonContent(text);
+  return { data: normalizeDefinition(word, parsed), source };
 };
 
 const normalizeMnemonic = (data) => {
-  if (!data) return '';
-  if (typeof data === 'string') return data.trim();
-  if (typeof data.mnemonics === 'string') return data.mnemonics.trim();
-  const etymology = data.etymology || data.etymologyNotes;
-  const memory = data.memoryZone || data.memoryAid || data.memory_aid || data['memory aid'];
-  const parts = [];
-  if (etymology) parts.push(`字源拆解: ${etymology}`);
-  if (memory) parts.push(`記憶法: ${memory}`);
-  if (parts.length > 0) return parts.join('\n');
-  try {
-    return JSON.stringify(data);
-  } catch (error) {
-    return String(data);
+  if (!data) {
+    return { method: 'Etymology', content: '' };
   }
+  if (typeof data === 'string') {
+    return { method: 'Etymology', content: data.trim() };
+  }
+  if (typeof data.mnemonics === 'string') {
+    return { method: 'Etymology', content: data.mnemonics.trim() };
+  }
+  const content = data.content
+    || data.memoryZone
+    || data.memoryZoneContent
+    || data.memory_aid
+    || data['memory aid']
+    || '';
+  const method = data.method || data.strategy || 'Etymology';
+  const fallback = data.rawText || data.raw || '';
+  return { method, content: (content || fallback || '').trim() };
 };
 
 const fetchMnemonic = async ({ geminiKey, groqKey, word, definition }) => {
@@ -193,6 +237,7 @@ const fetchStory = async ({ geminiKey, groqKey, words }) => {
 };
 
 export {
+  AI_ERROR_CODES,
   GEMINI_MODEL,
   GEMINI_API_URL,
   GROQ_API_URL,

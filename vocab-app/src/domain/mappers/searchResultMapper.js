@@ -32,7 +32,7 @@ const toSearchResultFromAi = (data, source) => {
     audioUrl: null,
     usAudioUrl: null,
     ukAudioUrl: null,
-    mnemonics: null,
+    mnemonics: data.mnemonics ?? null,
     isAiGenerated: true,
     source
   });

@@ -71,12 +71,28 @@ const fetchDictionaryWord = async (word) => {
     .maybeSingle();
 };
 
+const fetchDictionaryAiData = async (word) => {
+  return supabase
+    .from('dictionary')
+    .select('id, word, ai_data')
+    .ilike('word', word)
+    .maybeSingle();
+};
+
 const insertDictionaryWord = async (payload) => {
   return supabase
     .from('dictionary')
     .insert([payload])
     .select()
     .single();
+};
+
+const upsertDictionaryAiData = async ({ word, aiData }) => {
+  return supabase
+    .from('dictionary')
+    .upsert({ word, ai_data: aiData }, { onConflict: 'word' })
+    .select('id, word, ai_data')
+    .maybeSingle();
 };
 
 const fetchUserLibraryEntry = async ({ userId, wordId }) => {
@@ -138,7 +154,9 @@ export {
   updateFolder,
   fetchUserLibrary,
   fetchDictionaryWord,
+  fetchDictionaryAiData,
   insertDictionaryWord,
+  upsertDictionaryAiData,
   fetchUserLibraryEntry,
   insertUserLibraryEntry,
   updateUserLibraryFoldersByWord,

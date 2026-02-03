@@ -207,7 +207,7 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
     }
     setAiLoading(true);
     try {
-      const data = await fetchMnemonic({
+      const mnemonics = await fetchMnemonic({
         geminiKey: apiKeys.geminiKey,
         groqKey: apiKeys.groqKey,
         word: searchResult.word,
@@ -216,7 +216,7 @@ const useSearch = ({ apiKeys, onSearchStart }) => {
 
       setSearchResult(prev => ({
         ...prev,
-        mnemonics: data.mnemonics,
+        mnemonics,
         isAiGenerated: true
       }));
     } catch (error) {

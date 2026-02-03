@@ -17,7 +17,15 @@ const toSearchResultFromDictionary = (data) => {
 };
 
 const toSearchResultFromAi = (data, source) => {
-  const entries = normalizeEntries(data);
+  const entries = Array.isArray(data.examples) && data.examples.length > 0
+    ? normalizeEntries({
+      entries: [{
+        definition: data.definition || '',
+        translation: data.translation || '',
+        examples: data.examples
+      }]
+    })
+    : normalizeEntries(data);
   return createSearchResult({
     ...data,
     entries,

@@ -116,6 +116,7 @@ const SearchTab = () => {
           onGenerateMnemonic={search.actions.generateAiMnemonic}
           setQuery={search.actions.setQuery}
           onSearch={search.actions.handleSearch}
+          onChangeSource={search.actions.handleSearchWithSource}
         />
       )}
     </div>

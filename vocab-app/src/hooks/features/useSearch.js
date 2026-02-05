@@ -4,9 +4,9 @@ import { fetchDictionaryEntry, fetchSuggestions } from '../../services/dictionar
 import { MOCK_DICTIONARY_DB } from '../../utils/mockData';
 import {
   toSearchResultFromAi,
-  toSearchResultFromDictionary,
-  toSearchResultFallback
+  toSearchResultFromDictionary
 } from '../../domain/mappers/searchResultMapper';
+import { createSearchResult } from '../../domain/models';
 import { normalizeEntries } from '../../utils/data';
 
 const SEARCH_HISTORY_KEY = 'vocab_search_history';
@@ -139,19 +139,33 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
     setQuery(value);
   }, []);
 
-  const handleSearch = useCallback(async (e) => {
-    if (e && e.preventDefault) e.preventDefault();
+  const createSourceFallback = useCallback((word, source, message) => {
+    const fallback = {
+      word,
+      pos: 'unknown',
+      phonetic: '/?/',
+      definition: message,
+      translation: '',
+      example: '',
+      similar: [],
+      audioUrl: null,
+      usAudioUrl: null,
+      ukAudioUrl: null,
+      mnemonics: null,
+      isAiGenerated: false,
+      source
+    };
 
-    const searchTerm = (typeof e === 'string' ? e : query).trim();
-    if (!searchTerm) return;
+    return createSearchResult({
+      ...fallback,
+      entries: normalizeEntries(fallback)
+    });
+  }, []);
 
+  const runSearch = useCallback(async ({ searchTerm, forceSource }) => {
     updateSearchHistory(searchTerm);
     setSuggestions([]);
     if (onSearchStart) onSearchStart();
-
-    if (typeof e === 'string') {
-      setQuerySilently(searchTerm);
-    }
 
     setIsSearching(true);
     setSearchResult(null);
@@ -167,6 +181,42 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
           setSearchResult({ ...mock, entries: normalizeEntries(mock), isAiGenerated: false });
           setIsSearching(false);
         }, 500);
+        return;
+      }
+
+      if (forceSource === 'Cambridge') {
+        try {
+          const data = await fetchDictionaryEntry(lowerQuery);
+          if (data) {
+            const normalized = normalizeEntries(data);
+            if (normalized.length > 0) {
+              setSearchResult(toSearchResultFromDictionary(data));
+              return;
+            }
+          }
+          setSearchError('Cambridge 查無此字，請嘗試切換來源。');
+          setSearchResult(createSourceFallback(searchTerm, 'Cambridge', 'Cambridge 查無此字，請嘗試切換來源。'));
+          return;
+        } catch (error) {
+          console.warn('劍橋字典 API 呼叫失敗', error);
+          setSearchError('Cambridge 查詢失敗，請稍後再試或切換來源。');
+          setSearchResult(createSourceFallback(searchTerm, 'Cambridge', 'Cambridge 查詢失敗，請稍後再試或切換來源。'));
+          return;
+        }
+      }
+
+      if (forceSource === 'Groq AI') {
+        if (!apiKeys?.groqKey) {
+          const error = new Error("請在設定頁面輸入 Groq API Key。");
+          error.code = AI_ERROR_CODES.MISSING_API_KEYS;
+          throw error;
+        }
+        setIsAiLoading(true);
+        const { data, source } = await fetchDefinition({
+          groqKey: apiKeys.groqKey,
+          word: lowerQuery
+        });
+        setSearchResult(toSearchResultFromAi(data, source));
         return;
       }
 
@@ -209,7 +259,27 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, onRequireApiKeys, onSearchStart, query, setQuerySilently]);
+  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, updateSearchHistory]);
+
+  const handleSearch = useCallback(async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+
+    const searchTerm = (typeof e === 'string' ? e : query).trim();
+    if (!searchTerm) return;
+
+    if (typeof e === 'string') {
+      setQuerySilently(searchTerm);
+    }
+
+    await runSearch({ searchTerm, forceSource: null });
+  }, [query, runSearch, setQuerySilently]);
+
+  const handleSearchWithSource = useCallback(async (word, source) => {
+    const searchTerm = (word || query).trim();
+    if (!searchTerm) return;
+    setQuerySilently(searchTerm);
+    await runSearch({ searchTerm, forceSource: source });
+  }, [query, runSearch, setQuerySilently]);
 
   const generateAiMnemonic = useCallback(async () => {
     if (!searchResult) return;
@@ -269,6 +339,7 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
       setSearchResult,
       setSuggestions,
       handleSearch,
+      handleSearchWithSource,
       generateAiMnemonic,
       triggerSaveButtonFeedback,
       clearSearchHistory

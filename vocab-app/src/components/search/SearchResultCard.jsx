@@ -26,19 +26,22 @@ const SearchResultCard = ({
   aiLoading,
   onGenerateMnemonic,
   setQuery,
-  onSearch
+  onSearch,
+  onChangeSource
 }) => {
   const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
   const [draftFolderIds, setDraftFolderIds] = useState(null);
   const [isConfirmingFolders, setIsConfirmingFolders] = useState(false);
   const [showDefaultTip, setShowDefaultTip] = useState(false);
+  const [isSwitchingSource, setIsSwitchingSource] = useState(false);
   const isProcessingRef = useRef(false);
   const defaultTipRef = useRef(null);
 
   useEffect(() => {
     setSaveStep('idle');
     setSelectedEntryIndices(null);
+    setIsSwitchingSource(false);
   }, [searchResult?.word]);
 
   useEffect(() => {
@@ -268,6 +271,16 @@ const SearchResultCard = ({
     setSaveStep('selecting');
   }, []);
 
+  const handleChangeSource = useCallback(async (source) => {
+    if (!onChangeSource || !searchResult?.word) return;
+    setIsSwitchingSource(true);
+    try {
+      await onChangeSource(searchResult.word, source);
+    } finally {
+      setIsSwitchingSource(false);
+    }
+  }, [onChangeSource, searchResult?.word]);
+
   const headerStep = saveStep;
   const isSelectingView = saveStep === 'selecting';
 
@@ -287,6 +300,9 @@ const SearchResultCard = ({
         onNextSave={handleNextSave}
         onBackSave={handleEditDefinitions}
         onSearchFullDefinition={() => onSearch(searchResult.word)}
+        availableSources={['Cambridge', 'Groq AI']}
+        onChangeSource={handleChangeSource}
+        isSwitchingSource={isSwitchingSource}
       />
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>

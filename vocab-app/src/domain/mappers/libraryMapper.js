@@ -24,7 +24,9 @@ const mapLibraryRowToWord = (item) => {
     reps: item.reps ?? null,
     lapses: item.lapses ?? null,
     state: item.state ?? null,
-    last_review: item.last_review ?? null
+    last_review: item.last_review ?? null,
+    source: item.source ?? item.dictionary?.source ?? null,
+    isAiGenerated: item.is_ai_generated ?? item.dictionary?.is_ai_generated ?? item.dictionary?.isAiGenerated ?? false
   });
 };
 

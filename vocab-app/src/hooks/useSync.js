@@ -3,7 +3,8 @@ import { toast } from 'react-hot-toast';
 import {
   fetchFolders,
   fetchUserLibrary,
-  saveWordWithPreferences
+  saveWordWithPreferences,
+  updateUserLibrarySourceByLibraryId
 } from '../services/libraryService';
 import { mapLibraryRowToWord } from '../domain/mappers/libraryMapper';
 import { entryToWord } from '../utils/mapper';
@@ -87,6 +88,17 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
 
         const libraryEntry = Array.isArray(data) ? data[0] : data;
         if (!libraryEntry) throw new Error('同步失敗 (無回傳資料)');
+
+        if (libraryEntry?.id && word?.source) {
+          updateUserLibrarySourceByLibraryId({
+            libraryId: libraryEntry.id,
+            source: word.source,
+            isAiGenerated: Boolean(word.isAiGenerated)
+          }).catch((error) => {
+            if (error?.message?.includes('column \"source\"')) return;
+            console.warn('同步來源失敗', error);
+          });
+        }
 
         return { word, libraryEntry };
       }));

@@ -41,7 +41,9 @@ const LibraryWordDetail = ({
   const preferredAudio = preferredAccent === 'uk'
     ? (ukSource || generalSource || usSource)
     : (usSource || generalSource || ukSource);
-  const resolvedSource = entry?.source || (entry?.isAiGenerated ? 'AI' : 'Cambridge');
+  const hasAnyAudio = Boolean(usSource || ukSource || generalSource);
+  const resolvedSource = entry?.source
+    || (entry?.isAiGenerated ? 'Groq AI' : (hasAnyAudio ? 'Cambridge' : 'Library'));
 
   useEffect(() => {
     const handleKeyDown = (event) => {
@@ -131,6 +133,11 @@ const LibraryWordDetail = ({
               {resolvedSource === 'AI' && (
                 <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full flex items-center gap-1">
                   <Sparkles className="w-3 h-3" /> AI
+                </span>
+              )}
+              {resolvedSource === 'Library' && (
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full flex items-center gap-1">
+                  📚 Library
                 </span>
               )}
             </div>

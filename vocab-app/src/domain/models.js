@@ -50,6 +50,8 @@
  * @property {string|null} last_review
  * @property {number} proficiencyScore
  * @property {Array|undefined|null} selectedDefinitions
+ * @property {string|null} source
+ * @property {boolean} isAiGenerated
  */
 
 const createSearchResult = (data = {}) => ({
@@ -96,7 +98,9 @@ const createVocabularyWord = (data = {}) => ({
   state: data.state ?? null,
   last_review: data.last_review ?? null,
   proficiencyScore: Number.isFinite(data.proficiencyScore) ? data.proficiencyScore : 0,
-  selectedDefinitions: Array.isArray(data.selectedDefinitions) ? data.selectedDefinitions : data.selectedDefinitions ?? null
+  selectedDefinitions: Array.isArray(data.selectedDefinitions) ? data.selectedDefinitions : data.selectedDefinitions ?? null,
+  source: data.source ?? null,
+  isAiGenerated: Boolean(data.isAiGenerated)
 });
 
 export { createSearchResult, createVocabularyWord };

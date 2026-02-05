@@ -19,7 +19,18 @@ import useSync from '../useSync';
 
 const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   const [folders, setFolders] = useState(() => loadCachedFolders());
-  const [vocabData, setVocabData] = useState(() => loadCachedVocab());
+  const [vocabData, setVocabData] = useState(() => {
+    const cached = loadCachedVocab();
+    if (!Array.isArray(cached)) return [];
+    return cached.map((word) => {
+      if (!word || typeof word !== 'object') return word;
+      if (word.source) return word;
+      if (word.isAiGenerated) {
+        return { ...word, source: 'Groq AI' };
+      }
+      return word;
+    });
+  });
   const [viewingFolderId, setViewingFolderId] = useState(null);
   const [story, setStory] = useState(null);
   const [isGeneratingStory, setIsGeneratingStory] = useState(false);

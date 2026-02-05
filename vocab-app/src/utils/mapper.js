@@ -36,6 +36,8 @@ const entryToWord = ({
 
   return createVocabularyWord({
     ...baseWord,
+    source: entry?.source ?? entry?.ai_source ?? baseWord.source ?? null,
+    isAiGenerated: entry?.is_ai_generated ?? entry?.isAiGenerated ?? baseWord.isAiGenerated ?? false,
     id: entry?.word_id?.toString() || baseWord.id,
     libraryId: entry?.id ?? baseWord.libraryId ?? null,
     folderIds: mergedFolderIds,

@@ -137,6 +137,16 @@ const updateUserLibraryProgress = async ({ libraryId, payload }) => {
     .eq('id', libraryId);
 };
 
+const updateUserLibrarySourceByLibraryId = async ({ libraryId, source, isAiGenerated }) => {
+  return supabase
+    .from('user_library')
+    .update({
+      source,
+      is_ai_generated: isAiGenerated
+    })
+    .eq('id', libraryId);
+};
+
 const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
   return supabase.rpc('save_word_with_preferences', {
     word_data: wordData,
@@ -162,5 +172,6 @@ export {
   updateUserLibraryFoldersByWord,
   updateUserLibraryFoldersByLibraryId,
   updateUserLibraryProgress,
+  updateUserLibrarySourceByLibraryId,
   saveWordWithPreferences
 };

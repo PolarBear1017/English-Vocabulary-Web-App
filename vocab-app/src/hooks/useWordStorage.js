@@ -3,6 +3,7 @@ import { toast } from 'react-hot-toast';
 import { createVocabularyWord } from '../domain/models';
 import {
   updateUserLibraryFoldersByLibraryId,
+  updateUserLibrarySourceByLibraryId,
   saveWordWithPreferences
 } from '../services/libraryService';
 import { entryToWord } from '../utils/mapper';
@@ -62,7 +63,9 @@ const useWordStorage = ({
           const updatedLocal = createVocabularyWord({
             ...existingWord,
             folderIds: nextFolderIds,
-            selectedDefinitions: normalizedSelectedDefinitions ?? existingWord.selectedDefinitions ?? null
+            selectedDefinitions: normalizedSelectedDefinitions ?? existingWord.selectedDefinitions ?? null,
+            source: existingWord.source ?? searchResult.source ?? null,
+            isAiGenerated: existingWord.isAiGenerated ?? searchResult.isAiGenerated ?? false
           });
           setVocabData(prev => prev.map(word => word.id === existingWord.id ? { ...updatedLocal, isLocal: true } : word));
         } else {
@@ -75,7 +78,9 @@ const useWordStorage = ({
             addedAt: nowIso,
             nextReview: nowIso,
             due: nowIso,
-            proficiencyScore: 0
+            proficiencyScore: 0,
+            source: searchResult.source ?? null,
+            isAiGenerated: searchResult.isAiGenerated ?? false
           });
           setVocabData(prev => [...prev, { ...localWord, isLocal: true }]);
         }
@@ -98,7 +103,9 @@ const useWordStorage = ({
         addedAt: existingWord?.addedAt || nowIso,
         nextReview: existingWord?.nextReview || nowIso,
         due: existingWord?.due || nowIso,
-        proficiencyScore: existingWord?.proficiencyScore ?? 0
+        proficiencyScore: existingWord?.proficiencyScore ?? 0,
+        source: existingWord?.source ?? searchResult.source ?? null,
+        isAiGenerated: existingWord?.isAiGenerated ?? searchResult.isAiGenerated ?? false
       });
 
       const previousWord = existingWord ? { ...existingWord } : null;
@@ -147,6 +154,17 @@ const useWordStorage = ({
           normalizedSelectedDefinitions,
           nowIso
         });
+
+        if (libraryEntry?.id && searchResult?.source) {
+          updateUserLibrarySourceByLibraryId({
+            libraryId: libraryEntry.id,
+            source: searchResult.source,
+            isAiGenerated: Boolean(searchResult.isAiGenerated)
+          }).catch((error) => {
+            if (error?.message?.includes('column \"source\"')) return;
+            console.warn('更新來源失敗', error);
+          });
+        }
 
         setVocabData(prev => {
           const existingOptimistic = prev.find(word => word.id === optimisticWord.id);

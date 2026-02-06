@@ -104,14 +104,38 @@ const FolderCard = ({
               <h3 className="font-bold text-lg hover:text-blue-600 transition">
                 <HighlightedText text={folder.name} query={searchQuery} />
               </h3>
+
               {searchQuery && matchingWords.length > 0 ? (
-                <p className="text-sm text-blue-600 font-medium">找到 {matchingWords.length} 個相關單字</p>
+                <div className="mt-2 space-y-1">
+                  {matchingWords.slice(0, 3).map(word => {
+                    const previewText = (word.translation || word.definition || '').split('\n')[0];
+                    return (
+                      <div key={word.id} className="text-sm border-l-2 border-blue-200 pl-2 py-0.5">
+                        <div className="font-medium text-gray-900">
+                          <HighlightedText text={word.word} query={searchQuery} />
+                        </div>
+                        {previewText && (
+                          <div className="text-xs text-gray-500 truncate max-w-[200px]">
+                            <HighlightedText text={previewText} query={searchQuery} />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                  {matchingWords.length > 3 && (
+                    <p className="text-xs text-blue-600 font-medium mt-1 pl-2">
+                      還有 {matchingWords.length - 3} 個相關單字...
+                    </p>
+                  )}
+                </div>
               ) : (
-                <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+                <>
+                  <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+                  {folder.description ? (
+                    <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
+                  ) : null}
+                </>
               )}
-              {folder.description ? (
-                <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
-              ) : null}
             </div>
           </div>
         </div>

@@ -51,6 +51,15 @@ describe('entryToWord', () => {
     expect(result.folderIds).toEqual([]);
   });
 
+  it('keeps baseWord folderIds when entry folder_ids is empty', () => {
+    const entry = { folder_ids: [] };
+    const baseWord = { folderIds: ['7'] };
+
+    const result = entryToWord({ entry, baseWord });
+
+    expect(result.folderIds).toEqual(['7']);
+  });
+
   it('uses legacy baseWord fields when entry data is missing', () => {
     const nowIso = '2024-02-10T00:00:00.000Z';
     const entry = {};

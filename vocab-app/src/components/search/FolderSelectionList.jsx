@@ -37,16 +37,35 @@ const FolderSelectionList = ({
     savedFolderIdList.map((id) => id?.toString()).filter(Boolean)
   ), [savedFolderIdList]);
 
+  const validFolderIdSet = useMemo(() => new Set(
+    (folders || []).map((folder) => folder?.id?.toString()).filter(Boolean)
+  ), [folders]);
+
   const initialSelected = useMemo(() => {
     const normalizedInitial = Array.isArray(initialSelectedIds)
       ? initialSelectedIds.map((id) => id?.toString()).filter(Boolean)
       : [];
-    if (normalizedInitial.length > 0) return normalizedInitial;
-    if (savedIdSet.size > 0) return Array.from(savedIdSet);
-    return (lastUsedFolderIds || []).map((id) => id?.toString()).filter(Boolean);
-  }, [initialSelectedIds, lastUsedFolderIds, savedIdSet]);
+    const filteredInitial = normalizedInitial.filter((id) => validFolderIdSet.has(id));
+    if (filteredInitial.length > 0) return filteredInitial;
+    if (savedIdSet.size > 0) return Array.from(savedIdSet).filter((id) => validFolderIdSet.has(id));
+    return (lastUsedFolderIds || []).map((id) => id?.toString()).filter(Boolean).filter((id) => validFolderIdSet.has(id));
+  }, [initialSelectedIds, lastUsedFolderIds, savedIdSet, validFolderIdSet]);
 
   const [selectedIds, setSelectedIds] = useState(() => new Set(initialSelected));
+
+  useEffect(() => {
+    setSelectedIds((prev) => {
+      const next = new Set(Array.from(prev).filter((id) => validFolderIdSet.has(id)));
+      if (onSelectionChange) {
+        const snapshot = Array.from(next).sort().join('|');
+        if (snapshot !== lastNotifiedSelection.current) {
+          lastNotifiedSelection.current = snapshot;
+          onSelectionChange(Array.from(next));
+        }
+      }
+      return next;
+    });
+  }, [validFolderIdSet, onSelectionChange]);
 
   useEffect(() => {
     if (!showTooltip) return;
@@ -162,7 +181,7 @@ const FolderSelectionList = ({
   const handleConfirm = async () => {
     if (!onConfirm || isConfirming || confirmLockRef.current) return;
     confirmLockRef.current = true;
-    const selected = Array.from(selectedIds);
+    const selected = Array.from(selectedIds).filter((id) => validFolderIdSet.has(id));
     const addIds = selected.filter((id) => !savedIdSet.has(id));
     const removeIds = Array.from(savedIdSet).filter((id) => !selectedIds.has(id));
 

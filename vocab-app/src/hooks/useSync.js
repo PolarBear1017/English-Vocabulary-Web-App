@@ -42,7 +42,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
 
   useEffect(() => {
     if (session?.user?.id) {
-      loadData(session.user.id).catch(() => {});
+      loadData(session.user.id).catch(() => { });
     } else {
       setIsDataLoaded(true);
     }
@@ -53,7 +53,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
       if (document.visibilityState !== 'visible') return;
       if (!session?.user) return;
       setIsDataLoaded(false);
-      loadData(session.user.id).catch(() => {});
+      loadData(session.user.id).catch(() => { });
     };
 
     window.addEventListener('focus', handleFocusOrVisible);

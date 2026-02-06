@@ -14,14 +14,26 @@ const useWordStorage = ({
   vocabData,
   setVocabData,
   showToast,
-  pendingSavesRef
+  pendingSavesRef,
+  isDataLoaded
 }) => {
   const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null, options = {}) => {
     if (!searchResult) return false;
+    if (session?.user && !isDataLoaded) {
+      showToast?.('資料載入中，請稍後再試', 'info');
+      return false;
+    }
     const showToastFlag = options?.showToast !== false;
 
     const folderName = folders.find(folder => folder.id === folderId)?.name || '資料夾';
     const normalizedFolderId = folderId?.toString();
+    if (session?.user && normalizedFolderId) {
+      const isKnownFolder = folders.some(folder => folder.id === normalizedFolderId);
+      if (!isKnownFolder) {
+        showToast?.('資料夾尚未同步，請重新選擇或刷新', 'error');
+        return false;
+      }
+    }
     const existingWord = vocabData.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
 
     const normalizedSelectedDefinitions = Array.isArray(selectedDefinitions) ? selectedDefinitions : null;
@@ -146,6 +158,24 @@ const useWordStorage = ({
 
         const libraryEntry = Array.isArray(data) ? data[0] : data;
         if (!libraryEntry) throw new Error("儲存失敗 (無回傳資料)");
+
+        if (session?.user && normalizedFolderId) {
+          const returnedFolders = Array.isArray(libraryEntry.folder_ids)
+            ? libraryEntry.folder_ids
+            : [];
+
+          // Force update check if RPC failed to add the folder
+          if (!returnedFolders.includes(normalizedFolderId)) {
+            await updateUserLibraryFoldersByLibraryId({
+              userId: session.user.id,
+              libraryId: libraryEntry.id,
+              folderIds: Array.from(new Set([...returnedFolders, normalizedFolderId]))
+            });
+
+            // Update the local entry to reflect the forced change
+            libraryEntry.folder_ids = Array.from(new Set([...returnedFolders, normalizedFolderId]));
+          }
+        }
 
         const reconciledWord = entryToWord({
           entry: libraryEntry,

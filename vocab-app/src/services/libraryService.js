@@ -60,7 +60,9 @@ const fetchUserLibrary = async (userId) => {
         uk_audio_url
       )
     `)
-    .eq('user_id', userId);
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(5000);
 };
 
 const fetchDictionaryWord = async (word) => {

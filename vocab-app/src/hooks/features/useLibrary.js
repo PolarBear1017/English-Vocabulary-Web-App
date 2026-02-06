@@ -41,6 +41,13 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
 
   const index = useLibraryIndex({ folders, vocabData });
 
+  const sync = useSync({
+    session,
+    setFolders,
+    setVocabData,
+    vocabData
+  });
+
   const { actions: folderActions } = useFolderCRUD({
     session,
     folders,
@@ -55,14 +62,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     vocabData,
     setVocabData,
     showToast,
-    pendingSavesRef
-  });
-
-  const sync = useSync({
-    session,
-    setFolders,
-    setVocabData,
-    vocabData
+    pendingSavesRef,
+    isDataLoaded: sync.state.isDataLoaded
   });
 
   const activeFolder = viewingFolderId ? folders.find(folder => folder.id === viewingFolderId) : null;
@@ -153,9 +154,10 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     const normalized = (Array.isArray(folderIds) ? folderIds : [])
       .map(id => id?.toString())
       .filter(Boolean);
-    const unique = Array.from(new Set(normalized));
+    const validSet = new Set(folders.map(folder => folder.id?.toString()).filter(Boolean));
+    const unique = Array.from(new Set(normalized)).filter(id => validSet.has(id));
     setLastUsedFolderIds(unique);
-  }, []);
+  }, [folders]);
 
   return {
     state: {

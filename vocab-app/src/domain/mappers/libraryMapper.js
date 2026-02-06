@@ -1,8 +1,64 @@
 import { createVocabularyWord } from '../models';
 
+const normalizeFolderIds = (raw) => {
+  if (Array.isArray(raw)) {
+    return raw.map(id => id?.toString().trim()).filter(Boolean);
+  }
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return [];
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (Array.isArray(parsed)) {
+        return parsed.map(id => id?.toString()).filter(Boolean);
+      }
+    } catch (error) {
+      // Fall through to Postgres array parsing.
+    }
+    const pgArray = trimmed.replace(/^\{|\}$/g, '');
+    if (!pgArray) return [];
+    return pgArray.split(',')
+      .map(value => {
+        let v = value.trim();
+        if (v.startsWith('"') && v.endsWith('"')) {
+          v = v.slice(1, -1);
+        }
+        return v;
+      })
+      .filter(Boolean)
+      .map(id => id.toString());
+  }
+  if (raw === null || raw === undefined) return [];
+  return [raw.toString()];
+};
+
+const normalizeSelectedDefinitions = (raw) => {
+  if (Array.isArray(raw)) return raw;
+  if (typeof raw === 'string') {
+    const trimmed = raw.trim();
+    if (!trimmed) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : null;
+    } catch (error) {
+      return null;
+    }
+  }
+  return null;
+};
+
 const mapLibraryRowToWord = (item) => {
-  const rawFolderIds = Array.isArray(item.folder_ids) ? item.folder_ids : ['default'];
-  const normalizedFolderIds = rawFolderIds.map(id => id?.toString());
+  const normalizedFolderIds = (() => {
+    const ids = normalizeFolderIds(item.folder_ids);
+    if (ids.length > 0) return ids;
+    const legacyFolderId = item.folder_id ?? item.folderId ?? null;
+    if (legacyFolderId !== null && legacyFolderId !== undefined && `${legacyFolderId}`) {
+      return [legacyFolderId.toString()];
+    }
+    return ['default'];
+  })();
+
+  const normalizedSelectedDefinitions = normalizeSelectedDefinitions(item.selected_definitions);
 
   return createVocabularyWord({
     ...item.dictionary,
@@ -12,7 +68,7 @@ const mapLibraryRowToWord = (item) => {
     id: item.word_id?.toString() || '',
     libraryId: item.id,
     folderIds: normalizedFolderIds,
-    selectedDefinitions: Array.isArray(item.selected_definitions) ? item.selected_definitions : null,
+    selectedDefinitions: normalizedSelectedDefinitions,
     addedAt: item.created_at || null,
     nextReview: item.next_review || item.due || new Date().toISOString(),
     proficiencyScore: item.proficiency_score,

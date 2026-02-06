@@ -159,23 +159,7 @@ const useWordStorage = ({
         const libraryEntry = Array.isArray(data) ? data[0] : data;
         if (!libraryEntry) throw new Error("儲存失敗 (無回傳資料)");
 
-        if (session?.user && normalizedFolderId) {
-          const returnedFolders = Array.isArray(libraryEntry.folder_ids)
-            ? libraryEntry.folder_ids
-            : [];
 
-          // Force update check if RPC failed to add the folder
-          if (!returnedFolders.includes(normalizedFolderId)) {
-            await updateUserLibraryFoldersByLibraryId({
-              userId: session.user.id,
-              libraryId: libraryEntry.id,
-              folderIds: Array.from(new Set([...returnedFolders, normalizedFolderId]))
-            });
-
-            // Update the local entry to reflect the forced change
-            libraryEntry.folder_ids = Array.from(new Set([...returnedFolders, normalizedFolderId]));
-          }
-        }
 
         const reconciledWord = entryToWord({
           entry: libraryEntry,
@@ -206,6 +190,7 @@ const useWordStorage = ({
         return true;
       } catch (error) {
         console.error("儲存失敗:", error);
+
         let message = error?.message || "請稍後再試";
         if (message.includes("row-level security")) {
           message = "資料庫權限不足。請在 Supabase SQL Editor 執行 RLS 政策指令以開放寫入權限。";

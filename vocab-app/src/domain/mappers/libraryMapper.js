@@ -1,36 +1,6 @@
 import { createVocabularyWord } from '../models';
 
-const normalizeFolderIds = (raw) => {
-  if (Array.isArray(raw)) {
-    return raw.map(id => id?.toString().trim()).filter(Boolean);
-  }
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) return [];
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map(id => id?.toString()).filter(Boolean);
-      }
-    } catch (error) {
-      // Fall through to Postgres array parsing.
-    }
-    const pgArray = trimmed.replace(/^\{|\}$/g, '');
-    if (!pgArray) return [];
-    return pgArray.split(',')
-      .map(value => {
-        let v = value.trim();
-        if (v.startsWith('"') && v.endsWith('"')) {
-          v = v.slice(1, -1);
-        }
-        return v;
-      })
-      .filter(Boolean)
-      .map(id => id.toString());
-  }
-  if (raw === null || raw === undefined) return [];
-  return [raw.toString()];
-};
+
 
 const normalizeSelectedDefinitions = (raw) => {
   if (Array.isArray(raw)) return raw;
@@ -49,13 +19,27 @@ const normalizeSelectedDefinitions = (raw) => {
 
 const mapLibraryRowToWord = (item) => {
   const normalizedFolderIds = (() => {
-    const ids = normalizeFolderIds(item.folder_ids);
-    if (ids.length > 0) return ids;
+    // 1. Try to read from the new Junction Table (Relation)
+    if (item.library_folder_map && Array.isArray(item.library_folder_map)) {
+      const ids = item.library_folder_map
+        .map(ref => ref.folder_id?.toString())
+        .filter(Boolean);
+      if (ids.length > 0) return ids;
+    }
+
+    // 2. Fallback: Legacy array (for safety during migration transition)
+    const rawIds = item.folder_ids;
+    if (Array.isArray(rawIds)) {
+      return rawIds.map(id => id?.toString().trim()).filter(Boolean);
+    }
+
+    // 3. Fallback: Single folder_id (Legacy)
     const legacyFolderId = item.folder_id ?? item.folderId ?? null;
-    if (legacyFolderId !== null && legacyFolderId !== undefined && `${legacyFolderId}`) {
+    if (legacyFolderId) {
       return [legacyFolderId.toString()];
     }
-    return ['default'];
+
+    return [];
   })();
 
   const normalizedSelectedDefinitions = normalizeSelectedDefinitions(item.selected_definitions);

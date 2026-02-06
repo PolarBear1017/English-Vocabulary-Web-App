@@ -46,7 +46,9 @@ const fetchUserLibrary = async (userId) => {
     .from('user_library')
     .select(`
       *,
-      folder_ids,
+      library_folder_map (
+        folder_id
+      ),
       dictionary (
         word,
         definition,
@@ -100,7 +102,10 @@ const upsertDictionaryAiData = async ({ word, aiData }) => {
 const fetchUserLibraryEntry = async ({ userId, wordId }) => {
   return supabase
     .from('user_library')
-    .select('id, folder_ids')
+    .select(`
+      id,
+      library_folder_map ( folder_id )
+    `)
     .eq('user_id', userId)
     .eq('word_id', wordId)
     .maybeSingle();
@@ -115,21 +120,50 @@ const insertUserLibraryEntry = async (payload) => {
 };
 
 const updateUserLibraryFoldersByWord = async ({ userId, wordId, folderIds }) => {
-  return supabase
+  // 1. Get Library ID first
+  const { data: libData } = await supabase
     .from('user_library')
-    .update({ folder_ids: folderIds })
+    .select('id')
     .eq('user_id', userId)
     .eq('word_id', wordId)
-    .select('id, folder_ids')
-    .maybeSingle();
+    .single();
+
+  if (!libData) return { error: { message: 'Word not found in library' } };
+
+  return updateUserLibraryFoldersByLibraryId({
+    userId,
+    libraryId: libData.id,
+    folderIds
+  });
 };
 
 const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderIds }) => {
-  return supabase
-    .from('user_library')
-    .update({ folder_ids: folderIds })
-    .eq('id', libraryId)
+  // 1. Delete existing mappings
+  const { error: deleteError } = await supabase
+    .from('library_folder_map')
+    .delete()
+    .eq('library_id', libraryId)
     .eq('user_id', userId);
+
+  if (deleteError) return { error: deleteError };
+
+  // 2. Insert new mappings
+  if (Array.isArray(folderIds) && folderIds.length > 0) {
+    const validIds = folderIds.filter(id => id && id !== 'default');
+    if (validIds.length === 0) return { data: [], error: null };
+
+    const rows = validIds.map(fid => ({
+      library_id: libraryId,
+      folder_id: fid,
+      user_id: userId
+    }));
+
+    return supabase
+      .from('library_folder_map')
+      .insert(rows);
+  }
+
+  return { data: [], error: null };
 };
 
 const updateUserLibraryProgress = async ({ libraryId, payload }) => {
@@ -151,10 +185,10 @@ const updateUserLibrarySourceByLibraryId = async ({ libraryId, source, isAiGener
 
 const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
   return supabase.rpc('save_word_with_preferences', {
-    word_data: wordData,
-    user_id: userId,
-    folder_id: folderId,
-    selected_defs: selectedDefinitions
+    p_word_data: wordData,
+    p_user_id: userId,
+    p_folder_id: folderId,
+    p_selected_defs: selectedDefinitions
   });
 };
 

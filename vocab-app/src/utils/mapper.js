@@ -6,32 +6,6 @@ const normalizeIsoDate = (value, fallbackIso) => {
   return parsed ? parsed.toISOString() : fallbackIso;
 };
 
-const normalizeFolderIds = (raw) => {
-  if (Array.isArray(raw)) {
-    return raw.map(id => id?.toString().trim()).filter(Boolean);
-  }
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (!trimmed) return [];
-    try {
-      const parsed = JSON.parse(trimmed);
-      if (Array.isArray(parsed)) {
-        return parsed.map(id => id?.toString()).filter(Boolean);
-      }
-    } catch (error) {
-      // Fall through to Postgres array parsing.
-    }
-    const pgArray = trimmed.replace(/^\{|\}$/g, '');
-    if (!pgArray) return [];
-    return pgArray.split(',')
-      .map(value => value.replace(/^"(.*)"$/, '$1').trim())
-      .filter(Boolean)
-      .map(id => id.toString());
-  }
-  if (raw === null || raw === undefined) return [];
-  return [raw.toString()];
-};
-
 const entryToWord = ({
   entry,
   baseWord = {},
@@ -39,16 +13,29 @@ const entryToWord = ({
   normalizedSelectedDefinitions = null,
   nowIso = new Date().toISOString()
 }) => {
-  const normalizedEntryFolderIds = normalizeFolderIds(entry?.folder_ids);
-  const normalizedBaseFolderIds = Array.isArray(baseWord.folderIds)
-    ? baseWord.folderIds.map(id => id?.toString()).filter(Boolean)
-    : [];
+  // 1. Try to read from entry's joined table (if available)
+  const entryIds = (() => {
+    if (entry?.library_folder_map && Array.isArray(entry.library_folder_map)) {
+      return entry.library_folder_map
+        .map(ref => ref.folder_id?.toString())
+        .filter(Boolean);
+    }
+    // Legacy check (if ever needed during transition)
+    if (Array.isArray(entry?.folder_ids) && entry.folder_ids.length > 0) {
+      return entry.folder_ids.map(id => id?.toString()).filter(Boolean);
+    }
+    return [];
+  })();
 
-  const mergedFolderIds = (normalizedEntryFolderIds.length > 0)
-    ? normalizedEntryFolderIds
-    : (normalizedBaseFolderIds.length > 0
-      ? normalizedBaseFolderIds
-      : (normalizedFolderId ? [normalizedFolderId] : []));
+  // 2. Determine final Folder IDs
+  // If DB returned updated folders (via map), use them.
+  // Otherwise, if we have a specific target folder (normalizedFolderId), assume we successfully saved to it.
+  // Fallback to baseWord (optimistic) state.
+  const mergedFolderIds = (entryIds.length > 0)
+    ? entryIds
+    : (normalizedFolderId
+      ? Array.from(new Set([...(baseWord.folderIds || []), normalizedFolderId]))
+      : (baseWord.folderIds || []));
 
   const mergedSelectedDefinitions = Array.isArray(entry?.selected_definitions)
     ? entry.selected_definitions

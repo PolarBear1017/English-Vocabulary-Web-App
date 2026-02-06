@@ -5,6 +5,7 @@ import { formatDate } from '../../utils/data';
 import { speak } from '../../services/speechService';
 import { useLongPress } from 'use-long-press';
 import LibraryWordDetail from './LibraryWordDetail';
+import { isWordMatch } from '../../utils/data';
 
 const HighlightedText = ({ text, query }) => {
   if (!query || !text) return <>{text}</>;
@@ -48,22 +49,7 @@ const FolderDetail = ({
   // Filter words based on search query
   const filteredWords = useMemo(() => {
     if (!searchQuery.trim()) return sortedActiveFolderWords;
-
-    const query = searchQuery.toLowerCase().trim();
-    return sortedActiveFolderWords.filter(word => {
-      const wordMatch = word.word.toLowerCase().includes(query);
-
-      const selectedDef = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
-        ? word.selectedDefinitions[0]
-        : null;
-
-      const defMatch = (selectedDef?.translation || '').toLowerCase().includes(query) ||
-        (selectedDef?.definition || '').toLowerCase().includes(query) ||
-        (word.translation || '').toLowerCase().includes(query) ||
-        (word.definition || '').toLowerCase().includes(query);
-
-      return wordMatch || defMatch;
-    });
+    return sortedActiveFolderWords.filter(word => isWordMatch(word, searchQuery));
   }, [sortedActiveFolderWords, searchQuery]);
 
   const viewingIndex = viewingWord

@@ -1,6 +1,24 @@
 import React, { useRef } from 'react';
 import { Folder, Trash2, Sparkles, Pencil, Check } from 'lucide-react';
 import { useLongPress } from 'use-long-press';
+import { isWordMatch } from '../../utils/data';
+
+const HighlightedText = ({ text, query }) => {
+  if (!query || !text) return <>{text}</>;
+
+  const parts = text.split(new RegExp(`(${query})`, 'gi'));
+  return (
+    <>
+      {parts.map((part, index) =>
+        part.toLowerCase() === query.toLowerCase() ? (
+          <span key={index} className="font-bold text-blue-600 bg-blue-50/50 rounded-sm px-0.5">{part}</span>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
 
 const FolderCard = ({
   folder,
@@ -15,9 +33,15 @@ const FolderCard = ({
   onDelete,
   onEdit,
   onStartReview,
-  onGenerateStory
+  onGenerateStory,
+  searchQuery
 }) => {
   const words = folderWords || [];
+
+  const matchingWords = searchQuery
+    ? words.filter(word => isWordMatch(word, searchQuery))
+    : [];
+
   const totalCount = folderStats?.count ?? words.length;
   const dueCount = folderStats?.dueCount ?? words.filter(word => new Date(word.nextReview) <= new Date()).length;
   const completionPercent = totalCount > 0
@@ -77,8 +101,14 @@ const FolderCard = ({
               <Folder className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="font-bold text-lg hover:text-blue-600 transition">{folder.name}</h3>
-              <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+              <h3 className="font-bold text-lg hover:text-blue-600 transition">
+                <HighlightedText text={folder.name} query={searchQuery} />
+              </h3>
+              {searchQuery && matchingWords.length > 0 ? (
+                <p className="text-sm text-blue-600 font-medium">找到 {matchingWords.length} 個相關單字</p>
+              ) : (
+                <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+              )}
               {folder.description ? (
                 <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
               ) : null}
@@ -93,9 +123,8 @@ const FolderCard = ({
                 if (!disableSelect) onToggleSelect?.(folder.id, event);
               }}
               {...dragHandleProps}
-              className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${
-                isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
-              } ${disableSelect ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-400'}`}
+              className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
+                } ${disableSelect ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-400'}`}
               title={disableSelect ? '預設資料夾無法刪除' : '選取資料夾'}
               disabled={disableSelect}
             >

@@ -143,5 +143,24 @@ export {
   parseReviewDate,
   getReviewTimestamp,
   isReviewDue,
-  calculateReviewResult
+  calculateReviewResult,
+  isWordMatch
+};
+
+const isWordMatch = (word, query) => {
+  if (!word || !query) return false;
+  const normalizedQuery = query.toLowerCase().trim();
+
+  const wordMatch = word.word.toLowerCase().includes(normalizedQuery);
+  const translationMatch = (word.translation || '').toLowerCase().includes(normalizedQuery);
+  const definitionMatch = (word.definition || '').toLowerCase().includes(normalizedQuery);
+
+  const selectedDef = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
+    ? word.selectedDefinitions[0]
+    : null;
+
+  const selectedDefTranslationMatch = (selectedDef?.translation || '').toLowerCase().includes(normalizedQuery);
+  const selectedDefDefinitionMatch = (selectedDef?.definition || '').toLowerCase().includes(normalizedQuery);
+
+  return wordMatch || translationMatch || definitionMatch || selectedDefTranslationMatch || selectedDefDefinitionMatch;
 };

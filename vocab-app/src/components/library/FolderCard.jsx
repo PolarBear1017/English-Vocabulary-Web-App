@@ -2,6 +2,7 @@ import React, { useRef } from 'react';
 import { Folder, Trash2, Sparkles, Pencil, Check } from 'lucide-react';
 import { useLongPress } from 'use-long-press';
 import { isWordMatch } from '../../utils/data';
+import WordRow from './WordRow';
 
 const HighlightedText = ({ text, query }) => {
   if (!query || !text) return <>{text}</>;
@@ -34,7 +35,8 @@ const FolderCard = ({
   onEdit,
   onStartReview,
   onGenerateStory,
-  searchQuery
+  searchQuery,
+  onOpenWordDetail
 }) => {
   const words = folderWords || [];
 
@@ -106,27 +108,20 @@ const FolderCard = ({
               </h3>
 
               {searchQuery && matchingWords.length > 0 ? (
-                <div className="mt-2 space-y-1">
-                  {matchingWords.slice(0, 3).map(word => {
-                    const previewText = (word.translation || word.definition || '').split('\n')[0];
-                    return (
-                      <div key={word.id} className="text-sm border-l-2 border-blue-200 pl-2 py-0.5">
-                        <div className="font-medium text-gray-900">
-                          <HighlightedText text={word.word} query={searchQuery} />
-                        </div>
-                        {previewText && (
-                          <div className="text-xs text-gray-500 truncate max-w-[200px]">
-                            <HighlightedText text={previewText} query={searchQuery} />
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                  {matchingWords.length > 3 && (
-                    <p className="text-xs text-blue-600 font-medium mt-1 pl-2">
-                      還有 {matchingWords.length - 3} 個相關單字...
-                    </p>
-                  )}
+                <div className="mt-2 -mx-5 border-t border-gray-100">
+                  {matchingWords.map(word => (
+                    <div key={word.id} className="border-b border-gray-100 last:border-0 hover:bg-gray-50/50">
+                      <WordRow
+                        word={word}
+                        activeFolder={folder}
+                        searchQuery={searchQuery}
+                        onOpenDetail={onOpenWordDetail}
+                        isSelectionMode={false}
+                        isSelected={false}
+                        hideMetadata={true}
+                      />
+                    </div>
+                  ))}
                 </div>
               ) : (
                 <>
@@ -179,30 +174,32 @@ const FolderCard = ({
         </div>
       </div>
 
-      <div className="mb-4 space-y-3">
-        <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-          <span>複習完成度</span>
-          <span className="font-semibold text-gray-700">{completionPercent}%</span>
+      {!searchQuery && (
+        <div className="mb-4 space-y-3">
+          <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
+            <span>複習完成度</span>
+            <span className="font-semibold text-gray-700">{completionPercent}%</span>
+          </div>
+          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-emerald-500 rounded-full transition-all"
+              style={{ width: `${completionPercent}%` }}
+              aria-label={`複習完成度 ${completionPercent}%`}
+            />
+          </div>
+          <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
+            <span>理解程度</span>
+            <span className="font-semibold text-gray-700">{comprehensionPercent}%</span>
+          </div>
+          <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-sky-500 rounded-full transition-all"
+              style={{ width: `${comprehensionPercent}%` }}
+              aria-label={`理解程度 ${comprehensionPercent}%`}
+            />
+          </div>
         </div>
-        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-emerald-500 rounded-full transition-all"
-            style={{ width: `${completionPercent}%` }}
-            aria-label={`複習完成度 ${completionPercent}%`}
-          />
-        </div>
-        <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
-          <span>理解程度</span>
-          <span className="font-semibold text-gray-700">{comprehensionPercent}%</span>
-        </div>
-        <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
-          <div
-            className="h-full bg-sky-500 rounded-full transition-all"
-            style={{ width: `${comprehensionPercent}%` }}
-            aria-label={`理解程度 ${comprehensionPercent}%`}
-          />
-        </div>
-      </div>
+      )}
 
       {words.length === 0 && (
         <div className="text-center text-xs text-gray-400 py-2">
@@ -210,7 +207,7 @@ const FolderCard = ({
         </div>
       )}
 
-      {!isSelectionMode && (
+      {!isSelectionMode && !searchQuery && (
         <div className="flex gap-2 mt-2">
           <button
             onClick={onStartReview}

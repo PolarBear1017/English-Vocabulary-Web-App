@@ -1,6 +1,7 @@
 import React from 'react';
 import { RefreshCw, ArrowUpDown, Plus, Search, X } from 'lucide-react';
 import FolderCard from './FolderCard';
+import LibraryWordDetail from './LibraryWordDetail';
 import { isWordMatch } from '../../utils/data';
 
 const LibraryOverview = ({
@@ -24,9 +25,12 @@ const LibraryOverview = ({
   onEnterSelectionMode,
   dragHandleProps,
   entriesByFolderId,
-  statsByFolderId
+  statsByFolderId,
+  handleDeleteWord,
+  handleEditWord
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [viewingWord, setViewingWord] = React.useState(null);
 
   const filteredFolders = React.useMemo(() => {
     if (!searchQuery.trim()) return sortedFolders;
@@ -129,6 +133,7 @@ const LibraryOverview = ({
               }}
               onGenerateStory={() => generateFolderStory(folder)}
               searchQuery={searchQuery}
+              onOpenWordDetail={(word) => setViewingWord(word)}
             />
           ))}
         </div>
@@ -145,6 +150,36 @@ const LibraryOverview = ({
           ) : (
             <p>目前沒有資料夾</p>
           )}
+        </div>
+      )}
+
+      {viewingWord && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="relative">
+              <button
+                onClick={() => setViewingWord(null)}
+                className="absolute right-4 top-4 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white text-gray-500 hover:text-gray-700 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+              <LibraryWordDetail
+                entry={viewingWord}
+                onClose={() => setViewingWord(null)}
+                onDeleteWord={() => {
+                  const folderId = Object.keys(entriesByFolderId).find(fid =>
+                    entriesByFolderId[fid].some(w => w.id === viewingWord.id)
+                  );
+                  handleDeleteWord(viewingWord, folderId);
+                  setViewingWord(null);
+                }}
+                onEditWord={() => {
+                  handleEditWord(viewingWord);
+                  setViewingWord(viewingWord);
+                }}
+              />
+            </div>
+          </div>
         </div>
       )}
     </>

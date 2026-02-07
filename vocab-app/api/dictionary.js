@@ -81,135 +81,125 @@ const scrapeCambridge = async (word) => {
   };
 };
 
+// Scrape Yahoo Dictionary (Taiwan)
 const scrapeYahoo = async (word) => {
-  // Use the search page instead of dictionary page to avoid redirects/blocks
-  const targetUrl = `https://tw.search.yahoo.com/search?p=${encodeURIComponent(word)}`;
-
   try {
-    const response = await fetch(targetUrl, {
+    // Use the dictionary subdomain which has a cleaner layout and doesn't treat "apple" as a company
+    const url = `https://tw.dictionary.search.yahoo.com/search?p=${encodeURIComponent(word)}`;
+
+    // Use a standard browser User-Agent
+    const response = await fetch(url, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
         'Accept-Language': 'en-US,en;q=0.5',
-        'Connection': 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-        'Sec-Fetch-Dest': 'document',
-        'Sec-Fetch-Mode': 'navigate',
-        'Sec-Fetch-Site': 'same-origin',
-        'Sec-Fetch-User': '?1',
-        'Cache-Control': 'max-age=0'
+        'Cache-Control': 'no-cache',
+        'Pragma': 'no-cache'
       }
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      console.error('Yahoo scraper error:', response.status, response.statusText);
+      return {
+        source: 'Yahoo',
+        word,
+        entries: []
+      };
+    }
 
     const html = await response.text();
     const $ = cheerio.load(html);
-
     const entries = [];
     const seenDefinitions = new Set();
-    let pos = 'unknown';
-    let phonetic = '';
 
-    // Strategy 1: Look for the specific dictionary card in search results
-    // Yahoo Search often embeds a dictionary card with class .dd.card or similar
-    const dictionaryCard = $('.dd.card').first();
+    // Target the main dictionary card
+    // Specific class found: .dictionaryWordCard
+    const dictionaryCard = $('.dictionaryWordCard').first();
 
     if (dictionaryCard.length > 0) {
-      // Extract from card
-      pos = dictionaryCard.find('.pos').first().text().trim() || pos;
-      phonetic = dictionaryCard.find('.ipa').first().text().replace(/^\[|\]$/g, '').trim() || phonetic;
+      // Extract simple definitions from the compList
+      const listItems = dictionaryCard.find('.compList > ul > li');
 
-      dictionaryCard.find('li').each((_, li) => {
-        const text = $(li).text().trim();
-        if (text && !seenDefinitions.has(text)) {
-          // Formatting: "n. definition"
-          const parts = text.split('.');
-          const currentPos = parts.length > 1 ? parts[0] + '.' : pos;
-          const def = parts.length > 1 ? parts.slice(1).join('.').trim() : text;
+      listItems.each((i, el) => {
+        const $el = $(el);
 
-          seenDefinitions.add(text);
-          entries.push({
-            definition: def,
-            translation: def,
-            example: '',
-            examples: [],
-            pos: currentPos
+        // Extract POS from .pos_button
+        const pos = $el.find('.pos_button').text().trim();
+
+        // Extract definition from .dictionaryExplanation
+        const defText = $el.find('.dictionaryExplanation').text().trim();
+
+        if (defText) {
+          // Split by semicolon for separate meanings if desired, 
+          // but for now keeping it as one string per POS often matches user expectation for a summary.
+          const meanings = defText.split(';').map(s => s.trim()).filter(Boolean);
+
+          meanings.forEach(meaning => {
+            // Create a unique key to prevent exact duplicates
+            const uniqueKey = `${pos}-${meaning}`;
+
+            if (!seenDefinitions.has(uniqueKey)) {
+              seenDefinitions.add(uniqueKey);
+              entries.push({
+                definition: meaning,
+                translation: '', // Frontend displays both definition and translation, avoid duplication since definition is already Chinese
+                example: '',
+                examples: [],
+                pos: pos || 'unknown'
+              });
+            }
           });
         }
       });
     }
 
-    // Strategy 2: Look for the dictionary result link and snippet
-    // The dictionary result usually has title "Word - Yahoo奇摩字典"
+    // Fallback: generic .dd.card if specific structure fails
     if (entries.length === 0) {
-      $('li .title a').each((_, el) => {
-        const title = $(el).text().trim();
-        if (title.includes('Yahoo奇摩字典') && title.toLowerCase().includes(word.toLowerCase())) {
-          const snippet = $(el).closest('li').find('.compText').text().trim() ||
-            $(el).closest('li').find('.abstract').text().trim();
-
-          if (snippet) {
-            // Extract definitions from snippet: "KK[tɛst]; DJ[test] ... n. 1. 測試, 2. 試驗..."
-            // Removing IPA
-            let cleanSnippet = snippet.replace(/KK\[.*?\]/, '').replace(/DJ\[.*?\]/, '').trim();
-
-            // Split by part of speech if possible or just take the whole string
-            const defs = cleanSnippet.split(';').map(s => s.trim()).filter(s => s);
-
-            defs.forEach(def => {
-              if (!seenDefinitions.has(def)) {
-                seenDefinitions.add(def);
-                entries.push({
-                  definition: def,
-                  translation: def,
-                  example: '',
-                  examples: [],
-                  pos: 'unknown'
-                });
-              }
-            });
+      const fallbackCard = $('.dd.card').first();
+      if (fallbackCard.length > 0) {
+        fallbackCard.find('.compList > ul > li').each((i, el) => {
+          const text = $(el).text().trim();
+          const spaceIdx = text.indexOf(' ');
+          if (spaceIdx > 0) {
+            const pos = text.substring(0, spaceIdx).trim();
+            const def = text.substring(spaceIdx).trim();
+            if (pos && def && !seenDefinitions.has(def)) {
+              seenDefinitions.add(def);
+              entries.push({
+                definition: def,
+                translation: '', // Avoid duplication
+                example: '',
+                examples: [],
+                pos: pos
+              });
+            }
           }
-        }
-      });
+        });
+      }
     }
 
-    // Strategy 3: Previous strategy with .compList (if main search page mimics dictionary layout)
-    if (entries.length === 0) {
-      $('.compList ul li').each((_, li) => {
-        const text = $(li).find('.explanation').text().trim();
-        if (text && !seenDefinitions.has(text)) {
-          seenDefinitions.add(text);
-          entries.push({
-            definition: text,
-            translation: text,
-            example: '',
-            examples: [],
-            pos: $(li).find('.pos_button').text().trim() || 'unknown'
-          });
-        }
-      });
-    }
-
-    if (entries.length === 0) return null;
+    console.log(`Yahoo scraper found ${entries.length} entries for "${word}"`);
 
     return {
       word,
-      pos,
-      phonetic: phonetic ? `/${phonetic}/` : '',
-      definition: entries[0].definition,
-      translation: entries[0].translation,
-      example: entries[0].example,
+      pos: entries.length > 0 ? entries[0].pos : 'unknown',
+      phonetic: '',
+      definition: entries.length > 0 ? entries[0].definition : '',
+      translation: '', // Top level translation also empty
+      example: '',
       entries,
       audioUrl: '',
       usAudioUrl: '',
       ukAudioUrl: '',
       source: 'Yahoo'
     };
-
   } catch (error) {
     console.warn("Yahoo scraping failed", error);
-    return null;
+    return {
+      source: 'Yahoo',
+      word,
+      entries: []
+    };
   }
 };
 

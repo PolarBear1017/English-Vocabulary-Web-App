@@ -52,7 +52,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
     const handleFocusOrVisible = () => {
       if (document.visibilityState !== 'visible') return;
       if (!session?.user) return;
-      setIsDataLoaded(false);
+      // Do not reset isDataLoaded to false here to avoid blocking UI during background refresh
       loadData(session.user.id).catch(() => { });
     };
 

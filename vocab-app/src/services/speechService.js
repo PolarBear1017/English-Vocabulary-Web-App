@@ -5,7 +5,17 @@ const playAudioWithContext = async (url) => {
     if (audioContext.state === 'suspended') {
       await audioContext.resume();
     }
-    const response = await fetch(url);
+
+    // Determine if we need to proxy the request
+    // If it's an external URL (starts with http), use the proxy
+    let fetchUrl = url;
+    if (url.startsWith('http')) {
+      fetchUrl = `/api/proxy-audio?url=${encodeURIComponent(url)}`;
+    }
+
+    const response = await fetch(fetchUrl);
+    if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
     const source = audioContext.createBufferSource();
@@ -14,8 +24,10 @@ const playAudioWithContext = async (url) => {
     source.start(0);
   } catch (e) {
     console.error("AudioContext 播放失敗:", e);
-    // Fallback to HTML5 Audio if AudioContext fails (though it might interrupt)
-    new Audio(url).play().catch(err => console.error("Fallback 播放失敗:", err));
+    // Fallback to HTML5 Audio if AudioContext fails
+    // Note: This fallback might interrupt background audio on iOS
+    const audio = new Audio(url);
+    audio.play().catch(err => console.error("Fallback 播放失敗:", err));
   }
 };
 

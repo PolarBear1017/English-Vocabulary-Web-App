@@ -35,7 +35,18 @@ const useReview = ({
   const [pendingAutoGrade, setPendingAutoGrade] = useState(null);
   const [answerHint, setAnswerHint] = useState('');
   const [hasMistake, setHasMistake] = useState(false);
-  const [selectedReviewFolders, setSelectedReviewFolders] = useState(['all']);
+  const [selectedReviewFolders, setSelectedReviewFolders] = useState(() => {
+    try {
+      const saved = localStorage.getItem('review_selected_folders');
+      return saved ? JSON.parse(saved) : ['all'];
+    } catch (e) {
+      return ['all'];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('review_selected_folders', JSON.stringify(selectedReviewFolders));
+  }, [selectedReviewFolders]);
   const [reviewSetupView, setReviewSetupView] = useState('main');
   const processRatingRef = useRef(null);
   const advanceToNextCardRef = useRef(null);

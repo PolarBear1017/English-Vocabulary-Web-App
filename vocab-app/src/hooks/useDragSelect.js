@@ -81,7 +81,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
 
     if (!hasMoved && startId) {
       suppressClickRef.current = true;
-      onToggle?.(startId);
+      onToggle?.(startId, event);
       setTimeout(() => {
         suppressClickRef.current = false;
       }, 0);

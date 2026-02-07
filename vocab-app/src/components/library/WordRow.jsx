@@ -4,6 +4,7 @@ import { useLongPress } from 'use-long-press';
 import { speak } from '../../services/speechService';
 import { formatDate } from '../../utils/data';
 import ProficiencyDots from '../common/ProficiencyDots';
+import { usePreferencesContext } from '../../contexts/PreferencesContext';
 
 const HighlightedText = ({ text, query }) => {
     if (!query || !text) return <>{text}</>;
@@ -35,6 +36,7 @@ const WordRow = ({
     searchQuery,
     hideMetadata
 }) => {
+    const { state: { preferredAccent } } = usePreferencesContext();
     const longPressTriggeredRef = useRef(false);
     const bindLongPress = useLongPress(() => {
         longPressTriggeredRef.current = true;
@@ -89,7 +91,14 @@ const WordRow = ({
                     <span className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition">
                         <HighlightedText text={word.word} query={searchQuery} />
                     </span>
-                    <button onClick={(e) => { e.stopPropagation(); speak(word.word); }} className="p-1 rounded-full hover:bg-gray-200 text-gray-400 hover:text-blue-600 transition">
+                    <button onClick={(e) => {
+                        e.stopPropagation();
+                        // Determine preferred audio URL based on accent preference
+                        const audioUrl = preferredAccent === 'uk'
+                            ? (word.ukAudioUrl || word.audioUrl || word.usAudioUrl)
+                            : (word.usAudioUrl || word.audioUrl || word.ukAudioUrl);
+                        speak(word.word, audioUrl);
+                    }} className="p-1 rounded-full hover:bg-gray-200 text-gray-400 hover:text-blue-600 transition">
                         <Volume2 className="w-4 h-4" />
                     </button>
                     <span className="text-xs px-2 py-0.5 bg-gray-100 text-gray-500 rounded-full">{word.pos}</span>

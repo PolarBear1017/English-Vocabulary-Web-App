@@ -151,19 +151,19 @@ const isWordMatch = (word, query) => {
   if (!word || !query) return false;
   const normalizedQuery = query.toLowerCase().trim();
 
-  // Only match word and primary translation
-  const wordMatch = word.word.toLowerCase().includes(normalizedQuery);
-  const translationMatch = (word.translation || '').toLowerCase().includes(normalizedQuery);
-
-  // Exclude definition matching to avoid false positives in English definitions
-  // const definitionMatch = (word.definition || '').toLowerCase().includes(normalizedQuery);
+  // Check word match first
+  if (word.word.toLowerCase().includes(normalizedQuery)) return true;
 
   const selectedDef = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
     ? word.selectedDefinitions[0]
     : null;
 
-  const selectedDefTranslationMatch = (selectedDef?.translation || '').toLowerCase().includes(normalizedQuery);
-  // const selectedDefDefinitionMatch = (selectedDef?.definition || '').toLowerCase().includes(normalizedQuery);
+  // If there is a selected definition with a translation, match ONLY that (plus the word itself)
+  // This matches the UI behavior where the selected definition overrides the default translation
+  if (selectedDef?.translation) {
+    return selectedDef.translation.toLowerCase().includes(normalizedQuery);
+  }
 
-  return wordMatch || translationMatch || selectedDefTranslationMatch;
+  // Otherwise, fallback to the default translation
+  return (word.translation || '').toLowerCase().includes(normalizedQuery);
 };

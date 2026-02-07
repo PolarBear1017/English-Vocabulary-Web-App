@@ -194,8 +194,6 @@ const useWordStorage = ({
         let message = error?.message || "請稍後再試";
         if (message.includes("row-level security")) {
           message = "資料庫權限不足。請在 Supabase SQL Editor 執行 RLS 政策指令以開放寫入權限。";
-        } else if (message.includes('column "folder_ids" of relation "user_library" does not exist')) {
-          message = "資料庫尚未更新。請在 Supabase SQL Editor 執行: ALTER TABLE user_library ADD COLUMN folder_ids text[] DEFAULT '{}';";
         } else if (message.includes('column "selected_definitions" of relation "user_library" does not exist')) {
           message = "資料庫尚未更新。請先新增 selected_definitions 欄位。";
         }

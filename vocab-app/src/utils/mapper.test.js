@@ -7,7 +7,7 @@ describe('entryToWord', () => {
     const entry = {
       id: 10,
       word_id: 20,
-      folder_ids: [1, '2'],
+      library_folder_map: [{ folder_id: 1 }, { folder_id: '2' }],
       selected_definitions: [{ definition: 'd', translation: 't', example: 'ex', pos: 'n' }],
       next_review: '2024-01-01T00:00:00.000Z',
       due: '2024-01-02T00:00:00.000Z',
@@ -46,13 +46,13 @@ describe('entryToWord', () => {
     expect(result.due).toBe(nowIso);
   });
 
-  it('defaults folderIds to empty array when folder_ids is missing', () => {
+  it('defaults folderIds to empty array when library_folder_map is missing', () => {
     const result = entryToWord({ entry: {}, baseWord: {} });
     expect(result.folderIds).toEqual([]);
   });
 
-  it('keeps baseWord folderIds when entry folder_ids is empty', () => {
-    const entry = { folder_ids: [] };
+  it('keeps baseWord folderIds when entry library_folder_map is empty', () => {
+    const entry = { library_folder_map: [] };
     const baseWord = { folderIds: ['7'] };
 
     const result = entryToWord({ entry, baseWord });

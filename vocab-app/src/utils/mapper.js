@@ -20,10 +20,6 @@ const entryToWord = ({
         .map(ref => ref.folder_id?.toString())
         .filter(Boolean);
     }
-    // Legacy check (if ever needed during transition)
-    if (Array.isArray(entry?.folder_ids) && entry.folder_ids.length > 0) {
-      return entry.folder_ids.map(id => id?.toString()).filter(Boolean);
-    }
     return [];
   })();
 

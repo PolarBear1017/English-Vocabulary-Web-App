@@ -27,13 +27,7 @@ const mapLibraryRowToWord = (item) => {
       if (ids.length > 0) return ids;
     }
 
-    // 2. Fallback: Legacy array (for safety during migration transition)
-    const rawIds = item.folder_ids;
-    if (Array.isArray(rawIds)) {
-      return rawIds.map(id => id?.toString().trim()).filter(Boolean);
-    }
-
-    // 3. Fallback: Single folder_id (Legacy)
+    // 2. Fallback: Single folder_id (Legacy - if still populated via joins)
     const legacyFolderId = item.folder_id ?? item.folderId ?? null;
     if (legacyFolderId) {
       return [legacyFolderId.toString()];

@@ -1,7 +1,7 @@
 import { supabase } from '../supabase';
 
-const fetchDictionaryEntry = async (word) => {
-  const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word)}`);
+const fetchDictionaryEntry = async (word, source = 'Cambridge') => {
+  const res = await fetch(`/api/dictionary?word=${encodeURIComponent(word)}&source=${encodeURIComponent(source)}`);
   if (!res.ok) return null;
   return res.json();
 };

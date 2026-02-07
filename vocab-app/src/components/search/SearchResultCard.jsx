@@ -300,7 +300,7 @@ const SearchResultCard = ({
         onNextSave={handleNextSave}
         onBackSave={handleEditDefinitions}
         onSearchFullDefinition={() => onSearch(searchResult.word)}
-        availableSources={['Cambridge', 'Groq AI']}
+        availableSources={['Cambridge', 'Yahoo', 'Groq AI']}
         onChangeSource={handleChangeSource}
         isSwitchingSource={isSwitchingSource}
       />
@@ -322,7 +322,7 @@ const SearchResultCard = ({
               similarWords={searchResult.similar}
               onSelect={(word) => {
                 setQuery(word);
-                onSearch({ preventDefault: () => {} });
+                onSearch({ preventDefault: () => { } });
               }}
             />
 
@@ -350,9 +350,8 @@ const SearchResultCard = ({
                     aria-label="解釋儲存提示"
                   >
                     <Info className="w-4 h-4 text-gray-400 cursor-help" />
-                    <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${
-                      showDefaultTip ? 'opacity-100 visible' : 'opacity-0 invisible'
-                    } group-hover:opacity-100 group-hover:visible`}>
+                    <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${showDefaultTip ? 'opacity-100 visible' : 'opacity-0 invisible'
+                      } group-hover:opacity-100 group-hover:visible`}>
                       預設只儲存第一個解釋
                       <div className="absolute left-2 top-full w-0 h-0 border-4 border-transparent border-t-gray-800" />
                     </div>

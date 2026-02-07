@@ -4,7 +4,14 @@ import ProficiencyDots from '../common/ProficiencyDots';
 
 const SOURCE_OPTIONS = [
   { value: 'Cambridge', label: 'Cambridge', icon: '🛡️' },
+  { value: 'Yahoo', label: 'Yahoo Dictionary', icon: 'Y!' },
   { value: 'Groq AI', label: 'Groq AI', icon: '✨' }
+];
+
+const EXTERNAL_LINKS = [
+  { label: 'Oxford Learner\'s', url: (word) => `https://www.oxfordlearnersdictionaries.com/definition/english/${word}` },
+  { label: 'Longman', url: (word) => `https://www.ldoceonline.com/dictionary/${word}` },
+  { label: 'Merriam-Webster', url: (word) => `https://www.merriam-webster.com/dictionary/${word}` },
 ];
 
 const SearchResultHeader = ({
@@ -120,6 +127,7 @@ const SearchResultHeader = ({
             <span className="italic font-serif bg-white px-2 py-0.5 rounded border border-gray-200">{searchResult.pos}</span>
             <span>{searchResult.phonetic}</span>
             {searchResult.source === 'Cambridge' && renderSourceBadge('bg-blue-100 text-blue-700', '🛡️ Cambridge')}
+            {searchResult.source === 'Yahoo' && renderSourceBadge('bg-purple-100 text-purple-700', 'Y! Yahoo')}
             {searchResult.source === 'Groq AI' && renderSourceBadge('bg-teal-100 text-teal-700', (
               <>
                 <Sparkles className="w-3 h-3" /> Groq AI
@@ -137,6 +145,24 @@ const SearchResultHeader = ({
               查看完整解釋
             </button>
           )}
+
+          {/* External Links */}
+          <div className="mt-3 pt-3 border-t border-gray-200/50 flex flex-wrap gap-2">
+            <span className="text-xs text-gray-400 flex items-center gap-1">
+              <ExternalLink className="w-3 h-3" /> 外部連結:
+            </span>
+            {EXTERNAL_LINKS.map((link) => (
+              <a
+                key={link.label}
+                href={link.url(searchResult.word)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-500 hover:text-blue-700 hover:underline bg-white px-1.5 py-0.5 rounded border border-blue-100 hover:border-blue-300 transition"
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
         </div>
         {saveStep === 'idle' && (
           <button
@@ -179,7 +205,7 @@ const SearchResultHeader = ({
           </div>
         )}
       </div>
-    </div>
+    </div >
   );
 };
 

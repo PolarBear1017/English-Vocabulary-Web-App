@@ -184,9 +184,9 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
         return;
       }
 
-      if (forceSource === 'Cambridge') {
+      if (forceSource === 'Cambridge' || forceSource === 'Yahoo') {
         try {
-          const data = await fetchDictionaryEntry(lowerQuery);
+          const data = await fetchDictionaryEntry(lowerQuery, forceSource);
           if (data) {
             const normalized = normalizeEntries(data);
             if (normalized.length > 0) {
@@ -194,13 +194,13 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
               return;
             }
           }
-          setSearchError('Cambridge 查無此字，請嘗試切換來源。');
-          setSearchResult(createSourceFallback(searchTerm, 'Cambridge', 'Cambridge 查無此字，請嘗試切換來源。'));
+          setSearchError(`${forceSource} 查無此字，請嘗試切換來源。`);
+          setSearchResult(createSourceFallback(searchTerm, forceSource, `${forceSource} 查無此字，請嘗試切換來源。`));
           return;
         } catch (error) {
-          console.warn('劍橋字典 API 呼叫失敗', error);
-          setSearchError('Cambridge 查詢失敗，請稍後再試或切換來源。');
-          setSearchResult(createSourceFallback(searchTerm, 'Cambridge', 'Cambridge 查詢失敗，請稍後再試或切換來源。'));
+          console.warn(`${forceSource} API 呼叫失敗`, error);
+          setSearchError(`${forceSource} 查詢失敗，請稍後再試或切換來源。`);
+          setSearchResult(createSourceFallback(searchTerm, forceSource, `${forceSource} 查詢失敗，請稍後再試或切換來源。`));
           return;
         }
       }

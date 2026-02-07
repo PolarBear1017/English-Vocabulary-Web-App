@@ -149,7 +149,7 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
 
   // 2. Insert new mappings
   if (Array.isArray(folderIds) && folderIds.length > 0) {
-    const validIds = folderIds.filter(id => id && id !== 'default');
+    const validIds = [...new Set(folderIds)].filter(id => id && id !== 'default');
     if (validIds.length === 0) return { data: [], error: null };
 
     const rows = validIds.map(fid => ({

@@ -12,7 +12,7 @@ const toSearchResultFromDictionary = (data) => {
     similar: [],
     mnemonics: null,
     isAiGenerated: false,
-    source: 'Cambridge'
+    source: data.source || 'Cambridge'
   });
 };
 

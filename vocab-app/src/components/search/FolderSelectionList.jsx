@@ -42,14 +42,24 @@ const FolderSelectionList = ({
   ), [folders]);
 
   const initialSelected = useMemo(() => {
-    const normalizedInitial = Array.isArray(initialSelectedIds)
-      ? initialSelectedIds.map((id) => id?.toString()).filter(Boolean)
-      : [];
-    const filteredInitial = normalizedInitial.filter((id) => validFolderIdSet.has(id));
-    if (filteredInitial.length > 0) return filteredInitial;
-    if (savedIdSet.size > 0) return Array.from(savedIdSet).filter((id) => validFolderIdSet.has(id));
-    return (lastUsedFolderIds || []).map((id) => id?.toString()).filter(Boolean).filter((id) => validFolderIdSet.has(id));
-  }, [initialSelectedIds, lastUsedFolderIds, savedIdSet, validFolderIdSet]);
+    const combined = new Set();
+
+    // Add saved folders (Green)
+    if (savedIdSet.size > 0) {
+      savedIdSet.forEach(id => combined.add(id));
+    }
+
+    // Add last used folders (Blue)
+    if (Array.isArray(lastUsedFolderIds)) {
+      lastUsedFolderIds.forEach(id => {
+        const strId = id?.toString();
+        if (strId) combined.add(strId);
+      });
+    }
+
+    // Filter by valid folders
+    return Array.from(combined).filter((id) => validFolderIdSet.has(id));
+  }, [lastUsedFolderIds, savedIdSet, validFolderIdSet]);
 
   const [selectedIds, setSelectedIds] = useState(() => new Set(initialSelected));
 
@@ -230,9 +240,8 @@ const FolderSelectionList = ({
           >
             <Info className="w-4 h-4 text-gray-400 cursor-help" />
             <div
-              className={`absolute left-0 top-full mt-2 w-56 p-2 bg-white text-gray-700 text-xs rounded-lg shadow-lg border border-gray-100 transition-all duration-200 z-50 ${
-                showShortcutTip ? 'opacity-100 visible' : 'opacity-0 invisible'
-              } group-hover:opacity-100 group-hover:visible`}
+              className={`absolute left-0 top-full mt-2 w-56 p-2 bg-white text-gray-700 text-xs rounded-lg shadow-lg border border-gray-100 transition-all duration-200 z-50 ${showShortcutTip ? 'opacity-100 visible' : 'opacity-0 invisible'
+                } group-hover:opacity-100 group-hover:visible`}
             >
               小技巧：系統已預設勾選您上次使用的資料夾，直接按 Enter 鍵即可快速儲存！
               <div className="absolute left-3 bottom-full w-0 h-0 border-4 border-transparent border-b-white" />
@@ -245,9 +254,8 @@ const FolderSelectionList = ({
             ref={tooltipRef}
           >
             <Info className="w-4 h-4 text-gray-400 cursor-help" />
-            <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${
-              showTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'
-            } group-hover:opacity-100 group-hover:visible`}>
+            <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${showTooltip ? 'opacity-100 visible' : 'opacity-0 invisible'
+              } group-hover:opacity-100 group-hover:visible`}>
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-3 h-3 text-green-400" />
                 <span>綠色勾勾：原本已存的資料夾</span>
@@ -274,11 +282,10 @@ const FolderSelectionList = ({
           <button
             type="button"
             onClick={() => setIsCreating((prev) => !prev)}
-            className={`w-8 h-8 rounded-full flex items-center justify-center transition ${
-              isCreating
-                ? 'bg-blue-100 text-blue-600'
-                : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
-            }`}
+            className={`w-8 h-8 rounded-full flex items-center justify-center transition ${isCreating
+              ? 'bg-blue-100 text-blue-600'
+              : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50'
+              }`}
           >
             <Plus className="w-4 h-4" />
           </button>
@@ -343,18 +350,18 @@ const FolderSelectionList = ({
           const rowClassName = status === 'preexisting'
             ? 'bg-green-50 border-green-200 hover:bg-green-100'
             : status === 'new'
-            ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
-            : 'bg-white border-gray-200 hover:bg-gray-50';
+              ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+              : 'bg-white border-gray-200 hover:bg-gray-50';
           const textClassName = status === 'preexisting'
             ? 'text-green-700'
             : status === 'new'
-            ? 'text-blue-700'
-            : 'text-gray-800';
+              ? 'text-blue-700'
+              : 'text-gray-800';
           const iconClassName = status === 'preexisting'
             ? 'text-green-600'
             : status === 'new'
-            ? 'text-blue-600'
-            : 'text-gray-300';
+              ? 'text-blue-600'
+              : 'text-gray-300';
           return (
             <button
               key={folder.id}

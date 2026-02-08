@@ -216,8 +216,8 @@ const SearchResultCard = ({
         toast.success('已更新解釋');
       }
 
-      if (Array.isArray(selectedIds)) {
-        onUpdateLastUsedFolderIds?.(selectedIds);
+      if (Array.isArray(addList) && addList.length > 0) {
+        onUpdateLastUsedFolderIds?.(addList);
       }
     } finally {
       setIsConfirmingFolders(false);

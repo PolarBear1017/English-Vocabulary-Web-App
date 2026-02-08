@@ -184,10 +184,11 @@ const updateUserLibrarySourceByLibraryId = async ({ libraryId, source, isAiGener
 };
 
 const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
+  const targetFolderId = (folderId === 'default') ? null : folderId;
   return supabase.rpc('save_word_with_preferences', {
     p_word_data: wordData,
     p_user_id: userId,
-    p_folder_id: folderId,
+    p_folder_id: targetFolderId,
     p_selected_defs: selectedDefinitions
   });
 };

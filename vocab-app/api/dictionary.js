@@ -292,6 +292,32 @@ const scrapeGoogleTranslate = async (word) => {
 };
 
 
+// Helper to detect Chinese characters
+const isChinese = (text) => /[\u4e00-\u9fa5]/.test(text);
+
+// Translate Chinese to English using Google Translate API
+const translateToEnglish = async (text) => {
+  try {
+    // sl=zh-TW (source), tl=en (target)
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    // data[0][0][0] is the translated text
+    return data[0]?.[0]?.[0];
+  } catch (error) {
+    console.warn("Translation failed", error);
+    return null;
+  }
+};
+
 export default async function handler(req, res) {
   // 處理 CORS (允許你的前端存取)
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -319,19 +345,39 @@ export default async function handler(req, res) {
   }
 
   try {
+    let searchWord = word;
+    let originalQuery = null;
+
+    // Smart Translation Logic: If input is Chinese, translate to English first
+    if (isChinese(word)) {
+      const translated = await translateToEnglish(word);
+      if (translated) {
+        originalQuery = word;
+        searchWord = translated;
+      }
+    }
+
     let result = null;
 
     if (source === 'Yahoo') {
-      result = await scrapeYahoo(word);
+      result = await scrapeYahoo(searchWord);
     } else if (source === 'Google Translate') {
-      result = await scrapeGoogleTranslate(word);
+      result = await scrapeGoogleTranslate(searchWord);
     } else {
       // Default to Cambridge
-      result = await scrapeCambridge(word);
+      result = await scrapeCambridge(searchWord);
     }
 
     if (!result) {
-      return res.status(404).json({ error: `Word not found in ${source} Dictionary` });
+      // If translated search failed, maybe try Google Translate directly on the original Chinese word?
+      // But usually looking up "Apple" in Cambridge is what we want.
+      return res.status(404).json({ error: `Word not found in ${source} Dictionary`, searchedWord: searchWord });
+    }
+
+    // Attach original query info if translation happened
+    if (originalQuery) {
+      result.originalQuery = originalQuery;
+      result.translatedFrom = originalQuery;
     }
 
     return res.status(200).json(result);

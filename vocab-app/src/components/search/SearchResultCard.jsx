@@ -339,25 +339,6 @@ const SearchResultCard = ({
           <div className="fixed inset-0 z-40 flex items-center justify-center">
             <div className="absolute inset-0 bg-black/40" onClick={handleCancelSave} />
             <div className="relative z-50 w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-bold text-gray-400 uppercase">選擇資料夾</h4>
-                  <button
-                    type="button"
-                    onClick={() => setShowDefaultTip((prev) => !prev)}
-                    className="relative group"
-                    ref={defaultTipRef}
-                    aria-label="解釋儲存提示"
-                  >
-                    <Info className="w-4 h-4 text-gray-400 cursor-help" />
-                    <div className={`absolute left-0 bottom-full mb-2 w-48 p-2 bg-gray-800 text-white text-xs rounded-lg shadow-lg transition-all duration-200 z-50 pointer-events-none ${showDefaultTip ? 'opacity-100 visible' : 'opacity-0 invisible'
-                      } group-hover:opacity-100 group-hover:visible`}>
-                      預設只儲存第一個解釋
-                      <div className="absolute left-2 top-full w-0 h-0 border-4 border-transparent border-t-gray-800" />
-                    </div>
-                  </button>
-                </div>
-              </div>
               <FolderSelectionList
                 folders={folders}
                 savedFolderIds={savedWordInSearch?.folderIds}

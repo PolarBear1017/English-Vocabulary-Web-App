@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, User, Key, Brain } from 'lucide-react';
+import { ArrowRight, User, Key, Brain, BookOpen } from 'lucide-react';
 
 const SettingsMain = ({ session, groqApiKey, onSelectView }) => (
   <>
@@ -38,6 +38,22 @@ const SettingsMain = ({ session, groqApiKey, onSelectView }) => (
             <div className="text-sm text-gray-500">
               {groqApiKey ? '已設定' : '未設定'}
             </div>
+          </div>
+        </div>
+        <ArrowRight className="w-5 h-5 text-gray-300" />
+      </button>
+
+      <button
+        onClick={() => onSelectView('dictionary')}
+        className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition"
+      >
+        <div className="flex items-center gap-4">
+          <div className="w-10 h-10 bg-green-100 rounded-full flex items-center justify-center text-green-600">
+            <BookOpen className="w-5 h-5" />
+          </div>
+          <div className="text-left">
+            <div className="font-bold text-gray-800">字典設定</div>
+            <div className="text-sm text-gray-500">調整各個字典的優先順序</div>
           </div>
         </div>
         <ArrowRight className="w-5 h-5 text-gray-300" />

@@ -3,8 +3,10 @@ import {
   ensureStorageVersion,
   loadGroqKey,
   loadRequestRetention,
+  loadDictionaryPriority,
   saveGroqKey,
-  saveRequestRetention
+  saveRequestRetention,
+  saveDictionaryPriority
 } from '../../services/storageService';
 import {
   getSession,
@@ -20,6 +22,7 @@ const useSettings = () => {
   const [settingsView, setSettingsView] = useState('main');
   const [groqApiKey, setGroqApiKey] = useState(() => loadGroqKey());
   const [requestRetention, setRequestRetention] = useState(() => loadRequestRetention());
+  const [dictionaryPriority, setDictionaryPriority] = useState(() => loadDictionaryPriority());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -37,6 +40,10 @@ const useSettings = () => {
   useEffect(() => {
     saveRequestRetention(requestRetention);
   }, [requestRetention]);
+
+  useEffect(() => {
+    saveDictionaryPriority(dictionaryPriority);
+  }, [dictionaryPriority]);
 
   useEffect(() => {
     getSession().then(({ data: { session } }) => {
@@ -93,6 +100,7 @@ const useSettings = () => {
       settingsView,
       groqApiKey,
       requestRetention,
+      dictionaryPriority,
       session,
       email,
       password,
@@ -102,6 +110,7 @@ const useSettings = () => {
       setSettingsView,
       setGroqApiKey,
       setRequestRetention,
+      setDictionaryPriority,
       setEmail,
       setPassword,
       handleLogin,

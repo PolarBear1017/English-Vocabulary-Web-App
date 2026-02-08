@@ -4,6 +4,7 @@ import SettingsMain from './SettingsMain';
 import SettingsAccount from './SettingsAccount';
 import SettingsApi from './SettingsApi';
 import SettingsReview from './SettingsReview';
+import SettingsDictionary from './SettingsDictionary';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 
 const SettingsTab = () => {
@@ -62,6 +63,10 @@ const SettingsTab = () => {
               requestRetention={requestRetention}
               setRequestRetention={settings.actions.setRequestRetention}
             />
+          )}
+
+          {settingsView === 'dictionary' && (
+            <SettingsDictionary />
           )}
         </div>
       )}

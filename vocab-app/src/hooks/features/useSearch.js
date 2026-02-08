@@ -41,7 +41,7 @@ const removeSearchHistory = () => {
   }
 };
 
-const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
+const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -184,74 +184,84 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
         return;
       }
 
-      if (forceSource === 'Cambridge' || forceSource === 'Yahoo' || forceSource === 'Google Translate') {
-        try {
-          const data = await fetchDictionaryEntry(lowerQuery, forceSource);
-          if (data) {
-            const normalized = normalizeEntries(data);
-            if (normalized.length > 0) {
-              setSearchResult(toSearchResultFromDictionary(data));
-              return;
+      // Priority-based search logic
+      const priorityList = settings?.state?.dictionaryPriority || ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI'];
+      const sourcesToTry = forceSource ? [forceSource] : priorityList;
+      let lastError = null;
+
+      for (const source of sourcesToTry) {
+        if (source === 'Groq AI') {
+          if (!apiKeys?.groqKey) {
+            console.warn("Skipping Groq AI: Missing API Key");
+            if (forceSource === 'Groq AI') {
+              const error = new Error("請在設定頁面輸入 Groq API Key。");
+              error.code = AI_ERROR_CODES.MISSING_API_KEYS;
+              throw error;
             }
+            continue;
           }
-          setSearchError(`${forceSource} 查無此字，請嘗試切換來源。`);
-          setSearchResult(createSourceFallback(searchTerm, forceSource, `${forceSource} 查無此字，請嘗試切換來源。`));
-          return;
-        } catch (error) {
-          console.warn(`${forceSource} API 呼叫失敗`, error);
-          setSearchError(`${forceSource} 查詢失敗，請稍後再試或切換來源。`);
-          setSearchResult(createSourceFallback(searchTerm, forceSource, `${forceSource} 查詢失敗，請稍後再試或切換來源。`));
-          return;
-        }
-      }
+          setIsAiLoading(true);
+          try {
+            // For AI, we don't have a simple 404 check before calling, so we call it.
+            // If it fails, it throws.
+            const { data, source: aiSource } = await fetchDefinition({
+              groqKey: apiKeys.groqKey,
+              word: lowerQuery
+            });
+            setSearchResult(toSearchResultFromAi(data, aiSource));
+            setIsAiLoading(false);
+            return; // Success!
+          } catch (error) {
+            setIsAiLoading(false);
+            console.warn(`Groq AI search failed for ${lowerQuery}`, error);
+            lastError = error;
+            if (forceSource === 'Groq AI') throw error;
+          }
+        } else {
+          // Dictionary sources (Cambridge, Yahoo, Google Translate)
+          try {
+            const data = await fetchDictionaryEntry(lowerQuery, source);
+            if (data) {
+              // Check if we got valid entries or at least a translation (for Google Translate)
+              const normalized = normalizeEntries(data);
+              const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
 
-      if (forceSource === 'Groq AI') {
-        if (!apiKeys?.groqKey) {
-          const error = new Error("請在設定頁面輸入 Groq API Key。");
-          error.code = AI_ERROR_CODES.MISSING_API_KEYS;
-          throw error;
-        }
-        setIsAiLoading(true);
-        const { data, source } = await fetchDefinition({
-          groqKey: apiKeys.groqKey,
-          word: lowerQuery
-        });
-        setSearchResult(toSearchResultFromAi(data, source));
-        return;
-      }
-
-      let dictionaryData = null;
-      try {
-        const data = await fetchDictionaryEntry(lowerQuery);
-        if (data) {
-          const normalized = normalizeEntries(data);
-          if (normalized.length > 0) {
-            dictionaryData = data;
+              if (isValid) {
+                setSearchResult(toSearchResultFromDictionary(data));
+                return; // Success!
+              }
+            }
+            // Should have returned if found. If here, it means not found or empty.
+            console.log(`${source} returned no result for ${lowerQuery}`);
+          } catch (error) {
+            console.warn(`${source} search failed for ${lowerQuery}`, error);
+            lastError = error;
           }
         }
-      } catch (error) {
-        console.warn("劍橋字典 API 呼叫失敗，將切換至 AI 模式", error);
       }
 
-      if (dictionaryData) {
-        setSearchResult(toSearchResultFromDictionary(dictionaryData));
+      // If we get here, all sources failed.
+      if (forceSource) {
+        // Specific source failed
+        const msg = lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS
+          ? lastError.message
+          : `${forceSource} 查無此字，請嘗試切換來源。`;
+        setSearchError(msg);
+        if (forceSource !== 'Groq AI') {
+          setSearchResult(createSourceFallback(searchTerm, forceSource, msg));
+        } else if (lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS) {
+          onRequireApiKeys?.();
+        }
       } else {
-        if (!apiKeys?.groqKey) {
-          const error = new Error("請在設定頁面輸入 Groq API Key。");
-          error.code = AI_ERROR_CODES.MISSING_API_KEYS;
-          throw error;
-        }
-        setIsAiLoading(true);
-        const { data, source } = await fetchDefinition({
-          groqKey: apiKeys.groqKey,
-          word: lowerQuery
-        });
-        setSearchResult(toSearchResultFromAi(data, source));
+        // All auto-sources failed
+        setSearchError("所有來源皆查無此字。");
+        setSearchResult(createSourceFallback(searchTerm, 'system', "所有來源皆查無此字。"));
       }
+
     } catch (error) {
       console.error(error);
-      setSearchError(`AI 查詢失敗: ${error.message}`);
-      setAiError({ code: error.code || 'AI_ERROR', message: error.message });
+      setSearchError(`查詢失敗: ${error.message}`);
+      setAiError({ code: error.code || 'UNKNOWN_ERROR', message: error.message });
       if (error.code === AI_ERROR_CODES.MISSING_API_KEYS) {
         onRequireApiKeys?.();
       }
@@ -259,7 +269,7 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, updateSearchHistory]);
+  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory]);
 
   const handleSearch = useCallback(async (e) => {
     if (e && e.preventDefault) e.preventDefault();

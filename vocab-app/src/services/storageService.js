@@ -7,7 +7,8 @@ const STORAGE_KEYS = {
   groqKey: 'groq_api_key',
   requestRetention: 'request_retention',
   folderSortBy: 'folder_sort_by',
-  wordSortBy: 'word_sort_by'
+  wordSortBy: 'word_sort_by',
+  dictionaryPriority: 'dictionary_priority'
 };
 
 const ensureStorageVersion = () => {
@@ -67,6 +68,9 @@ const saveFolderSortBy = (value) => writeString(STORAGE_KEYS.folderSortBy, value
 const loadWordSortBy = () => readString(STORAGE_KEYS.wordSortBy, 'added_desc');
 const saveWordSortBy = (value) => writeString(STORAGE_KEYS.wordSortBy, value);
 
+const loadDictionaryPriority = () => readJSON(STORAGE_KEYS.dictionaryPriority, ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']);
+const saveDictionaryPriority = (value) => writeJSON(STORAGE_KEYS.dictionaryPriority, value);
+
 export {
   STORAGE_VERSION,
   STORAGE_KEYS,
@@ -88,5 +92,7 @@ export {
   loadFolderSortBy,
   saveFolderSortBy,
   loadWordSortBy,
-  saveWordSortBy
+  saveWordSortBy,
+  loadDictionaryPriority,
+  saveDictionaryPriority
 };

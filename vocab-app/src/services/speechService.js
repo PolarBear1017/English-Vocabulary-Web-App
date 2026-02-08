@@ -52,7 +52,12 @@ const playAudioWithContext = async (url) => {
     const response = await fetch(fetchUrl, { signal: controller.signal });
     clearTimeout(timeoutId);
 
-    if (!response.ok) throw new Error(`Fetch failed: ${response.statusText}`);
+    if (!response.ok) {
+      if (response.status === 404) {
+        console.warn("Proxy endpoint not found (404). If running locally, ensure API is available or use 'vercel dev'. Falling back to direct playback.");
+      }
+      throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+    }
 
     const arrayBuffer = await response.arrayBuffer();
     const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);

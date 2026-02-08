@@ -184,7 +184,7 @@ const useSearch = ({ apiKeys, onSearchStart, onRequireApiKeys }) => {
         return;
       }
 
-      if (forceSource === 'Cambridge' || forceSource === 'Yahoo') {
+      if (forceSource === 'Cambridge' || forceSource === 'Yahoo' || forceSource === 'Google Translate') {
         try {
           const data = await fetchDictionaryEntry(lowerQuery, forceSource);
           if (data) {

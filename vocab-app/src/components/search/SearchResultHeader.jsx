@@ -5,6 +5,7 @@ import ProficiencyDots from '../common/ProficiencyDots';
 const SOURCE_OPTIONS = [
   { value: 'Cambridge', label: 'Cambridge', icon: '🛡️' },
   { value: 'Yahoo', label: 'Yahoo Dictionary', icon: 'Y!' },
+  { value: 'Google Translate', label: 'Google Translate', icon: 'G' },
   { value: 'Groq AI', label: 'Groq AI', icon: '✨' }
 ];
 
@@ -133,6 +134,7 @@ const SearchResultHeader = ({
                 <Sparkles className="w-3 h-3" /> Groq AI
               </>
             ))}
+            {searchResult.source === 'Google Translate' && renderSourceBadge('bg-green-100 text-green-700', 'G Google Translate')}
             {searchResult.source === 'Library' && renderSourceBadge('bg-gray-100 text-gray-600', '📚 Library')}
           </div>
           {searchResult.source === 'Library' && onSearchFullDefinition && (

@@ -204,6 +204,94 @@ const scrapeYahoo = async (word) => {
 };
 
 
+
+
+// Scrape Google Translate (unofficial JSON API for rich results)
+const scrapeGoogleTranslate = async (word) => {
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&dt=bd&q=${encodeURIComponent(word)}`;
+
+    const response = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      }
+    });
+
+    if (!response.ok) {
+      console.error('Google Translate API error:', response.status, response.statusText);
+      return null;
+    }
+
+    const data = await response.json();
+
+    // data[0][0][0] contains the primary translation
+    const primaryTranslation = data[0]?.[0]?.[0];
+
+    if (!primaryTranslation) {
+      return null;
+    }
+
+    const entries = [];
+    const seenDefinitions = new Set();
+
+    // data[1] contains distinct parts of speech and their translations
+    // Structure: [ [ "noun", [ "銀行", "岸", ... ], [ [ "銀行", [ "bank" ] ], ... ], ... ], [ "verb", ... ] ]
+    const extraDefinitions = data[1];
+
+    if (Array.isArray(extraDefinitions)) {
+      extraDefinitions.forEach(posBlock => {
+        const pos = posBlock[0]; // e.g. "noun"
+        const terms = posBlock[1]; // e.g. ["銀行", "岸", ...]
+
+        if (Array.isArray(terms)) {
+          terms.forEach(term => {
+            if (!seenDefinitions.has(term)) {
+              seenDefinitions.add(term);
+              entries.push({
+                definition: term,
+                translation: '', // definition is in Chinese already
+                example: '',
+                examples: [],
+                pos: pos
+              });
+            }
+          });
+        }
+      });
+    }
+
+    // Fallback: if no dictionary entries found (e.g. simple phrase), use primary translation
+    if (entries.length === 0) {
+      entries.push({
+        definition: primaryTranslation,
+        translation: '',
+        example: '',
+        examples: [],
+        pos: 'unknown'
+      });
+    }
+
+    return {
+      word,
+      pos: entries.length > 0 ? entries[0].pos : 'unknown',
+      phonetic: '',
+      definition: primaryTranslation,
+      translation: '',
+      example: '',
+      entries: entries,
+      audioUrl: '',
+      usAudioUrl: '',
+      ukAudioUrl: '',
+      source: 'Google Translate'
+    };
+
+  } catch (error) {
+    console.warn("Google Translate API failed", error);
+    return null;
+  }
+};
+
+
 export default async function handler(req, res) {
   // 處理 CORS (允許你的前端存取)
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -235,6 +323,8 @@ export default async function handler(req, res) {
 
     if (source === 'Yahoo') {
       result = await scrapeYahoo(word);
+    } else if (source === 'Google Translate') {
+      result = await scrapeGoogleTranslate(word);
     } else {
       // Default to Cambridge
       result = await scrapeCambridge(word);

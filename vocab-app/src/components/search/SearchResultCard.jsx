@@ -300,7 +300,7 @@ const SearchResultCard = ({
         onNextSave={handleNextSave}
         onBackSave={handleEditDefinitions}
         onSearchFullDefinition={() => onSearch(searchResult.word)}
-        availableSources={['Cambridge', 'Yahoo', 'Groq AI']}
+        availableSources={['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']}
         onChangeSource={handleChangeSource}
         isSwitchingSource={isSwitchingSource}
       />

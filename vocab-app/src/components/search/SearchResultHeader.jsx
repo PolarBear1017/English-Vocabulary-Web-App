@@ -136,7 +136,29 @@ const SearchResultHeader = ({
             ))}
             {searchResult.source === 'Google Translate' && renderSourceBadge('bg-green-100 text-green-700', 'G Google Translate')}
             {searchResult.source === 'Library' && renderSourceBadge('bg-gray-100 text-gray-600', '📚 Library')}
+            {searchResult.translatedFrom && (
+              <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium border border-blue-200">
+                {searchResult.translatedFrom} &rarr; {searchResult.word}
+              </span>
+            )}
           </div>
+
+          {/* Alternative Translations Suggestions */}
+          {searchResult.alternatives && searchResult.alternatives.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-2 items-center">
+              <span className="text-xs text-gray-400 font-medium">相關:</span>
+              {searchResult.alternatives.map((alt) => (
+                <button
+                  key={alt}
+                  onClick={() => onSearchFullDefinition ? onSearchFullDefinition(alt) : window.location.search = `?q=${alt}`}
+                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-blue-600 rounded-full border border-gray-200 transition-colors"
+                >
+                  {alt}
+                </button>
+              ))}
+            </div>
+          )}
+
           {searchResult.source === 'Library' && onSearchFullDefinition && (
             <button
               type="button"

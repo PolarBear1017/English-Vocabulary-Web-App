@@ -178,7 +178,7 @@ const scrapeYahoo = async (word) => {
       }
     }
 
-    console.log(`Yahoo scraper found ${entries.length} entries for "${word}"`);
+
 
     return {
       word,
@@ -299,7 +299,8 @@ const isChinese = (text) => /[\u4e00-\u9fa5]/.test(text);
 const translateToEnglish = async (text) => {
   try {
     // sl=zh-TW (source), tl=en (target)
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&q=${encodeURIComponent(text)}`;
+    // dt=t (translation), dt=bd (dictionary/alternatives)
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&dt=bd&q=${encodeURIComponent(text)}`;
 
     const response = await fetch(url, {
       headers: {
@@ -310,8 +311,34 @@ const translateToEnglish = async (text) => {
     if (!response.ok) return null;
 
     const data = await response.json();
-    // data[0][0][0] is the translated text
-    return data[0]?.[0]?.[0];
+    // data[0][0][0] is the primary translated text
+    const primary = data[0]?.[0]?.[0];
+
+    if (!primary) return null;
+
+    // data[1] contains dictionary entries/alternatives
+    // Structure: [ [ "noun", [ "apple", ... ], ... ] ]
+    const alternatives = [];
+    if (data[1] && Array.isArray(data[1])) {
+      data[1].forEach(block => {
+        if (Array.isArray(block[1])) {
+          block[1].forEach(word => {
+            if (word && word.toLowerCase() !== primary.toLowerCase()) {
+              alternatives.push(word);
+            }
+          });
+        }
+      });
+    }
+
+    // Filter unique and limit
+    const uniqueAlternatives = [...new Set(alternatives)].slice(0, 8); // Limit to 8 suggestions
+
+    return {
+      word: primary,
+      alternatives: uniqueAlternatives
+    };
+
   } catch (error) {
     console.warn("Translation failed", error);
     return null;
@@ -347,13 +374,15 @@ export default async function handler(req, res) {
   try {
     let searchWord = word;
     let originalQuery = null;
+    let alternatives = [];
 
     // Smart Translation Logic: If input is Chinese, translate to English first
     if (isChinese(word)) {
-      const translated = await translateToEnglish(word);
-      if (translated) {
+      const result = await translateToEnglish(word);
+      if (result && result.word) {
         originalQuery = word;
-        searchWord = translated;
+        searchWord = result.word;
+        alternatives = result.alternatives || [];
       }
     }
 
@@ -378,6 +407,7 @@ export default async function handler(req, res) {
     if (originalQuery) {
       result.originalQuery = originalQuery;
       result.translatedFrom = originalQuery;
+      result.alternatives = alternatives;
     }
 
     return res.status(200).json(result);

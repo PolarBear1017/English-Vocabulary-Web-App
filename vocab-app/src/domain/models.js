@@ -16,6 +16,9 @@
  * @property {string} example
  * @property {SearchEntry[]} entries
  * @property {string[]} similar
+ * @property {string[]} alternatives
+ * @property {string|null} translatedFrom
+ * @property {string|null} originalQuery
  * @property {object|string|null} mnemonics
  * @property {string|null} audioUrl
  * @property {string|null} usAudioUrl
@@ -63,6 +66,9 @@ const createSearchResult = (data = {}) => ({
   example: data.example || '',
   entries: Array.isArray(data.entries) ? data.entries : [],
   similar: Array.isArray(data.similar) ? data.similar : [],
+  alternatives: Array.isArray(data.alternatives) ? data.alternatives : [],
+  translatedFrom: data.translatedFrom || null,
+  originalQuery: data.originalQuery || null,
   mnemonics: data.mnemonics ?? null,
   audioUrl: data.audioUrl ?? null,
   usAudioUrl: data.usAudioUrl ?? null,

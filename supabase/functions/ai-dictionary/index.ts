@@ -228,7 +228,7 @@ serve(async (req) => {
     const words = Array.isArray(body?.words) ? body.words.filter(Boolean) : [];
     const apiKeys = body?.apiKeys || {};
 
-    if (!word || !promptType) {
+    if ((!word && promptType !== 'story') || !promptType) {
       return new Response(JSON.stringify({ error: 'Missing word or promptType' }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }

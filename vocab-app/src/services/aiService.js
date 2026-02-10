@@ -117,10 +117,66 @@ const normalizeDefinition = (word, data) => {
   };
 };
 
+const safeString = (val) => {
+  if (val === null || val === undefined) return '';
+  if (typeof val === 'string') return val;
+  if (typeof val === 'object') {
+    try {
+      return JSON.stringify(val);
+    } catch {
+      return String(val);
+    }
+  }
+  return String(val);
+};
+
+const formatEtymology = (data) => {
+  if (!data || typeof data !== 'object') return null;
+
+  // Check unique keys for Etymology schema
+  if (!data.Root && !data.Decomposition && !data['Linking memory aid'] && !data['memory aid']) return null;
+
+  const parts = [];
+  if (data.Root) {
+    let rootPart = `**Root**: ${data.Root}`;
+    const extras = [];
+    if (data.Prefix) extras.push(`Prefix: ${data.Prefix}`);
+    if (data.Suffix) extras.push(`Suffix: ${data.Suffix}`);
+    if (extras.length > 0) rootPart += ` (${extras.join(', ')})`;
+    parts.push(rootPart);
+  }
+
+  if (data.Decomposition) {
+    parts.push(`**Decomposition**: ${data.Decomposition}`);
+  }
+
+  const memoryAid = data['Linking memory aid'] || data['memory aid'] || data.memory_aid;
+  if (memoryAid) {
+    parts.push(`**Memory Aid**: ${memoryAid}`);
+  }
+
+  return parts.join('\n\n');
+};
+
 const normalizeMnemonic = (data) => {
   if (!data) {
     return { method: 'Etymology', content: '' };
   }
+
+  let structuredData = data;
+  // Try to parse if it's nested JSON string in mnemonics or data itself
+  if (typeof data === 'string' && data.trim().startsWith('{')) {
+    try { structuredData = JSON.parse(data); } catch (e) { }
+  } else if (data.mnemonics && typeof data.mnemonics === 'string' && data.mnemonics.trim().startsWith('{')) {
+    try { structuredData = JSON.parse(data.mnemonics); } catch (e) { }
+  }
+
+  const formatted = formatEtymology(structuredData);
+  if (formatted) {
+    const method = data.method || data.strategy || 'Etymology';
+    return { method, content: formatted };
+  }
+
   if (typeof data === 'string') {
     return { method: 'Etymology', content: data.trim() };
   }
@@ -135,7 +191,9 @@ const normalizeMnemonic = (data) => {
     || '';
   const method = data.method || data.strategy || 'Etymology';
   const fallback = data.rawText || data.raw || '';
-  return { method, content: (content || fallback || '').trim() };
+
+  const finalContent = safeString(content || fallback);
+  return { method, content: finalContent.trim() };
 };
 
 const fetchDefinition = async ({ groqKey, word }) => {

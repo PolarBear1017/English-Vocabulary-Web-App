@@ -1,6 +1,31 @@
-const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+let audioContext = null;
 let currentSource = null; // Track the currently playing source
 let currentAudioElement = null; // Track HTML5 Audio fallback
+
+const getAudioContext = () => {
+  if (!audioContext || audioContext.state === 'closed') {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+};
+
+// Handle visibility change to resume audio context on mobile
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden && audioContext && audioContext.state === 'suspended') {
+      audioContext.resume().catch(err => console.warn("Failed to resume AudioContext on visibility change:", err));
+    }
+  });
+
+  // Also try to resume on touch/click events as a backup
+  const resumeAudio = () => {
+    if (audioContext && audioContext.state === 'suspended') {
+      audioContext.resume().catch(() => { });
+    }
+  };
+  document.addEventListener('touchstart', resumeAudio, { passive: true });
+  document.addEventListener('click', resumeAudio, { passive: true });
+}
 
 const stopAudio = () => {
   // Stop Web Audio API source
@@ -35,8 +60,10 @@ const playAudioWithContext = async (url) => {
   stopAudio();
 
   try {
-    if (audioContext.state === 'suspended') {
-      await audioContext.resume();
+    const ctx = getAudioContext();
+
+    if (ctx.state === 'suspended') {
+      await ctx.resume();
     }
 
     // Determine if we need to proxy the request
@@ -60,14 +87,21 @@ const playAudioWithContext = async (url) => {
     }
 
     const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    // Fix for "The buffer passed to decodeAudioData contains an unknown content type"
+    // sometimes empty or invalid responses can cause this
+    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
+      throw new Error("Empty audio buffer received");
+    }
+
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
     // Check if we were stopped while decoding
     if (!audioBuffer) return;
 
-    const source = audioContext.createBufferSource();
+    const source = ctx.createBufferSource();
     source.buffer = audioBuffer;
-    source.connect(audioContext.destination);
+    source.connect(ctx.destination);
 
     source.onended = () => {
       if (currentSource === source) {

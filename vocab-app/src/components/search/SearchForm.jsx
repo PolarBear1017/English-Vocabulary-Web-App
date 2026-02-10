@@ -53,13 +53,40 @@ const SearchForm = ({
       className="relative"
     >
       {({ activeOption, open }) => {
+        const userNavigatedRef = React.useRef(false);
+
+        // Reset navigation state when suggestions open/close or options change
+        React.useEffect(() => {
+          userNavigatedRef.current = false;
+        }, [open, suggestions]);
+
         const handleKeyDown = (e) => {
-          if (e.key !== 'Enter') return;
-          if (activeOption) return;
-          e.preventDefault();
-          onSearch(query);
-          setSuggestions([]);
-          inputRef.current?.blur();
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            userNavigatedRef.current = true;
+            return;
+          }
+
+          if (e.key === 'Enter') {
+            // If user hasn't explicitly navigated with keys,
+            // treat it as a submission of the current input value, not the selected option
+            if (!userNavigatedRef.current) {
+              e.preventDefault();
+              e.stopPropagation();
+              onSearch(query);
+              setSuggestions([]);
+              inputRef.current?.blur();
+              return;
+            }
+
+            // Otherwise standard behavior (selects active option)
+            if (activeOption) return;
+
+            // Fallback for no active option
+            e.preventDefault();
+            onSearch(query);
+            setSuggestions([]);
+            inputRef.current?.blur();
+          }
         };
 
         return (
@@ -68,7 +95,10 @@ const SearchForm = ({
               ref={inputRef}
               type="text"
               value={query}
-              onChange={(e) => onQueryChange(e.target.value)}
+              onChange={(e) => {
+                userNavigatedRef.current = false;
+                onQueryChange(e.target.value);
+              }}
               onKeyDown={handleKeyDown}
               autoCapitalize="none"
               placeholder="輸入單字"

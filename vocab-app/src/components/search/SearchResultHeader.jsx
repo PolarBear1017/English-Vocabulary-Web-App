@@ -35,6 +35,7 @@ const SearchResultHeader = ({
   isSwitchingSource
 }) => {
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
+  const [isExternalLinksOpen, setIsExternalLinksOpen] = useState(false);
   const sourceMenuRef = useRef(null);
   const canSwitchSource = Array.isArray(availableSources) && availableSources.length > 1 && onChangeSource;
 
@@ -170,22 +171,32 @@ const SearchResultHeader = ({
             </button>
           )}
 
-          {/* External Links */}
-          <div className="mt-3 pt-3 border-t border-gray-200/50 flex flex-wrap gap-2">
-            <span className="text-xs text-gray-400 flex items-center gap-1">
-              <ExternalLink className="w-3 h-3" /> 外部連結:
-            </span>
-            {EXTERNAL_LINKS.map((link) => (
-              <a
-                key={link.label}
-                href={link.url(searchResult.word)}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-500 hover:text-blue-700 hover:underline bg-white px-1.5 py-0.5 rounded border border-blue-100 hover:border-blue-300 transition"
-              >
-                {link.label}
-              </a>
-            ))}
+          {/* External Links - Collapsible */}
+          <div className="mt-3 pt-3 border-t border-gray-200/50">
+            <button
+              onClick={() => setIsExternalLinksOpen(!isExternalLinksOpen)}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition group"
+            >
+              <ExternalLink className="w-3 h-3" />
+              <span>外部連結</span>
+              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExternalLinksOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isExternalLinksOpen && (
+              <div className="mt-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                {EXTERNAL_LINKS.map((link) => (
+                  <a
+                    key={link.label}
+                    href={link.url(searchResult.word)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-500 hover:text-blue-700 hover:underline bg-white px-2 py-1 rounded border border-blue-100 hover:border-blue-300 transition shadow-sm"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </div>
+            )}
           </div>
         </div>
         {saveStep === 'idle' && (

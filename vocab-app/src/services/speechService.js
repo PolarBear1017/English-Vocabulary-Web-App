@@ -12,12 +12,14 @@ const getAudioContext = () => {
 // Handle visibility change to resume audio context on mobile
 if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden && audioContext && audioContext.state === 'suspended') {
-      audioContext.resume().catch(err => console.warn("Failed to resume AudioContext on visibility change:", err));
+    // Aggressive reset: Destroy context when backgrounded to avoid stale/interrupted states on mobile
+    if (document.hidden && audioContext) {
+      audioContext.close().catch(err => console.warn("Error closing AudioContext:", err));
+      audioContext = null;
     }
   });
 
-  // Also try to resume on touch/click events as a backup
+  // Also try to resume on touch/click events as a backup if it exists but is suspended
   const resumeAudio = () => {
     if (audioContext && audioContext.state === 'suspended') {
       audioContext.resume().catch(() => { });

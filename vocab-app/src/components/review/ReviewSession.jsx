@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Volume2, Sparkles } from 'lucide-react';
+import { X, Volume2, Sparkles, Lightbulb } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
 import { formatClozeSentence, highlightWord } from '../../utils/text.jsx';
 import { speak } from '../../services/speechService';
@@ -27,7 +27,8 @@ const ReviewSession = ({
   handleAnswerChange,
   checkAnswer,
   processRating,
-  advanceToNextCard
+  advanceToNextCard,
+  giveHint
 }) => (
   <div className="max-w-2xl mx-auto h-[calc(100vh-140px)] flex flex-col">
     <div className="flex justify-between items-center mb-4">
@@ -47,7 +48,16 @@ const ReviewSession = ({
                 {currentReviewWord.pos && (
                   <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
-                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                <div className="relative w-full">
+                  <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 bg-transparent placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                  <button
+                    onClick={giveHint}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors p-2"
+                    title="顯示提示 (首字母)"
+                  >
+                    <Lightbulb className="w-5 h-5" />
+                  </button>
+                </div>
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}
@@ -62,7 +72,16 @@ const ReviewSession = ({
                 {currentReviewWord.pos && (
                   <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
                 )}
-                <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                <div className="relative w-full">
+                  <input type="text" className="w-full border p-3 rounded-lg text-center placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                  <button
+                    onClick={giveHint}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors p-2"
+                    title="顯示提示 (首字母)"
+                  >
+                    <Lightbulb className="w-5 h-5" />
+                  </button>
+                </div>
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}
@@ -71,7 +90,16 @@ const ReviewSession = ({
             {reviewMode === 'dictation' && (
               <div className="space-y-6 w-full flex flex-col items-center">
                 <button onClick={() => speak(currentReviewWord.word, preferredReviewAudio)} className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center text-blue-600 hover:bg-blue-200 transition animate-pulse"><Volume2 className="w-8 h-8" /></button>
-                <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                <div className="relative w-full">
+                  <input type="text" className="w-full border-b-2 border-gray-300 focus:border-blue-500 outline-none text-2xl text-center py-2 placeholder:text-gray-400" value={userAnswer} placeholder={answerHint} onChange={e => handleAnswerChange(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); e.stopPropagation(); checkAnswer(); } }} autoCapitalize="none" autoCorrect="off" spellCheck={false} autoFocus />
+                  <button
+                    onClick={giveHint}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors p-2"
+                    title="顯示提示 (首字母)"
+                  >
+                    <Lightbulb className="w-5 h-5" />
+                  </button>
+                </div>
                 {feedback === 'incorrect' && (
                   <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
                 )}
@@ -144,15 +172,14 @@ const ReviewSession = ({
               </div>
             )}
             {reviewMode !== 'flashcard' && (
-              <div className={`p-3 rounded-lg font-bold ${
-                lastResult?.feedbackType === 'root_match'
-                  ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                  : feedback === 'correct' || feedback === 'exact'
+              <div className={`p-3 rounded-lg font-bold ${lastResult?.feedbackType === 'root_match'
+                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                : feedback === 'correct' || feedback === 'exact'
                   ? 'bg-green-500 text-white'
                   : feedback === 'typo'
-                  ? 'bg-amber-500 text-white'
-                  : 'bg-red-500 text-white'
-              }`}>
+                    ? 'bg-amber-500 text-white'
+                    : 'bg-red-500 text-white'
+                }`}>
                 {lastResult?.feedbackType === 'root_match' ? (
                   <div className="space-y-1">
                     <div>意思正確！(接受原形)</div>

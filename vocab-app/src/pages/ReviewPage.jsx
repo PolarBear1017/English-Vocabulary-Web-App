@@ -38,6 +38,7 @@ const ReviewPage = () => {
         checkAnswer={review.actions.checkAnswer}
         processRating={review.actions.processRating}
         advanceToNextCard={review.actions.advanceToNextCard}
+        giveHint={review.actions.giveHint}
       />
     );
   }

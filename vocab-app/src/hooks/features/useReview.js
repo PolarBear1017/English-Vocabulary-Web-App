@@ -450,7 +450,12 @@ const useReview = ({
       processRating,
       checkAnswer,
       handleAnswerChange,
-      toggleReviewFolder
+      toggleReviewFolder,
+      giveHint: () => {
+        if (currentReviewWord?.word) {
+          setAnswerHint(`${currentReviewWord.word[0]}...`);
+        }
+      }
     }
   };
 };

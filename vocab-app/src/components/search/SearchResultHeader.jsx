@@ -32,10 +32,12 @@ const SearchResultHeader = ({
   onSearchFullDefinition,
   availableSources,
   onChangeSource,
-  isSwitchingSource
+  isSwitchingSource,
+  relatedContext
 }) => {
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [isExternalLinksOpen, setIsExternalLinksOpen] = useState(false);
+  const [isRelatedOpen, setIsRelatedOpen] = useState(false);
   const sourceMenuRef = useRef(null);
   const canSwitchSource = Array.isArray(availableSources) && availableSources.length > 1 && onChangeSource;
 
@@ -144,19 +146,38 @@ const SearchResultHeader = ({
             )}
           </div>
 
-          {/* Alternative Translations Suggestions */}
-          {searchResult.alternatives && searchResult.alternatives.length > 0 && (
-            <div className="mt-3 flex flex-wrap gap-2 items-center">
-              <span className="text-xs text-gray-400 font-medium">相關:</span>
-              {searchResult.alternatives.map((alt) => (
-                <button
-                  key={alt}
-                  onClick={() => onSearchFullDefinition ? onSearchFullDefinition(alt) : window.location.search = `?q=${alt}`}
-                  className="px-2 py-0.5 text-xs font-medium text-gray-600 bg-white hover:bg-gray-50 hover:text-blue-600 rounded-full border border-gray-200 transition-colors"
-                >
-                  {alt}
-                </button>
-              ))}
+          {/* Related Words / Context - Collapsible */}
+          {((relatedContext?.alternatives?.length > 0) || (searchResult.alternatives && searchResult.alternatives.length > 0)) && (
+            <div className="mt-3 pt-3 border-t border-gray-200/50">
+              <button
+                onClick={() => setIsRelatedOpen(!isRelatedOpen)}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition w-full group py-1"
+              >
+                <Sparkles className="w-3 h-3 text-blue-500" />
+                <span className="font-medium">相關單字</span>
+                {relatedContext && <span className="text-gray-400 font-normal">({relatedContext.originalWord} 的相關字)</span>}
+                <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ml-auto ${isRelatedOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {isRelatedOpen && (
+                <div className="mt-2 flex flex-wrap gap-2 animate-in fade-in slide-in-from-top-1 duration-300">
+                  {(relatedContext ? relatedContext.alternatives : searchResult.alternatives).map((alt) => {
+                    const isActive = alt.toLowerCase() === searchResult.word.toLowerCase();
+                    return (
+                      <button
+                        key={alt}
+                        onClick={() => onSearchFullDefinition ? onSearchFullDefinition(alt) : window.location.search = `?q=${alt}`}
+                        className={`px-3 py-1 text-xs font-medium rounded-full border transition-all shadow-sm
+                          ${isActive
+                            ? 'bg-blue-600 text-white border-blue-600 ring-2 ring-blue-100'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300 hover:text-blue-600 hover:bg-blue-50'}`}
+                      >
+                        {alt}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
 

@@ -26,7 +26,8 @@ const SearchTab = () => {
     isSearching,
     aiLoading,
     suggestions,
-    saveButtonFeedback
+    saveButtonFeedback,
+    relatedContext
   } = search.state;
 
   const { normalizedEntries } = search.derived;
@@ -117,6 +118,7 @@ const SearchTab = () => {
           setQuery={search.actions.setQuery}
           onSearch={search.actions.handleSearch}
           onChangeSource={search.actions.handleSearchWithSource}
+          relatedContext={relatedContext}
         />
       )}
     </div>

@@ -27,7 +27,8 @@ const SearchResultCard = ({
   onGenerateMnemonic,
   setQuery,
   onSearch,
-  onChangeSource
+  onChangeSource,
+  relatedContext
 }) => {
   const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
@@ -303,6 +304,7 @@ const SearchResultCard = ({
         availableSources={['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']}
         onChangeSource={handleChangeSource}
         isSwitchingSource={isSwitchingSource}
+        relatedContext={relatedContext}
       />
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>

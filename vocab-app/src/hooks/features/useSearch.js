@@ -52,6 +52,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
   const [suggestions, setSuggestions] = useState([]);
   const [searchHistory, setSearchHistory] = useState(() => loadSearchHistory());
   const [saveButtonFeedback, setSaveButtonFeedback] = useState(false);
+  const [relatedContext, setRelatedContext] = useState(null);
 
   const ignoreNextQueryUpdate = useRef(false);
   const searchInputRef = useRef(null);
@@ -174,17 +175,36 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
 
     const lowerQuery = searchTerm.toLowerCase();
 
+    const updateResult = (result) => {
+      setSearchResult(result);
+
+      if (result.translatedFrom && result.alternatives?.length > 0) {
+        setRelatedContext({
+          originalWord: result.translatedFrom,
+          alternatives: result.alternatives
+        });
+      } else if (relatedContext) {
+        const isRelated = relatedContext.alternatives.some(
+          alt => alt.toLowerCase() === result.word.toLowerCase()
+        );
+        if (!isRelated && !result.translatedFrom) {
+          setRelatedContext(null);
+        }
+      } else {
+        setRelatedContext(null);
+      }
+    };
+
     try {
       if (MOCK_DICTIONARY_DB[lowerQuery]) {
         setTimeout(() => {
           const mock = MOCK_DICTIONARY_DB[lowerQuery];
-          setSearchResult({ ...mock, entries: normalizeEntries(mock), isAiGenerated: false });
+          updateResult({ ...mock, entries: normalizeEntries(mock), isAiGenerated: false });
           setIsSearching(false);
         }, 500);
         return;
       }
 
-      // Priority-based search logic
       const priorityList = settings?.state?.dictionaryPriority || ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI'];
       const sourcesToTry = forceSource ? [forceSource] : priorityList;
       let lastError = null;
@@ -202,15 +222,13 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           }
           setIsAiLoading(true);
           try {
-            // For AI, we don't have a simple 404 check before calling, so we call it.
-            // If it fails, it throws.
             const { data, source: aiSource } = await fetchDefinition({
               groqKey: apiKeys.groqKey,
               word: lowerQuery
             });
-            setSearchResult(toSearchResultFromAi(data, aiSource));
+            updateResult(toSearchResultFromAi(data, aiSource));
             setIsAiLoading(false);
-            return; // Success!
+            return;
           } catch (error) {
             setIsAiLoading(false);
             console.warn(`Groq AI search failed for ${lowerQuery}`, error);
@@ -218,20 +236,17 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
             if (forceSource === 'Groq AI') throw error;
           }
         } else {
-          // Dictionary sources (Cambridge, Yahoo, Google Translate)
           try {
             const data = await fetchDictionaryEntry(lowerQuery, source);
             if (data) {
-              // Check if we got valid entries or at least a translation (for Google Translate)
               const normalized = normalizeEntries(data);
               const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
 
               if (isValid) {
-                setSearchResult(toSearchResultFromDictionary(data));
-                return; // Success!
+                updateResult(toSearchResultFromDictionary(data));
+                return;
               }
             }
-            // Should have returned if found. If here, it means not found or empty.
             console.log(`${source} returned no result for ${lowerQuery}`);
           } catch (error) {
             console.warn(`${source} search failed for ${lowerQuery}`, error);
@@ -240,22 +255,19 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
         }
       }
 
-      // If we get here, all sources failed.
       if (forceSource) {
-        // Specific source failed
         const msg = lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS
           ? lastError.message
           : `${forceSource} 查無此字，請嘗試切換來源。`;
         setSearchError(msg);
         if (forceSource !== 'Groq AI') {
-          setSearchResult(createSourceFallback(searchTerm, forceSource, msg));
+          updateResult(createSourceFallback(searchTerm, forceSource, msg));
         } else if (lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS) {
           onRequireApiKeys?.();
         }
       } else {
-        // All auto-sources failed
         setSearchError("所有來源皆查無此字。");
-        setSearchResult(createSourceFallback(searchTerm, 'system', "所有來源皆查無此字。"));
+        updateResult(createSourceFallback(searchTerm, 'system', "所有來源皆查無此字。"));
       }
 
     } catch (error) {
@@ -265,11 +277,12 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       if (error.code === AI_ERROR_CODES.MISSING_API_KEYS) {
         onRequireApiKeys?.();
       }
+      setRelatedContext(null);
     } finally {
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory]);
+  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext]);
 
   const handleSearch = useCallback(async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -338,7 +351,8 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       aiError,
       searchError,
       suggestions,
-      saveButtonFeedback
+      saveButtonFeedback,
+      relatedContext
     },
     derived: {
       normalizedEntries

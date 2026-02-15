@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
@@ -13,7 +13,8 @@ const LibraryWordDetail = ({
   hasPrevWord,
   hasNextWord,
   onEditWord,
-  onDeleteWord
+  onDeleteWord,
+  isPlaying = false // New prop
 }) => {
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [tipOpen, setTipOpen] = useState(false);
@@ -97,18 +98,16 @@ const LibraryWordDetail = ({
                   <button
                     type="button"
                     onClick={() => hasUsAudio && setPreferredAccent('us')}
-                    className={`px-2 py-0.5 rounded-full border transition ${
-                      preferredAccent === 'us' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'
-                    } ${hasUsAudio ? 'hover:border-blue-300' : 'opacity-50 cursor-not-allowed'}`}
+                    className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'us' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'
+                      } ${hasUsAudio ? 'hover:border-blue-300' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     US
                   </button>
                   <button
                     type="button"
                     onClick={() => hasUkAudio && setPreferredAccent('uk')}
-                    className={`px-2 py-0.5 rounded-full border transition ${
-                      preferredAccent === 'uk' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'
-                    } ${hasUkAudio ? 'hover:border-blue-300' : 'opacity-50 cursor-not-allowed'}`}
+                    className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'uk' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'
+                      } ${hasUkAudio ? 'hover:border-blue-300' : 'opacity-50 cursor-not-allowed'}`}
                   >
                     UK
                   </button>
@@ -119,6 +118,12 @@ const LibraryWordDetail = ({
                 <ProficiencyDots score={masteryLevel} />
               </div>
             </h2>
+            {isPlaying && (
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full animate-pulse my-1">
+                <Play className="w-3 h-3 fill-current" />
+                <span>自動播放中...</span>
+              </div>
+            )}
             <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
               <span className="italic font-serif bg-white px-2 py-0.5 rounded border border-gray-200">{entry.pos}</span>
               <span>{entry.phonetic}</span>
@@ -179,9 +184,8 @@ const LibraryWordDetail = ({
                   <button
                     type="button"
                     onClick={onPrevWord || undefined}
-                    className={`p-2 rounded-full transition ${
-                      hasPrevWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
-                    }`}
+                    className={`p-2 rounded-full transition ${hasPrevWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
+                      }`}
                     title="上一張"
                     disabled={!hasPrevWord}
                   >
@@ -190,9 +194,8 @@ const LibraryWordDetail = ({
                   <button
                     type="button"
                     onClick={onNextWord || undefined}
-                    className={`p-2 rounded-full transition ${
-                      hasNextWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
-                    }`}
+                    className={`p-2 rounded-full transition ${hasNextWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
+                      }`}
                     title="下一張"
                     disabled={!hasNextWord}
                   >

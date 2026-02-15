@@ -1,5 +1,6 @@
-import React, { useRef, useState, useMemo } from 'react';
-import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil, Check, Search, X } from 'lucide-react';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil, Check, Search, X, Play, Square, Pause } from 'lucide-react';
+import { useVocabularyPlayer } from '../../hooks/useVocabularyPlayer';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
 import { speak } from '../../services/speechService';
@@ -53,6 +54,22 @@ const FolderDetail = ({
     return sortedActiveFolderWords.filter(word => isWordMatch(word, searchQuery));
   }, [sortedActiveFolderWords, searchQuery]);
 
+  // Vocabulary Player
+  const {
+    isPlaying,
+    currentWord,
+    startPlayback,
+    stopPlayback,
+    togglePlayback
+  } = useVocabularyPlayer(filteredWords);
+
+  // Sync player word with viewing word
+  useEffect(() => {
+    if (isPlaying && currentWord) {
+      setViewingWord(currentWord);
+    }
+  }, [isPlaying, currentWord]);
+
   const viewingIndex = viewingWord
     ? filteredWords.findIndex((word) => word.id === viewingWord.id)
     : -1;
@@ -100,6 +117,18 @@ const FolderDetail = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={togglePlayback}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition ${isPlaying
+                  ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
+                  : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
+                  }`}
+                title={isPlaying ? "停止播放" : "循環播放"}
+              >
+                {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
+                {isPlaying ? '停止' : '播放'}
+              </button>
+
               <button
                 onClick={onToggleSelectionMode}
                 className={`px-3 py-1.5 rounded-lg text-sm transition ${isSelectionMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
@@ -174,6 +203,7 @@ const FolderDetail = ({
           onNextWord={nextWord ? () => setViewingWord(nextWord) : null}
           hasPrevWord={Boolean(previousWord)}
           hasNextWord={Boolean(nextWord)}
+          isPlaying={isPlaying}
           onDeleteWord={() => {
             if (confirm(`確定要將 "${viewingWord.word}" 從「${activeFolder.name}」移除嗎？`)) {
               onRemoveWordFromFolder(viewingWord, activeFolder.id);

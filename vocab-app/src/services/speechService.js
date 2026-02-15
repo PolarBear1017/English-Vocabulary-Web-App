@@ -14,8 +14,13 @@ if (typeof document !== 'undefined') {
   document.addEventListener('visibilitychange', () => {
     // Aggressive reset: Destroy context when backgrounded to avoid stale/interrupted states on mobile
     if (document.hidden && audioContext) {
-      audioContext.close().catch(err => console.warn("Error closing AudioContext:", err));
-      audioContext = null;
+      // Don't close if we are actively playing (to support background play)
+      if (currentSource || currentAudioElement || (window.speechSynthesis && window.speechSynthesis.speaking)) {
+        // do nothing, let it run
+      } else {
+        audioContext.close().catch(err => console.warn("Error closing AudioContext:", err));
+        audioContext = null;
+      }
     }
   });
 
@@ -34,6 +39,7 @@ const stopAudio = () => {
   if (currentSource) {
     try {
       currentSource.stop();
+      if (currentSource.onended) currentSource.onended = null; // Prevent callback
     } catch (e) {
       // Ignore errors if already stopped
     }
@@ -45,6 +51,7 @@ const stopAudio = () => {
     try {
       currentAudioElement.pause();
       currentAudioElement.currentTime = 0;
+      currentAudioElement.onended = null; // Prevent callback
     } catch (e) {
       // Ignore errors
     }
@@ -57,9 +64,11 @@ const stopAudio = () => {
   }
 };
 
-const playAudioWithContext = async (url) => {
+const playAudioWithContext = async (url, options = {}) => {
   // Stop any currently playing audio first
   stopAudio();
+
+  const { onEnd } = options;
 
   try {
     const ctx = getAudioContext();
@@ -108,6 +117,7 @@ const playAudioWithContext = async (url) => {
     source.onended = () => {
       if (currentSource === source) {
         currentSource = null;
+        if (onEnd) onEnd();
       }
     };
 
@@ -130,24 +140,29 @@ const playAudioWithContext = async (url) => {
       audio.onerror = (err) => {
         console.error("Fallback playback failed:", err);
         currentAudioElement = null;
+        if (onEnd) onEnd(); // Still call onEnd to continue loop
       };
 
       audio.onended = () => {
         if (currentAudioElement === audio) {
           currentAudioElement = null;
+          if (onEnd) onEnd();
         }
       };
 
       await audio.play();
     } catch (err) {
       console.error("All playback methods failed:", err);
+      if (onEnd) onEnd(); // Ensure loop continues even if playback fails
     }
   }
 };
 
-const speak = (text, audioUrl = null) => {
+const speak = (text, audioUrl = null, options = {}) => {
+  const { lang = 'en-US', rate = 1.0, onEnd } = options;
+
   if (audioUrl) {
-    playAudioWithContext(audioUrl);
+    playAudioWithContext(audioUrl, { onEnd });
     return;
   }
 
@@ -156,11 +171,29 @@ const speak = (text, audioUrl = null) => {
 
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US'; // You might want to make this configurable based on preference
+    utterance.lang = lang;
+    utterance.rate = rate;
+
+    utterance.onend = () => {
+      if (onEnd) onEnd();
+    };
+
+    utterance.onerror = (err) => {
+      console.error("Speech synthesis error", err);
+      if (onEnd) onEnd(); // Ensure loop continues
+    };
+
+    // iOS Safari background playback hack/fix
+    // Ensure the audio session is active
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
     window.speechSynthesis.speak(utterance);
   } else {
     console.error("Browser does not support speech synthesis");
     alert("瀏覽器不支援語音功能");
+    if (onEnd) onEnd();
   }
 };
 

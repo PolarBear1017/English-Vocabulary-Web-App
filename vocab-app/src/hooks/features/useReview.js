@@ -11,7 +11,7 @@ import {
 } from '../../utils/data';
 import { getClozeValidAnswers } from '../../utils/text.jsx';
 import { updateUserLibraryProgress } from '../../services/libraryService';
-import { speak } from '../../services/speechService';
+import { speak, getAudioUrl } from '../../services/speechService';
 
 const useReview = ({
   vocabData,
@@ -22,7 +22,10 @@ const useReview = ({
   allFolderIds,
   setActiveTab,
   activeTab,
-  preferredAccent
+  setActiveTab,
+  activeTab,
+  preferredAccent,
+  audioPriority
 }) => {
   const [reviewQueue, setReviewQueue] = useState([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -81,9 +84,7 @@ const useReview = ({
   })();
 
   const preferredReviewAudio = currentReviewWord
-    ? (preferredAccent === 'uk'
-      ? (currentReviewWord.ukAudioUrl || currentReviewWord.audioUrl || currentReviewWord.usAudioUrl)
-      : (currentReviewWord.usAudioUrl || currentReviewWord.audioUrl || currentReviewWord.ukAudioUrl))
+    ? getAudioUrl(currentReviewWord, audioPriority || ['us', 'uk', 'google', 'general'])
     : null;
 
   const allFoldersSelected = selectedReviewFolders.includes('all')

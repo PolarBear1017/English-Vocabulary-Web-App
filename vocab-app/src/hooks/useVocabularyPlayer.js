@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { speak, stopAudio } from '../services/speechService';
+import { speak, stopAudio, getAudioUrl } from '../services/speechService';
 import { normalizeEntries } from '../utils/data';
 
-export const useVocabularyPlayer = (words = []) => {
+export const useVocabularyPlayer = (words = [], options = {}) => {
+    const { audioPriority } = options;
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState('idle'); // 'idle', 'playing_word', 'playing_def', 'waiting'
@@ -81,10 +82,7 @@ export const useVocabularyPlayer = (words = []) => {
         setPlaybackState('playing_word');
 
         // Determine audio source
-        const generalSource = word.audioUrl || word.audio_url;
-        const usSource = word.usAudioUrl || word.us_audio_url;
-        const ukSource = word.ukAudioUrl || word.uk_audio_url;
-        const audioUrl = usSource || ukSource || generalSource;
+        const audioUrl = getAudioUrl(word, audioPriority);
 
         // Speak English Word
         speak(word.word, audioUrl, {
@@ -94,7 +92,7 @@ export const useVocabularyPlayer = (words = []) => {
                 timeoutRef.current = setTimeout(() => speakDefinition(word), 500);
             }
         });
-    }, [speakDefinition]);
+    }, [speakDefinition, audioPriority]);
 
     // Effect to trigger playback when index changes
     useEffect(() => {

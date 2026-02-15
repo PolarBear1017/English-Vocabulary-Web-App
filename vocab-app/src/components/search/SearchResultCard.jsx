@@ -28,7 +28,9 @@ const SearchResultCard = ({
   setQuery,
   onSearch,
   onChangeSource,
-  relatedContext
+  onChangeSource,
+  relatedContext,
+  audioPriority
 }) => {
   const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
@@ -305,6 +307,7 @@ const SearchResultCard = ({
         onChangeSource={handleChangeSource}
         isSwitchingSource={isSwitchingSource}
         relatedContext={relatedContext}
+        audioPriority={audioPriority}
       />
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>

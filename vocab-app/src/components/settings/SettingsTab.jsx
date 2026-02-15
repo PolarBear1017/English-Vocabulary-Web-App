@@ -5,6 +5,7 @@ import SettingsAccount from './SettingsAccount';
 import SettingsApi from './SettingsApi';
 import SettingsReview from './SettingsReview';
 import SettingsDictionary from './SettingsDictionary';
+import SettingsAudio from './SettingsAudio';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 
 const SettingsTab = () => {
@@ -67,6 +68,10 @@ const SettingsTab = () => {
 
           {settingsView === 'dictionary' && (
             <SettingsDictionary />
+          )}
+
+          {settingsView === 'audio' && (
+            <SettingsAudio />
           )}
         </div>
       )}

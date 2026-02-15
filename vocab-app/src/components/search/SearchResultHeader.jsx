@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Volume2, Sparkles, ChevronDown } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
+import { getAudioUrl } from '../../services/speechService';
 
 const SOURCE_OPTIONS = [
   { value: 'Cambridge', label: 'Cambridge', icon: '🛡️' },
@@ -33,7 +34,9 @@ const SearchResultHeader = ({
   availableSources,
   onChangeSource,
   isSwitchingSource,
-  relatedContext
+  isSwitchingSource,
+  relatedContext,
+  audioPriority
 }) => {
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [isExternalLinksOpen, setIsExternalLinksOpen] = useState(false);
@@ -99,7 +102,7 @@ const SearchResultHeader = ({
         <div className="w-full">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
             {searchResult.word}
-            <button onClick={() => onSpeak(searchResult.word, preferredSearchAudio)} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition">
+            <button onClick={() => onSpeak(searchResult.word, getAudioUrl(searchResult, audioPriority))} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition">
               <Volume2 className="w-5 h-5 text-blue-600" />
             </button>
             {(searchResult.usAudioUrl || searchResult.ukAudioUrl) && (

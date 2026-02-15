@@ -197,4 +197,34 @@ const speak = (text, audioUrl = null, options = {}) => {
   }
 };
 
-export { speak, stopAudio };
+const getAudioUrl = (word, priorityList = ['us', 'uk', 'google', 'general']) => {
+  if (!word) return null;
+
+  for (const source of priorityList) {
+    switch (source) {
+      case 'us':
+        if (word.usAudioUrl || word.us_audio_url) return word.usAudioUrl || word.us_audio_url;
+        break;
+      case 'uk':
+        if (word.ukAudioUrl || word.uk_audio_url) return word.ukAudioUrl || word.uk_audio_url;
+        break;
+      case 'general':
+        if (word.audioUrl || word.audio_url) return word.audioUrl || word.audio_url;
+        break;
+      case 'google':
+        // Generate Google Translate TTS URL
+        // Using the public API endpoint often used by third-party tools
+        // client=tw-ob is a common parameter for this unofficial usage
+        if (word.word) {
+          return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(word.word)}&tl=en&client=tw-ob`;
+        }
+        break;
+      default:
+        break;
+    }
+  }
+
+  return null;
+};
+
+export { speak, stopAudio, getAudioUrl };

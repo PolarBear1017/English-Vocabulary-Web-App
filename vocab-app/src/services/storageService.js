@@ -8,7 +8,8 @@ const STORAGE_KEYS = {
   requestRetention: 'request_retention',
   folderSortBy: 'folder_sort_by',
   wordSortBy: 'word_sort_by',
-  dictionaryPriority: 'dictionary_priority'
+  dictionaryPriority: 'dictionary_priority',
+  audioSourcePriority: 'audio_source_priority'
 };
 
 const ensureStorageVersion = () => {
@@ -71,6 +72,9 @@ const saveWordSortBy = (value) => writeString(STORAGE_KEYS.wordSortBy, value);
 const loadDictionaryPriority = () => readJSON(STORAGE_KEYS.dictionaryPriority, ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']);
 const saveDictionaryPriority = (value) => writeJSON(STORAGE_KEYS.dictionaryPriority, value);
 
+const loadAudioSourcePriority = () => readJSON(STORAGE_KEYS.audioSourcePriority, ['us', 'uk', 'google', 'general']);
+const saveAudioSourcePriority = (value) => writeJSON(STORAGE_KEYS.audioSourcePriority, value);
+
 export {
   STORAGE_VERSION,
   STORAGE_KEYS,
@@ -94,5 +98,7 @@ export {
   loadWordSortBy,
   saveWordSortBy,
   loadDictionaryPriority,
-  saveDictionaryPriority
+  saveDictionaryPriority,
+  loadAudioSourcePriority,
+  saveAudioSourcePriority
 };

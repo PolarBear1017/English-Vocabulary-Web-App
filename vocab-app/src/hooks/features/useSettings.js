@@ -6,7 +6,9 @@ import {
   loadDictionaryPriority,
   saveGroqKey,
   saveRequestRetention,
-  saveDictionaryPriority
+  saveDictionaryPriority,
+  loadAudioSourcePriority,
+  saveAudioSourcePriority
 } from '../../services/storageService';
 import {
   getSession,
@@ -23,6 +25,7 @@ const useSettings = () => {
   const [groqApiKey, setGroqApiKey] = useState(() => loadGroqKey());
   const [requestRetention, setRequestRetention] = useState(() => loadRequestRetention());
   const [dictionaryPriority, setDictionaryPriority] = useState(() => loadDictionaryPriority());
+  const [audioSourcePriority, setAudioSourcePriority] = useState(() => loadAudioSourcePriority());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -44,6 +47,10 @@ const useSettings = () => {
   useEffect(() => {
     saveDictionaryPriority(dictionaryPriority);
   }, [dictionaryPriority]);
+
+  useEffect(() => {
+    saveAudioSourcePriority(audioSourcePriority);
+  }, [audioSourcePriority]);
 
   useEffect(() => {
     getSession().then(({ data: { session } }) => {
@@ -101,6 +108,7 @@ const useSettings = () => {
       groqApiKey,
       requestRetention,
       dictionaryPriority,
+      audioSourcePriority,
       session,
       email,
       password,
@@ -111,6 +119,7 @@ const useSettings = () => {
       setGroqApiKey,
       setRequestRetention,
       setDictionaryPriority,
+      setAudioSourcePriority,
       setEmail,
       setPassword,
       handleLogin,

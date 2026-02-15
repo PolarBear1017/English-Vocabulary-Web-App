@@ -41,7 +41,8 @@ const useVocabularyApp = () => {
     allFolderIds: library.derived.index.allFolderIds,
     setActiveTab: navigation.actions.setActiveTab,
     activeTab: navigation.state.activeTab,
-    preferredAccent: preferences.state.preferredAccent
+    preferredAccent: preferences.state.preferredAccent,
+    audioPriority: settings.state.audioSourcePriority
   });
 
   const openWordDetails = useCallback((word) => {

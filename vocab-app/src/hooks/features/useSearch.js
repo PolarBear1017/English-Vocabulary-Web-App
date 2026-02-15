@@ -178,16 +178,20 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
     const updateResult = (result) => {
       setSearchResult(result);
 
-      if (result.translatedFrom && result.alternatives?.length > 0) {
-        setRelatedContext({
-          originalWord: result.translatedFrom,
-          alternatives: result.alternatives
-        });
+      if (result.translatedFrom) {
+        if (result.alternatives?.length > 0) {
+          setRelatedContext({
+            originalWord: result.translatedFrom,
+            alternatives: result.alternatives
+          });
+        } else {
+          setRelatedContext(null);
+        }
       } else if (relatedContext) {
         const isRelated = relatedContext.alternatives.some(
-          alt => alt.toLowerCase() === result.word.toLowerCase()
+          alt => alt.trim().toLowerCase() === result.word.trim().toLowerCase()
         );
-        if (!isRelated && !result.translatedFrom) {
+        if (!isRelated) {
           setRelatedContext(null);
         }
       } else {
@@ -341,6 +345,11 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
 
   const normalizedEntries = useMemo(() => (searchResult ? normalizeEntries(searchResult) : []), [searchResult]);
 
+  const setSearchResultAndClearContext = useCallback((result) => {
+    setSearchResult(result);
+    setRelatedContext(null);
+  }, []);
+
   return {
     state: {
       query,
@@ -360,7 +369,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
     actions: {
       setQuery,
       setQuerySilently,
-      setSearchResult,
+      setSearchResult: setSearchResultAndClearContext,
       setSuggestions,
       handleSearch,
       handleSearchWithSource,

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { isReviewDue } from '../utils/data';
 import ReviewSetup from '../components/review/ReviewSetup';
 import ReviewSession from '../components/review/ReviewSession';
 import { useReviewContext } from '../contexts/ReviewContext';
@@ -11,6 +12,38 @@ const ReviewPage = () => {
   const library = useLibraryContext();
   const navigation = useNavigationContext();
   const preferences = usePreferencesContext();
+
+  const {
+    displayDueCount,
+    displayTotalWords
+  } = useMemo(() => {
+    const allSelected = review.state.selectedReviewFolders.includes('all');
+    if (allSelected) {
+      return {
+        displayDueCount: library.derived.index.dueCount,
+        displayTotalWords: library.derived.index.totalWords
+      };
+    }
+
+    const selectedFolderIds = review.state.selectedReviewFolders;
+    // Filter vocabData to find words in selected folders
+    // A word might be in multiple folders, but vocabData is a flat list of unique words
+    // We just need to check if any of the word's folderIds are in the selectedFolderIds
+    const filteredWords = library.state.vocabData.filter(word => {
+      if (!word.folderIds || !Array.isArray(word.folderIds)) return false;
+      return word.folderIds.some(id => selectedFolderIds.includes(id));
+    });
+
+    return {
+      displayDueCount: filteredWords.filter(word => isReviewDue(word.nextReview)).length,
+      displayTotalWords: filteredWords.length
+    };
+  }, [
+    review.state.selectedReviewFolders,
+    library.derived.index.dueCount,
+    library.derived.index.totalWords,
+    library.state.vocabData
+  ]);
 
   if (navigation.state.activeTab === 'review_session' && review.state.reviewQueue.length > 0) {
     return (
@@ -52,8 +85,8 @@ const ReviewPage = () => {
       <ReviewSetup
         reviewSetupView={review.state.reviewSetupView}
         setReviewSetupView={review.actions.setReviewSetupView}
-        dueCount={library.derived.index.dueCount}
-        totalWords={library.derived.index.totalWords}
+        dueCount={displayDueCount}
+        totalWords={displayTotalWords}
         selectedFolderLabel={review.derived.selectedFolderLabel}
         selectedReviewFolders={review.state.selectedReviewFolders}
         startReview={review.actions.startReview}

@@ -64,7 +64,7 @@ const fetchUserLibrary = async (userId) => {
     `)
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
-    .limit(5000);
+    .limit(20000);
 };
 
 const fetchDictionaryWord = async (word) => {

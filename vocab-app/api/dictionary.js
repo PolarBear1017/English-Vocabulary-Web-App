@@ -23,19 +23,34 @@ const scrapeCambridge = async (word) => {
   const entries = [];
   $('.def-block').each((_, block) => {
     const definitionText = $(block).find('.def').first().text().replace(':', '').trim();
-    const translationText = $(block).find('.trans').first().text().trim();
+
+    // Fix: Exclude .trans elements that are inside .examp (examples)
+    // The structure is usually .def-body > .trans or .def-block > .trans
+    let translationText = $(block).find('.trans')
+      .filter((i, el) => $(el).parents('.examp').length === 0)
+      .first()
+      .text()
+      .trim();
+
     const examples = $(block)
       .find('.examp')
       .map((_, el) => $(el).text().trim())
       .get()
       .filter(Boolean);
 
+    // Smart POS extraction: find the closest POS tag in the hierarchy
+    // Usually it's in a previous sibling .pos-header or parent's sibling
+    let entryPos = $(block).closest('.entry-body__el').find('.pos').first().text();
+    if (!entryPos) entryPos = $(block).closest('.pr').find('.pos').first().text();
+    if (!entryPos) entryPos = pos; // Fallback to the top-level POS
+
     if (definitionText) {
       entries.push({
         definition: definitionText,
         translation: translationText,
         example: examples[0] || '',
-        examples
+        examples,
+        pos: entryPos
       });
     }
   });

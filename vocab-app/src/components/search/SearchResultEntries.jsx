@@ -54,15 +54,23 @@ const SearchResultEntries = ({
           >
             {!readOnly && (
               <div className="absolute top-3 right-3">
-                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${
-                  isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
-                }`}>
+                <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
+                  }`}>
                   <Check className="w-3.5 h-3.5" />
                 </span>
               </div>
             )}
             <div className={readOnly ? '' : 'pr-10'}>
-              {entry.translation && <p className="text-lg text-gray-800 font-medium">{entry.translation}</p>}
+              {entry.translation && (
+                <p className="text-lg text-gray-800 font-medium flex items-center gap-2">
+                  {entry.translation}
+                  {entry.pos && (
+                    <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-serif italic">
+                      {entry.pos}
+                    </span>
+                  )}
+                </p>
+              )}
               {entry.definition && <p className="text-gray-600 mt-1">{entry.definition}</p>}
             </div>
             {entry.examples && entry.examples.length > 0 && (

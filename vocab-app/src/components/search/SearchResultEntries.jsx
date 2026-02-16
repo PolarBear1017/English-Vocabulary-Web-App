@@ -86,7 +86,7 @@ const SearchResultEntries = ({
                           const textToSpeak = lines[0] || example;
                           speak(textToSpeak);
                         }}
-                        className="mt-0.5 p-1 text-amber-400 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        className="mt-0.5 p-1 text-gray-300 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors focus:opacity-100"
                         title="朗讀例句"
                       >
                         <Volume2 className="w-4 h-4" />

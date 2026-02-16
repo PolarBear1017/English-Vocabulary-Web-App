@@ -219,6 +219,17 @@ const getAudioUrl = (word, priorityList = ['us', 'uk', 'google', 'general']) => 
           return `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(word.word)}&tl=en&client=tw-ob`;
         }
         break;
+      case 'yahoo':
+        // Yahoo audio might be in audioUrl if source was Yahoo, 
+        // OR we can construct it dynamically if not present but needed
+        if (word.source === 'Yahoo' && word.audioUrl) {
+          return word.audioUrl;
+        }
+        // Fallback: construct it dynamically if we just have the word
+        if (word.word) {
+          return `https://s.yimg.com/bg/dict/dreye/live/f/${encodeURIComponent(word.word).toLowerCase()}.mp3`;
+        }
+        break;
       default:
         break;
     }

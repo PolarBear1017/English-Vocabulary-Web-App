@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Folder, Book, RefreshCw, Settings, Mic } from 'lucide-react';
+import { ArrowRight, Folder, Book, RefreshCw, Settings, Mic, Info } from 'lucide-react';
 import ReviewFoldersSelector from './ReviewFoldersSelector';
 
 const ReviewSetup = ({
@@ -16,6 +16,8 @@ const ReviewSetup = ({
   allFolderIds,
   setSelectedReviewFolders
 }) => {
+  const [showHint, setShowHint] = React.useState(false);
+
   if (reviewSetupView === 'folders') {
     return (
       <ReviewFoldersSelector
@@ -32,7 +34,25 @@ const ReviewSetup = ({
 
   return (
     <>
-      <h1 className="text-2xl font-bold mb-6">複習中心</h1>
+      <div className="flex items-center gap-2 mb-6">
+        <h1 className="text-2xl font-bold">複習中心</h1>
+        <div className="relative">
+          <button
+            className="text-gray-400 hover:text-blue-500 transition-colors p-1"
+            onMouseEnter={() => setShowHint(true)}
+            onMouseLeave={() => setShowHint(false)}
+            onClick={() => setShowHint(!showHint)}
+          >
+            <Info className="w-5 h-5" />
+          </button>
+          {showHint && (
+            <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
+              可以在設定頁面調整發音來源順序
+              <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-gray-800"></div>
+            </div>
+          )}
+        </div>
+      </div>
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8 flex justify-around">
         <div className="text-center">
           <div className="text-3xl font-bold text-pink-600">{dueCount}</div>

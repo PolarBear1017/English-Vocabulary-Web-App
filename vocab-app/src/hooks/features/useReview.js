@@ -22,8 +22,6 @@ const useReview = ({
   allFolderIds,
   setActiveTab,
   activeTab,
-  setActiveTab,
-  activeTab,
   preferredAccent,
   audioPriority
 }) => {

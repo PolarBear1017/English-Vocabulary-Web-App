@@ -72,7 +72,7 @@ const saveWordSortBy = (value) => writeString(STORAGE_KEYS.wordSortBy, value);
 const loadDictionaryPriority = () => readJSON(STORAGE_KEYS.dictionaryPriority, ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']);
 const saveDictionaryPriority = (value) => writeJSON(STORAGE_KEYS.dictionaryPriority, value);
 
-const loadAudioSourcePriority = () => readJSON(STORAGE_KEYS.audioSourcePriority, ['us', 'uk', 'google', 'general']);
+const loadAudioSourcePriority = () => readJSON(STORAGE_KEYS.audioSourcePriority, ['us', 'uk', 'google', 'yahoo', 'general']);
 const saveAudioSourcePriority = (value) => writeJSON(STORAGE_KEYS.audioSourcePriority, value);
 
 export {

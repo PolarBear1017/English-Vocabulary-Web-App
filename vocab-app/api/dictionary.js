@@ -180,6 +180,8 @@ const scrapeYahoo = async (word) => {
 
 
 
+    const audioUrl = `https://s.yimg.com/bg/dict/dreye/live/f/${encodeURIComponent(word).toLowerCase()}.mp3`;
+
     return {
       word,
       pos: entries.length > 0 ? entries[0].pos : 'unknown',
@@ -188,7 +190,7 @@ const scrapeYahoo = async (word) => {
       translation: '', // Top level translation also empty
       example: '',
       entries,
-      audioUrl: '',
+      audioUrl: audioUrl,
       usAudioUrl: '',
       ukAudioUrl: '',
       source: 'Yahoo'

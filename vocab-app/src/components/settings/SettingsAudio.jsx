@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUp, ArrowDown, Info, GripVertical, Volume2 } from 'lucide-react';
+import { ArrowUp, ArrowDown, Info, GripVertical, Volume2, RotateCcw } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import {
     DndContext,
@@ -24,6 +24,7 @@ const AUDIO_SOURCE_NAMES = {
     'us': '美式發音 (US)',
     'uk': '英式發音 (UK)',
     'google': 'Google Translate',
+    'yahoo': 'Yahoo Dictionary',
     'general': '一般/其他 (General)'
 };
 
@@ -90,7 +91,15 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
 }
 
 const SettingsAudio = () => {
-    const { state, actions } = useSettingsContext();
+    const context = useSettingsContext();
+    const state = context?.state || {};
+    const actions = context?.actions || {};
+
+    // Safety check: logging to debug blank screen issues if any
+    useEffect(() => {
+        console.log('SettingsAudio mounted. State:', state);
+    }, []);
+
     const [priority, setPriority] = useState(state.audioSourcePriority || []);
     const [hasChanges, setHasChanges] = useState(false);
 
@@ -137,9 +146,19 @@ const SettingsAudio = () => {
     };
 
     const handleSave = () => {
-        actions.setAudioSourcePriority(priority);
-        setHasChanges(false);
-        alert('設定已儲存');
+        if (actions.setAudioSourcePriority) {
+            actions.setAudioSourcePriority(priority);
+            setHasChanges(false);
+            alert('設定已儲存');
+        } else {
+            console.error("setAudioSourcePriority action missing");
+        }
+    };
+
+    const handleReset = () => {
+        const defaultSources = Object.keys(AUDIO_SOURCE_NAMES);
+        setPriority(defaultSources);
+        setHasChanges(true);
     };
 
     return (
@@ -180,7 +199,15 @@ const SettingsAudio = () => {
                 </DndContext>
             </div>
 
-            <div className="flex justify-end pt-2">
+            <div className="flex justify-between pt-2">
+                <button
+                    onClick={handleReset}
+                    className="px-4 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl font-medium transition flex items-center gap-2"
+                    title="重置為預設建議順序"
+                >
+                    <RotateCcw className="w-4 h-4" />
+                    重置預設
+                </button>
                 <button
                     onClick={handleSave}
                     disabled={!hasChanges}

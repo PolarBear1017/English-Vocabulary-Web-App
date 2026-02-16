@@ -28,7 +28,6 @@ const SearchResultCard = ({
   setQuery,
   onSearch,
   onChangeSource,
-  onChangeSource,
   relatedContext,
   audioPriority
 }) => {

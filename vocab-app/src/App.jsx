@@ -3,6 +3,7 @@ import { Toaster } from 'react-hot-toast';
 import useVocabularyApp from './hooks/useVocabularyApp';
 import Navigation from './components/layout/Navigation';
 import SearchTab from './components/search/SearchTab';
+// const SearchTab = () => <div>Dummy Search Tab</div>;
 import LibraryTab from './components/library/LibraryTab';
 import SettingsTab from './components/settings/SettingsTab';
 import ReviewPage from './pages/ReviewPage';

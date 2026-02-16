@@ -34,7 +34,6 @@ const SearchResultHeader = ({
   availableSources,
   onChangeSource,
   isSwitchingSource,
-  isSwitchingSource,
   relatedContext,
   audioPriority
 }) => {
@@ -102,21 +101,33 @@ const SearchResultHeader = ({
         <div className="w-full">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
             {searchResult.word}
-            <button onClick={() => onSpeak(searchResult.word, getAudioUrl(searchResult, audioPriority))} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition">
+            <button
+              onClick={() => {
+                const effectivePriority = [preferredAccent, ...audioPriority.filter(p => p !== preferredAccent)];
+                onSpeak(searchResult.word, getAudioUrl(searchResult, effectivePriority));
+              }}
+              className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition"
+            >
               <Volume2 className="w-5 h-5 text-blue-600" />
             </button>
             {(searchResult.usAudioUrl || searchResult.ukAudioUrl) && (
               <div className="flex items-center gap-1 text-xs">
                 <button
                   type="button"
-                  onClick={() => onAccentChange('us')}
+                  onClick={() => {
+                    onAccentChange('us');
+                    onSpeak(searchResult.word, getAudioUrl(searchResult, ['us']));
+                  }}
                   className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'us' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
                 >
                   US
                 </button>
                 <button
                   type="button"
-                  onClick={() => onAccentChange('uk')}
+                  onClick={() => {
+                    onAccentChange('uk');
+                    onSpeak(searchResult.word, getAudioUrl(searchResult, ['uk']));
+                  }}
                   className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'uk' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
                 >
                   UK

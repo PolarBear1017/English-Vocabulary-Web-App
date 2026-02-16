@@ -2,6 +2,17 @@ let audioContext = null;
 let currentSource = null; // Track the currently playing source
 let currentAudioElement = null; // Track HTML5 Audio fallback
 
+// Event system
+const listeners = new Set();
+
+const subscribe = (callback) => {
+  listeners.add(callback);
+  return () => listeners.delete(callback);
+};
+
+const notifyListeners = (event, data) => {
+  listeners.forEach(callback => callback(event, data));
+};
 const getAudioContext = () => {
   if (!audioContext || audioContext.state === 'closed') {
     audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -68,7 +79,10 @@ const playAudioWithContext = async (url, options = {}) => {
   // Stop any currently playing audio first
   stopAudio();
 
-  const { onEnd, onPlaybackFailed } = options;
+  const { onEnd, onPlaybackFailed, source: audioSource } = options;
+
+  // Notify that playback is starting
+  notifyListeners('play', { source: audioSource });
 
   try {
     const ctx = getAudioContext();
@@ -163,10 +177,10 @@ const playAudioWithContext = async (url, options = {}) => {
 };
 
 const speak = (text, audioUrl = null, options = {}) => {
-  const { lang = 'en-US', rate = 1.0, onEnd } = options;
+  const { lang = 'en-US', rate = 1.0, onEnd, source } = options;
 
   if (audioUrl) {
-    playAudioWithContext(audioUrl, { onEnd });
+    playAudioWithContext(audioUrl, { onEnd, source });
     return;
   }
 
@@ -190,19 +204,23 @@ const speak = (text, audioUrl = null, options = {}) => {
       onEnd,
       onPlaybackFailed: () => {
         console.warn("Google TTS failed, falling back to browser synthesis");
-        speakWithBrowser(text, lang, rate, onEnd);
-      }
+        speakWithBrowser(text, lang, rate, onEnd, source);
+      },
+      source
     });
     return;
   }
 
   // Fallback or long text: use browser synthesis
-  speakWithBrowser(text, lang, rate, onEnd);
+  speakWithBrowser(text, lang, rate, onEnd, source);
 };
 
-const speakWithBrowser = (text, lang, rate, onEnd) => {
+const speakWithBrowser = (text, lang, rate, onEnd, source) => {
   // Stop previous audio before synthesis
   stopAudio();
+
+  // Notify that playback is starting
+  notifyListeners('play', { source });
 
   if ('speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
@@ -273,4 +291,4 @@ const getAudioUrl = (word, priorityList = ['us', 'uk', 'google', 'general']) => 
   return null;
 };
 
-export { speak, stopAudio, getAudioUrl };
+export { speak, stopAudio, getAudioUrl, subscribe };

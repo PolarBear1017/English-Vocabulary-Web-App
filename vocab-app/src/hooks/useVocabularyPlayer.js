@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { speak, stopAudio, getAudioUrl } from '../services/speechService';
+import { speak, stopAudio, getAudioUrl, subscribe } from '../services/speechService';
 import { normalizeEntries } from '../utils/data';
 
 export const useVocabularyPlayer = (words = [], options = {}) => {
@@ -39,6 +39,14 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         });
     }, [words.length]);
 
+    const playPrevious = useCallback(() => {
+        setCurrentWordIndex(prev => {
+            const newIndex = prev - 1;
+            return newIndex < 0 ? 0 : newIndex;
+        });
+        setIsPlaying(true);
+    }, []);
+
     const speakDefinition = useCallback((word) => {
         if (!isPlayingRef.current) return;
         setPlaybackState('playing_def');
@@ -70,6 +78,7 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         speak(textToSpeak, null, {
             lang: 'zh-TW',
             rate: 1.0,
+            source: 'vocabulary-player',
             onEnd: () => {
                 setPlaybackState('waiting');
                 timeoutRef.current = setTimeout(playNext, 1500); // Pause between words
@@ -87,6 +96,7 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         // Speak English Word
         speak(word.word, audioUrl, {
             lang: 'en-US',
+            source: 'vocabulary-player',
             onEnd: () => {
                 // Add a small delay between word and definition
                 timeoutRef.current = setTimeout(() => speakDefinition(word), 500);
@@ -117,6 +127,11 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
 
+    const closePlayer = () => {
+        stopPlayback();
+        setCurrentWordIndex(-1);
+    };
+
     const togglePlayback = () => {
         if (isPlaying) {
             stopPlayback();
@@ -124,6 +139,21 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
             startPlayback(currentWordIndex >= 0 ? currentWordIndex : 0);
         }
     };
+
+    // Listen for external audio events (e.g. user clicking an example sentence)
+    useEffect(() => {
+        const unsubscribe = subscribe((event, data) => {
+            if (event === 'play' && data?.source !== 'vocabulary-player') {
+                // Another audio source started playing, pause our player
+                if (isPlayingRef.current) {
+                    setIsPlaying(false);
+                    setPlaybackState('idle');
+                    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+                }
+            }
+        });
+        return unsubscribe;
+    }, []);
 
     // Cleanup on unmount
     useEffect(() => {
@@ -140,6 +170,9 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         playbackState,
         startPlayback,
         stopPlayback,
-        togglePlayback
+        closePlayer,
+        togglePlayback,
+        playNext,
+        playPrevious
     };
 };

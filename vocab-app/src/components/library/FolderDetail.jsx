@@ -8,6 +8,7 @@ import { useLongPress } from 'use-long-press';
 import LibraryWordDetail from './LibraryWordDetail';
 import { isWordMatch } from '../../utils/data';
 import WordRow from './WordRow';
+import VocabularyPlayerControls from '../common/VocabularyPlayerControls';
 
 const HighlightedText = ({ text, query }) => {
   if (!query || !text) return <>{text}</>;
@@ -60,7 +61,11 @@ const FolderDetail = ({
     currentWord,
     startPlayback,
     stopPlayback,
-    togglePlayback
+    closePlayer,
+    togglePlayback,
+    playNext,
+    playPrevious,
+    playbackState
   } = useVocabularyPlayer(filteredWords);
 
   // Sync player word with viewing word
@@ -125,8 +130,8 @@ const FolderDetail = ({
                   }`}
                 title={isPlaying ? "停止播放" : "循環播放"}
               >
-                {isPlaying ? <Square className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current" />}
-                {isPlaying ? '停止' : '播放'}
+                <Play className="w-4 h-4 fill-current" />
+                {isPlaying ? '播放中' : '播放'}
               </button>
 
               <button
@@ -254,6 +259,15 @@ const FolderDetail = ({
           )}
         </div>
       )}
+      <VocabularyPlayerControls
+        isPlaying={isPlaying}
+        currentWord={currentWord}
+        playbackState={playbackState}
+        onTogglePlay={togglePlayback}
+        onNext={playNext}
+        onPrev={playPrevious}
+        onClose={closePlayer}
+      />
     </div>
   );
 };

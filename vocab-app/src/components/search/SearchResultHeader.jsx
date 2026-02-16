@@ -98,7 +98,7 @@ const SearchResultHeader = ({
   return (
     <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
-        <div className="w-full">
+        <div className="flex-1 min-w-0">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
             {searchResult.word}
             <button
@@ -118,7 +118,8 @@ const SearchResultHeader = ({
                     onAccentChange('us');
                     onSpeak(searchResult.word, getAudioUrl(searchResult, ['us']));
                   }}
-                  className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'us' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
+                  disabled={!searchResult.usAudioUrl}
+                  className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'us' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'} disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
                 >
                   US
                 </button>
@@ -128,7 +129,8 @@ const SearchResultHeader = ({
                     onAccentChange('uk');
                     onSpeak(searchResult.word, getAudioUrl(searchResult, ['uk']));
                   }}
-                  className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'uk' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'}`}
+                  disabled={!searchResult.ukAudioUrl}
+                  className={`px-2 py-0.5 rounded-full border transition ${preferredAccent === 'uk' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200 hover:border-blue-300'} disabled:opacity-50 disabled:cursor-not-allowed disabled:bg-gray-100 disabled:text-gray-400 disabled:border-gray-200`}
                 >
                   UK
                 </button>
@@ -237,38 +239,38 @@ const SearchResultHeader = ({
         {saveStep === 'idle' && (
           <button
             onClick={onStartSave}
-            className="flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
+            className="flex-shrink-0 whitespace-nowrap flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
           >
             {saveButtonFeedback ? '已加入' : (saveButtonLabel || '儲存')}
           </button>
         )}
         {saveStep === 'selecting' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={onCancelSave}
-              className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+              className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
               取消
             </button>
             <button
               onClick={onNextSave}
-              className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
+              className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
             >
               下一步
             </button>
           </div>
         )}
         {saveStep === 'folder' && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-shrink-0">
             <button
               onClick={onBackSave}
-              className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+              className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
               上一步
             </button>
             <button
               onClick={onCancelSave}
-              className="px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
+              className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
               取消
             </button>

@@ -68,7 +68,7 @@ const playAudioWithContext = async (url, options = {}) => {
   // Stop any currently playing audio first
   stopAudio();
 
-  const { onEnd } = options;
+  const { onEnd, onPlaybackFailed } = options;
 
   try {
     const ctx = getAudioContext();
@@ -153,7 +153,11 @@ const playAudioWithContext = async (url, options = {}) => {
       await audio.play();
     } catch (err) {
       console.error("All playback methods failed:", err);
-      if (onEnd) onEnd(); // Ensure loop continues even if playback fails
+      if (onPlaybackFailed) {
+        onPlaybackFailed();
+      } else {
+        if (onEnd) onEnd(); // Ensure loop continues even if playback fails
+      }
     }
   }
 };
@@ -166,6 +170,30 @@ const speak = (text, audioUrl = null, options = {}) => {
     return;
   }
 
+  // Try to use Google TTS for short sentences first
+  // Limit is usually around 200 chars for this unofficial API
+  const canUseGoogleTTS = text && text.length < 200;
+
+  if (canUseGoogleTTS) {
+    // Generate Google Translate TTS URL
+    const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en&client=tw-ob`;
+
+    // Play with Google TTS, fallback to browser synthesis on failure
+    playAudioWithContext(googleUrl, {
+      onEnd,
+      onPlaybackFailed: () => {
+        console.warn("Google TTS failed, falling back to browser synthesis");
+        speakWithBrowser(text, lang, rate, onEnd);
+      }
+    });
+    return;
+  }
+
+  // Fallback or long text: use browser synthesis
+  speakWithBrowser(text, lang, rate, onEnd);
+};
+
+const speakWithBrowser = (text, lang, rate, onEnd) => {
   // Stop previous audio before synthesis
   stopAudio();
 

@@ -1,7 +1,8 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Volume2 } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text.jsx';
+import { speak } from '../../services/speechService';
 
 const SearchResultEntries = ({
   normalizedEntries,
@@ -78,14 +79,27 @@ const SearchResultEntries = ({
                 {entry.examples.map((example, exampleIndex) => {
                   const lines = splitExampleLines(example);
                   return (
-                    <p key={`${index}-ex-${exampleIndex}`} className="text-gray-700">
-                      {lines.map((line, lineIndex) => (
-                        <React.Fragment key={`${index}-ex-${exampleIndex}-line-${lineIndex}`}>
-                          {highlightWord(line, searchWord)}
-                          {lineIndex < lines.length - 1 && <br />}
-                        </React.Fragment>
-                      ))}
-                    </p>
+                    <div key={`${index}-ex-${exampleIndex}`} className="flex items-start gap-2 group">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          const textToSpeak = lines[0] || example;
+                          speak(textToSpeak);
+                        }}
+                        className="mt-0.5 p-1 text-amber-400 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"
+                        title="朗讀例句"
+                      >
+                        <Volume2 className="w-4 h-4" />
+                      </button>
+                      <p className="text-gray-700 flex-1">
+                        {lines.map((line, lineIndex) => (
+                          <React.Fragment key={`${index}-ex-${exampleIndex}-line-${lineIndex}`}>
+                            {highlightWord(line, searchWord)}
+                            {lineIndex < lines.length - 1 && <br />}
+                          </React.Fragment>
+                        ))}
+                      </p>
+                    </div>
                   );
                 })}
               </div>

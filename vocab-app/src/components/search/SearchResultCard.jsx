@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
-import { Info } from 'lucide-react';
+import { Info, Plus } from 'lucide-react';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
 import SearchMnemonic from './SearchMnemonic';
 import FolderSelectionList from './FolderSelectionList';
+import AddDefinitionModal from './AddDefinitionModal';
 
 const SearchResultCard = ({
   searchResult,
@@ -37,6 +38,8 @@ const SearchResultCard = ({
   const [isConfirmingFolders, setIsConfirmingFolders] = useState(false);
   const [showDefaultTip, setShowDefaultTip] = useState(false);
   const [isSwitchingSource, setIsSwitchingSource] = useState(false);
+  const [customDefinitions, setCustomDefinitions] = useState([]);
+  const [isAddingDefinition, setIsAddingDefinition] = useState(false);
   const isProcessingRef = useRef(false);
   const defaultTipRef = useRef(null);
 
@@ -44,6 +47,7 @@ const SearchResultCard = ({
     setSaveStep('idle');
     setSelectedEntryIndices(null);
     setIsSwitchingSource(false);
+    setCustomDefinitions([]);
   }, [searchResult?.word]);
 
   useEffect(() => {
@@ -67,11 +71,40 @@ const SearchResultCard = ({
   }, [savedWordInSearch]);
 
   const orderedEntries = useMemo(() => {
-    if (!Array.isArray(normalizedEntries) || normalizedEntries.length === 0) return [];
-    if (selectedDefinitionSet.size === 0) return normalizedEntries;
+    const combined = [...normalizedEntries, ...customDefinitions];
+
+    // Also include saved definitions that are not in scraped or custom list
+    // (This handles previously saved custom definitions)
+    if (savedWordInSearch?.selectedDefinitions) {
+      const existingDefs = new Set(combined.map(d => (d.definition || '').trim()));
+      savedWordInSearch.selectedDefinitions.forEach(saved => {
+        const defText = (saved.definition || '').trim();
+        if (defText && !existingDefs.has(defText)) {
+          combined.push(saved);
+          existingDefs.add(defText);
+        }
+      });
+    } else if (savedWordInSearch?.selected_definitions) {
+      // Handle legacy camelCase/snake_case if needed, though usually mapped
+      const existingDefs = new Set(combined.map(d => (d.definition || '').trim()));
+      savedWordInSearch.selected_definitions.forEach(saved => {
+        const defText = (saved.definition || '').trim();
+        if (defText && !existingDefs.has(defText)) {
+          combined.push(saved);
+          existingDefs.add(defText);
+        }
+      });
+    }
+
+    if (combined.length === 0) return [];
+
+    // If we have selected definitions, pin them to top
+    if (selectedDefinitionSet.size === 0) return combined;
+
     const pinned = [];
     const rest = [];
-    normalizedEntries.forEach((entry) => {
+
+    combined.forEach((entry) => {
       const key = (entry.definition || '').trim();
       if (selectedDefinitionSet.has(key)) {
         pinned.push(entry);
@@ -80,7 +113,7 @@ const SearchResultCard = ({
       }
     });
     return [...pinned, ...rest];
-  }, [normalizedEntries, selectedDefinitionSet]);
+  }, [normalizedEntries, selectedDefinitionSet, customDefinitions, savedWordInSearch]);
 
   const selectedEntries = useMemo(() => {
     if (orderedEntries.length === 0) return [];
@@ -283,6 +316,32 @@ const SearchResultCard = ({
     }
   }, [onChangeSource, searchResult?.word]);
 
+  const handleAddDefinition = useCallback((newDefinition) => {
+    // Ensure examples array exists for rendering
+    const definitionWithExamples = {
+      ...newDefinition,
+      examples: newDefinition.example ? [newDefinition.example] : []
+    };
+    setCustomDefinitions(prev => [...prev, definitionWithExamples]);
+
+    // Automatically select the new definition
+    // We need to wait for the next render for orderedEntries to update, 
+    // but we can predict it will be appended or pinned.
+    // Actually, simpler is to add it to selectedDefinitionSet conceptually,
+    // but selectedDefinitionSet is derived from savedWordInSearch which we don't update here immediately.
+    // Instead, we manually update selectedEntryIndices.
+
+    // Since we can't easily predict the index in orderedEntries immediately due to sorting,
+    // we can use a simpler approach: 
+    // Just add to customDefinitions. The user can then select it.
+    // OR: we can try to force select it. 
+
+    // Let's rely on the user selecting it for now, or we can improve UX later.
+    // IMPROVEMENT: Auto-select needs access to the new index. 
+    // Let's just scroll to bottom or show a toast? 
+    // For now, just add it.
+  }, []);
+
   const headerStep = saveStep;
   const isSelectingView = saveStep === 'selecting';
 
@@ -319,6 +378,18 @@ const SearchResultCard = ({
           allSelected={selectedEntryIndices === null}
           readOnly={!isSelectingView}
         />
+
+
+
+        {isSelectingView && (
+          <button
+            onClick={() => setIsAddingDefinition(true)}
+            className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition flex items-center justify-center gap-2"
+          >
+            <Plus className="w-5 h-5" />
+            新增自訂解釋
+          </button>
+        )}
 
         {saveStep === 'idle' && (
           <>
@@ -360,7 +431,18 @@ const SearchResultCard = ({
           </div>
         )}
       </div>
-    </div>
+
+
+      <AddDefinitionModal
+        isOpen={isAddingDefinition}
+        onClose={() => setIsAddingDefinition(false)}
+        onConfirm={(def) => {
+          handleAddDefinition(def);
+          // Optional: Toggle selection for this new def if possible,
+          // but for now let's just let it appear.
+        }}
+      />
+    </div >
   );
 };
 

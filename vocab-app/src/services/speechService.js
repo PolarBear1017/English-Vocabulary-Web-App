@@ -2,6 +2,8 @@ let audioContext = null;
 let currentSource = null; // Track the currently playing source
 let currentAudioElement = null; // Track HTML5 Audio fallback
 
+let currentUtterance = null; // Track active utterance to prevent GC
+
 // Event system
 const listeners = new Set();
 
@@ -63,6 +65,7 @@ const stopAudio = () => {
       currentAudioElement.pause();
       currentAudioElement.currentTime = 0;
       currentAudioElement.onended = null; // Prevent callback
+      currentAudioElement.onerror = null;
     } catch (e) {
       // Ignore errors
     }
@@ -72,6 +75,12 @@ const stopAudio = () => {
   // Cancel speech synthesis
   if ('speechSynthesis' in window) {
     window.speechSynthesis.cancel();
+  }
+
+  if (currentUtterance) {
+    currentUtterance.onend = null;
+    currentUtterance.onerror = null;
+    currentUtterance = null;
   }
 };
 
@@ -115,8 +124,19 @@ const playAudioWithContext = async (url, options = {}) => {
       audio.webkitPreservesPitch = true;
     }
 
+    // Safety timeout: if audio takes too long to start or play (e.g. 30s limit), force end
+    // This prevents indefinite hanging on network issues
+    const safetyTimeout = setTimeout(() => {
+      console.warn("Audio playback timed out, forcing onEnd");
+      if (currentAudioElement === audio) {
+        currentAudioElement = null;
+        if (onEnd) onEnd();
+      }
+    }, 30000);
+
     // Add error listener
     audio.onerror = (err) => {
+      clearTimeout(safetyTimeout);
       console.error("Audio playback failed:", err);
       currentAudioElement = null;
       if (onPlaybackFailed) {
@@ -127,6 +147,7 @@ const playAudioWithContext = async (url, options = {}) => {
     };
 
     audio.onended = () => {
+      clearTimeout(safetyTimeout);
       if (currentAudioElement === audio) {
         currentAudioElement = null;
         if (onEnd) onEnd();
@@ -196,13 +217,37 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
     utterance.lang = lang;
     utterance.rate = rate;
 
+    // Store reference to prevent Garbage Collection
+    currentUtterance = utterance;
+
+    // Safety timeout: browser TTS can sometimes hang indefinitely
+    // Estimate duration: 200 words/min approx, plus buffer.
+    // Minimum 3 seconds, max 20 seconds.
+    const approximateDuration = Math.min(Math.max(text.length * 200, 3000), 20000);
+
+    const safetyTimeout = setTimeout(() => {
+      console.warn("Speech synthesis timed out, forcing onEnd");
+      if (currentUtterance === utterance) {
+        currentUtterance = null;
+        if (onEnd) onEnd();
+      }
+    }, approximateDuration);
+
     utterance.onend = () => {
-      if (onEnd) onEnd();
+      clearTimeout(safetyTimeout);
+      if (currentUtterance === utterance) {
+        currentUtterance = null;
+        if (onEnd) onEnd();
+      }
     };
 
     utterance.onerror = (err) => {
+      clearTimeout(safetyTimeout);
       console.error("Speech synthesis error", err);
-      if (onEnd) onEnd(); // Ensure loop continues
+      if (currentUtterance === utterance) {
+        currentUtterance = null;
+        if (onEnd) onEnd(); // Ensure loop continues
+      }
     };
 
     // iOS Safari background playback hack/fix
@@ -211,7 +256,14 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
       window.speechSynthesis.resume();
     }
 
-    window.speechSynthesis.speak(utterance);
+    try {
+      window.speechSynthesis.speak(utterance);
+    } catch (e) {
+      console.error("Speech synthesis failed to start", e);
+      clearTimeout(safetyTimeout);
+      currentUtterance = null;
+      if (onEnd) onEnd();
+    }
   } else {
     console.error("Browser does not support speech synthesis");
     alert("瀏覽器不支援語音功能");

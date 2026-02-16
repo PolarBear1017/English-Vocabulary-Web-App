@@ -176,7 +176,14 @@ const speak = (text, audioUrl = null, options = {}) => {
 
   if (canUseGoogleTTS) {
     // Generate Google Translate TTS URL
-    const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=en&client=tw-ob`;
+    let googleLang = 'en';
+    if (lang.startsWith('zh')) {
+      googleLang = 'zh-TW';
+    } else if (lang.startsWith('en')) {
+      googleLang = 'en';
+    }
+
+    const googleUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=${googleLang}&client=tw-ob`;
 
     // Play with Google TTS, fallback to browser synthesis on failure
     playAudioWithContext(googleUrl, {

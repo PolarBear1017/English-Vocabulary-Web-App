@@ -8,7 +8,11 @@ import {
   saveRequestRetention,
   saveDictionaryPriority,
   loadAudioSourcePriority,
-  saveAudioSourcePriority
+  saveAudioSourcePriority,
+  loadAudioSpeed,
+  saveAudioSpeed,
+  loadChineseAudioSpeed,
+  saveChineseAudioSpeed
 } from '../../services/storageService';
 import {
   getSession,
@@ -26,6 +30,8 @@ const useSettings = () => {
   const [requestRetention, setRequestRetention] = useState(() => loadRequestRetention());
   const [dictionaryPriority, setDictionaryPriority] = useState(() => loadDictionaryPriority());
   const [audioSourcePriority, setAudioSourcePriority] = useState(() => loadAudioSourcePriority());
+  const [audioSpeed, setAudioSpeed] = useState(() => loadAudioSpeed());
+  const [chineseAudioSpeed, setChineseAudioSpeed] = useState(() => loadChineseAudioSpeed());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -51,6 +57,14 @@ const useSettings = () => {
   useEffect(() => {
     saveAudioSourcePriority(audioSourcePriority);
   }, [audioSourcePriority]);
+
+  useEffect(() => {
+    saveAudioSpeed(audioSpeed);
+  }, [audioSpeed]);
+
+  useEffect(() => {
+    saveChineseAudioSpeed(chineseAudioSpeed);
+  }, [chineseAudioSpeed]);
 
   useEffect(() => {
     getSession().then(({ data: { session } }) => {
@@ -109,6 +123,8 @@ const useSettings = () => {
       requestRetention,
       dictionaryPriority,
       audioSourcePriority,
+      audioSpeed,
+      chineseAudioSpeed,
       session,
       email,
       password,
@@ -120,6 +136,8 @@ const useSettings = () => {
       setRequestRetention,
       setDictionaryPriority,
       setAudioSourcePriority,
+      setAudioSpeed,
+      setChineseAudioSpeed,
       setEmail,
       setPassword,
       handleLogin,

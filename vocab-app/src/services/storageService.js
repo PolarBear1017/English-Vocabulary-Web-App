@@ -9,7 +9,9 @@ const STORAGE_KEYS = {
   folderSortBy: 'folder_sort_by',
   wordSortBy: 'word_sort_by',
   dictionaryPriority: 'dictionary_priority',
-  audioSourcePriority: 'audio_source_priority'
+  audioSourcePriority: 'audio_source_priority',
+  audioSpeed: 'audio_speed',
+  chineseAudioSpeed: 'chinese_audio_speed'
 };
 
 const ensureStorageVersion = () => {
@@ -75,6 +77,20 @@ const saveDictionaryPriority = (value) => writeJSON(STORAGE_KEYS.dictionaryPrior
 const loadAudioSourcePriority = () => readJSON(STORAGE_KEYS.audioSourcePriority, ['us', 'uk', 'google', 'yahoo', 'general']);
 const saveAudioSourcePriority = (value) => writeJSON(STORAGE_KEYS.audioSourcePriority, value);
 
+const loadAudioSpeed = () => {
+  const raw = readString(STORAGE_KEYS.audioSpeed, '1.0');
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 1.0;
+};
+const saveAudioSpeed = (value) => writeString(STORAGE_KEYS.audioSpeed, String(value));
+
+const loadChineseAudioSpeed = () => {
+  const raw = readString(STORAGE_KEYS.chineseAudioSpeed, '1.0');
+  const parsed = parseFloat(raw);
+  return Number.isFinite(parsed) ? parsed : 1.0;
+};
+const saveChineseAudioSpeed = (value) => writeString(STORAGE_KEYS.chineseAudioSpeed, String(value));
+
 export {
   STORAGE_VERSION,
   STORAGE_KEYS,
@@ -100,5 +116,9 @@ export {
   loadDictionaryPriority,
   saveDictionaryPriority,
   loadAudioSourcePriority,
-  saveAudioSourcePriority
+  saveAudioSourcePriority,
+  loadAudioSpeed,
+  saveAudioSpeed,
+  loadChineseAudioSpeed,
+  saveChineseAudioSpeed
 };

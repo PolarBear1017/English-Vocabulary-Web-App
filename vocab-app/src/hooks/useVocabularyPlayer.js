@@ -1,12 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { speak, stopAudio, getAudioUrl, subscribe } from '../services/speechService';
 import { normalizeEntries } from '../utils/data';
+import { useSettingsContext } from '../contexts/SettingsContext';
 
 export const useVocabularyPlayer = (words = [], options = {}) => {
-    const { audioPriority } = options;
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
-    const [playbackState, setPlaybackState] = useState('idle'); // 'idle', 'playing_word', 'playing_def', 'waiting'
+    const [playbackState, setPlaybackState] = useState('idle'); // idle, playing_word, playing_def, waiting
+    const { state: { audioSourcePriority, audioSpeed, chineseAudioSpeed } } = useSettingsContext();
+
+    // Default priority or from settings
+    const audioPriority = audioSourcePriority || options.audioPriority || ['us', 'uk', 'google', 'yahoo', 'general'];
 
     const timeoutRef = useRef(null);
     const currentWordRef = useRef(null);
@@ -77,7 +81,7 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         // Speak Chinese/Definition
         speak(textToSpeak, null, {
             lang: 'zh-TW',
-            rate: 1.0,
+            rate: chineseAudioSpeed || 1.0,
             source: 'vocabulary-player',
             onEnd: () => {
                 setPlaybackState('waiting');
@@ -96,6 +100,7 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
         // Speak English Word
         speak(word.word, audioUrl, {
             lang: 'en-US',
+            rate: audioSpeed || 1.0,
             source: 'vocabulary-player',
             onEnd: () => {
                 // Add a small delay between word and definition

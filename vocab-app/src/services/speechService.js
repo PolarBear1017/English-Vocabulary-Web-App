@@ -79,99 +79,67 @@ const playAudioWithContext = async (url, options = {}) => {
   // Stop any currently playing audio first
   stopAudio();
 
-  const { onEnd, onPlaybackFailed, source: audioSource } = options;
+  const { onEnd, onPlaybackFailed, source: audioSource, rate = 1.0 } = options;
 
   // Notify that playback is starting
   notifyListeners('play', { source: audioSource });
 
+  // Use HTML5 Audio by default for pitch preservation
+  // This is much simpler and supports changing speed without changing pitch
   try {
-    const ctx = getAudioContext();
-
-    if (ctx.state === 'suspended') {
-      await ctx.resume();
-    }
-
     // Determine if we need to proxy the request
     // If it's an external URL (starts with http), use the proxy
-    let fetchUrl = url;
+    let playUrl = url;
     if (url.startsWith('http')) {
-      fetchUrl = `/api/proxy-audio?url=${encodeURIComponent(url)}`;
+      playUrl = `/api/proxy-audio?url=${encodeURIComponent(url)}`;
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s timeout
+    const audio = new Audio(playUrl);
 
-    const response = await fetch(fetchUrl, { signal: controller.signal });
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.warn("Proxy endpoint not found (404). If running locally, ensure API is available or use 'vercel dev'. Falling back to direct playback.");
-      }
-      throw new Error(`Fetch failed: ${response.status} ${response.statusText}`);
+    // Resume AudioContext if suspended (for mobile rules)
+    // Even if we use HTML5 Audio, having the context running helps on some mobile browsers
+    const ctx = getAudioContext();
+    if (ctx && ctx.state === 'suspended') {
+      ctx.resume().catch(() => { });
     }
 
-    const arrayBuffer = await response.arrayBuffer();
+    currentAudioElement = audio;
 
-    // Fix for "The buffer passed to decodeAudioData contains an unknown content type"
-    // sometimes empty or invalid responses can cause this
-    if (!arrayBuffer || arrayBuffer.byteLength === 0) {
-      throw new Error("Empty audio buffer received");
+    audio.playbackRate = rate;
+    // explicit preservation (default is true usually)
+    if (audio.preservesPitch !== undefined) {
+      audio.preservesPitch = true;
+    } else if (audio.mozPreservesPitch !== undefined) {
+      audio.mozPreservesPitch = true;
+    } else if (audio.webkitPreservesPitch !== undefined) {
+      audio.webkitPreservesPitch = true;
     }
 
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
-
-    // Check if we were stopped while decoding
-    if (!audioBuffer) return;
-
-    const source = ctx.createBufferSource();
-    source.buffer = audioBuffer;
-    source.connect(ctx.destination);
-
-    source.onended = () => {
-      if (currentSource === source) {
-        currentSource = null;
+    // Add error listener
+    audio.onerror = (err) => {
+      console.error("Audio playback failed:", err);
+      currentAudioElement = null;
+      if (onPlaybackFailed) {
+        onPlaybackFailed();
+      } else {
         if (onEnd) onEnd();
       }
     };
 
-    currentSource = source;
-    source.start(0);
-  } catch (e) {
-    console.warn("AudioContext playback failed, attempting fallback:", e);
-
-    // Fallback to HTML5 Audio if AudioContext fails
-    // Use the proxy URL for fallback too if possible to avoid CORS issues,
-    // unless it was a fetch error on the proxy itself.
-    // We'll try the original URL for fallback as a last resort.
-    const fallbackUrl = url;
-
-    try {
-      const audio = new Audio(fallbackUrl);
-      currentAudioElement = audio;
-
-      // Add error listener for fallback
-      audio.onerror = (err) => {
-        console.error("Fallback playback failed:", err);
+    audio.onended = () => {
+      if (currentAudioElement === audio) {
         currentAudioElement = null;
-        if (onEnd) onEnd(); // Still call onEnd to continue loop
-      };
-
-      audio.onended = () => {
-        if (currentAudioElement === audio) {
-          currentAudioElement = null;
-          if (onEnd) onEnd();
-        }
-      };
-
-      await audio.play();
-    } catch (err) {
-      console.error("All playback methods failed:", err);
-      if (onPlaybackFailed) {
-        onPlaybackFailed();
-      } else {
-        if (onEnd) onEnd(); // Ensure loop continues even if playback fails
+        if (onEnd) onEnd();
       }
+    };
+
+    await audio.play();
+  } catch (err) {
+    console.error("Playback error:", err);
+    if (onPlaybackFailed) {
+      onPlaybackFailed();
+    } else {
+      if (onEnd) onEnd();
     }
   }
 };
@@ -180,7 +148,7 @@ const speak = (text, audioUrl = null, options = {}) => {
   const { lang = 'en-US', rate = 1.0, onEnd, source } = options;
 
   if (audioUrl) {
-    playAudioWithContext(audioUrl, { onEnd, source });
+    playAudioWithContext(audioUrl, { onEnd, source, rate });
     return;
   }
 
@@ -206,7 +174,8 @@ const speak = (text, audioUrl = null, options = {}) => {
         console.warn("Google TTS failed, falling back to browser synthesis");
         speakWithBrowser(text, lang, rate, onEnd, source);
       },
-      source
+      source,
+      rate
     });
     return;
   }

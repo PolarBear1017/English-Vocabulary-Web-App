@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowUp, ArrowDown, Info, GripVertical, Volume2, RotateCcw } from 'lucide-react';
+import { ArrowUp, ArrowDown, Info, GripVertical, Volume2, RotateCcw, Gauge } from 'lucide-react';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import {
     DndContext,
@@ -101,11 +101,15 @@ const SettingsAudio = () => {
     }, []);
 
     const [priority, setPriority] = useState(state.audioSourcePriority || []);
+    const [audioSpeed, setAudioSpeed] = useState(state.audioSpeed || 1.0);
+    const [chineseAudioSpeed, setChineseAudioSpeed] = useState(state.chineseAudioSpeed || 1.0);
     const [hasChanges, setHasChanges] = useState(false);
 
     useEffect(() => {
         setPriority(state.audioSourcePriority || []);
-    }, [state.audioSourcePriority]);
+        setAudioSpeed(state.audioSpeed || 1.0);
+        setChineseAudioSpeed(state.chineseAudioSpeed || 1.0);
+    }, [state.audioSourcePriority, state.audioSpeed, state.chineseAudioSpeed]);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -148,6 +152,8 @@ const SettingsAudio = () => {
     const handleSave = () => {
         if (actions.setAudioSourcePriority) {
             actions.setAudioSourcePriority(priority);
+            actions.setAudioSpeed(audioSpeed);
+            actions.setChineseAudioSpeed(chineseAudioSpeed);
             setHasChanges(false);
             alert('設定已儲存');
         } else {
@@ -158,6 +164,8 @@ const SettingsAudio = () => {
     const handleReset = () => {
         const defaultSources = Object.keys(AUDIO_SOURCE_NAMES);
         setPriority(defaultSources);
+        setAudioSpeed(1.0);
+        setChineseAudioSpeed(1.0);
         setHasChanges(true);
     };
 
@@ -197,6 +205,66 @@ const SettingsAudio = () => {
                         ))}
                     </SortableContext>
                 </DndContext>
+            </div>
+
+            <div className="space-y-4">
+                <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
+                    <Gauge className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                    <div className="text-sm text-amber-900">
+                        <p className="font-medium mb-1">語音速度設定</p>
+                        <p>調整英文和中文的朗讀速度 (0.5x ~ 2.0x)。</p>
+                    </div>
+                </div>
+
+                <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
+                    <div>
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700">英文語音速度</label>
+                            <span className="text-sm font-bold text-amber-600">{audioSpeed.toFixed(1)}x</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="2.0"
+                            step="0.1"
+                            value={audioSpeed}
+                            onChange={(e) => {
+                                setAudioSpeed(parseFloat(e.target.value));
+                                setHasChanges(true);
+                            }}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <div className="relative w-full h-4 text-xs text-gray-400 mt-2">
+                            <span className="absolute left-0">0.5x (慢)</span>
+                            <span className="absolute left-1/3 -translate-x-1/2">1.0x (正常)</span>
+                            <span className="absolute right-0">2.0x (快)</span>
+                        </div>
+                    </div>
+
+                    <div className="pt-4 border-t border-gray-100">
+                        <div className="flex justify-between items-center mb-2">
+                            <label className="text-sm font-medium text-gray-700">中文語音速度</label>
+                            <span className="text-sm font-bold text-amber-600">{chineseAudioSpeed.toFixed(1)}x</span>
+                        </div>
+                        <input
+                            type="range"
+                            min="0.5"
+                            max="2.0"
+                            step="0.1"
+                            value={chineseAudioSpeed}
+                            onChange={(e) => {
+                                setChineseAudioSpeed(parseFloat(e.target.value));
+                                setHasChanges(true);
+                            }}
+                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                        />
+                        <div className="relative w-full h-4 text-xs text-gray-400 mt-2">
+                            <span className="absolute left-0">0.5x (慢)</span>
+                            <span className="absolute left-1/3 -translate-x-1/2">1.0x (正常)</span>
+                            <span className="absolute right-0">2.0x (快)</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div className="flex justify-between pt-2">

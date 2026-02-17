@@ -1,5 +1,5 @@
-import React, { useRef } from 'react';
-import { Folder, Trash2, Sparkles, Pencil, Check } from 'lucide-react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Folder, Trash2, Sparkles, Pencil, Check, MoreVertical, PlayCircle } from 'lucide-react';
 import { useLongPress } from 'use-long-press';
 import { isWordMatch } from '../../utils/data';
 import WordRow from './WordRow';
@@ -38,6 +38,8 @@ const FolderCard = ({
   searchQuery,
   onOpenWordDetail
 }) => {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const menuRef = useRef(null);
   const words = folderWords || [];
 
   const matchingWords = searchQuery
@@ -70,6 +72,17 @@ const FolderCard = ({
     detect: 'pointer',
     filterEvents: () => true
   });
+
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleOutsideClick = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, [isMenuOpen]);
 
   const handleClick = (event) => {
     if (longPressTriggeredRef.current) {
@@ -150,26 +163,72 @@ const FolderCard = ({
               <Check className="w-4 h-4" />
             </button>
           ) : (
-            <>
-              {onEdit && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onEdit(); }}
-                  className="text-gray-400 hover:text-blue-500 p-2 opacity-0 group-hover:opacity-100 transition"
-                  title="編輯資料夾"
-                >
-                  <Pencil className="w-4 h-4" />
-                </button>
+            <div className="relative" ref={menuRef}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setIsMenuOpen(!isMenuOpen);
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {isMenuOpen && (
+                <div className="absolute right-0 top-full mt-1 w-40 bg-white rounded-lg shadow-lg border border-gray-100 py-1 z-10 animate-in fade-in zoom-in-95 duration-200">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      onStartReview?.();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
+                  >
+                    <PlayCircle className="w-4 h-4" />
+                    複習
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      onGenerateStory?.();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-2"
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    生成故事
+                  </button>
+
+                  {onEdit && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onEdit();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                    >
+                      <Pencil className="w-4 h-4" />
+                      編輯
+                    </button>
+                  )}
+
+                  {folder.id !== 'default' && (
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsMenuOpen(false);
+                        onDelete();
+                      }}
+                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      刪除
+                    </button>
+                  )}
+                </div>
               )}
-              {folder.id !== 'default' && (
-                <button
-                  onClick={(e) => { e.stopPropagation(); onDelete(); }}
-                  className="text-gray-400 hover:text-red-500 p-2 opacity-0 group-hover:opacity-100 transition"
-                  title="刪除資料夾"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              )}
-            </>
+            </div>
           )}
         </div>
       </div>
@@ -204,23 +263,6 @@ const FolderCard = ({
       {words.length === 0 && (
         <div className="text-center text-xs text-gray-400 py-2">
           尚無單字，點擊查看詳情
-        </div>
-      )}
-
-      {!isSelectionMode && !searchQuery && (
-        <div className="flex gap-2 mt-2">
-          <button
-            onClick={onStartReview}
-            className="flex-1 bg-blue-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition"
-          >
-            複習
-          </button>
-          <button
-            onClick={onGenerateStory}
-            className="flex-1 bg-purple-100 text-purple-700 py-2 rounded-lg text-sm font-medium hover:bg-purple-200 transition flex items-center justify-center gap-1"
-          >
-            <Sparkles className="w-3 h-3" /> 生成故事
-          </button>
         </div>
       )}
     </div>

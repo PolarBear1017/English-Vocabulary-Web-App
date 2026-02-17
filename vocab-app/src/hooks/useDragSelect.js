@@ -22,7 +22,19 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
   }, []);
 
   const selectAtPoint = useCallback(() => {
-    const { x, y } = lastPointRef.current;
+    const { x, y: rawY } = lastPointRef.current;
+
+    // Clamp Y to be within viewport safe area to handle dragging outside container (e.g. bottom tab bar)
+    const { top, bottom, bottomOffset } = getViewportBounds();
+    const buffer = 10;
+
+    let y = rawY;
+    if (y < top + buffer) {
+      y = top + buffer;
+    } else if (y > bottom - bottomOffset - buffer) {
+      y = bottom - bottomOffset - buffer;
+    }
+
     const element = document.elementFromPoint(x, y);
     const root = element?.closest?.('[data-select-id]');
     const id = root?.dataset?.selectId;
@@ -30,7 +42,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
       onSelect?.(id);
       lastIdRef.current = id;
     }
-  }, [onSelect]);
+  }, [getViewportBounds, onSelect]);
 
   const getViewportBounds = useCallback(() => {
     const viewport = window.visualViewport;

@@ -12,6 +12,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
   const scrollSpeedRef = useRef(0);
   const prevTouchActionRef = useRef('');
   const prevUserSelectRef = useRef('');
+  const scrollContainerRef = useRef(null);
 
   const stopAutoScroll = useCallback(() => {
     if (rafIdRef.current !== null) {
@@ -38,14 +39,24 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     const { x, y: rawY } = lastPointRef.current;
 
     // Clamp Y to be within viewport safe area to handle dragging outside container (e.g. bottom tab bar)
-    const { top, bottom, bottomOffset } = getViewportBounds();
-    const buffer = 10;
-
     let y = rawY;
-    if (y < top + buffer) {
-      y = top + buffer;
-    } else if (y > bottom - bottomOffset - buffer) {
-      y = bottom - bottomOffset - buffer;
+
+    if (scrollContainerRef.current) {
+      const rect = scrollContainerRef.current.getBoundingClientRect();
+      const buffer = 10;
+      if (y < rect.top + buffer) {
+        y = rect.top + buffer;
+      } else if (y > rect.bottom - buffer) {
+        y = rect.bottom - buffer;
+      }
+    } else {
+      const { top, bottom, bottomOffset } = getViewportBounds();
+      const buffer = 10;
+      if (y < top + buffer) {
+        y = top + buffer;
+      } else if (y > bottom - bottomOffset - buffer) {
+        y = bottom - bottomOffset - buffer;
+      }
     }
 
     const element = document.elementFromPoint(x, y);
@@ -115,6 +126,10 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     hasMovedRef.current = false;
     startIdRef.current = id;
     pointerIdRef.current = event.pointerId;
+
+    // Find scroll container
+    scrollContainerRef.current = root.closest('.overflow-y-auto') || document.scrollingElement || document.body;
+
     prevTouchActionRef.current = document.body.style.touchAction;
     prevUserSelectRef.current = document.body.style.userSelect;
     document.body.style.touchAction = 'none';
@@ -141,7 +156,7 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
 
     selectAtPoint();
 
-    const edgeZone = 80;
+    const edgeZone = 120;
     const { top, bottom, bottomOffset } = getViewportBounds();
     const y = event.clientY;
     let speed = 0;

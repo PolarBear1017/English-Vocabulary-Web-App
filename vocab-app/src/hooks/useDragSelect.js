@@ -21,6 +21,19 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
     scrollSpeedRef.current = 0;
   }, []);
 
+  const getViewportBounds = useCallback(() => {
+    const viewport = window.visualViewport;
+    const topOffset = viewport?.offsetTop || 0;
+    const viewportHeight = viewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    const actionBar = document.querySelector('[data-selection-action-bar="true"]');
+    const actionBarHeight = actionBar?.getBoundingClientRect().height || 0;
+    return {
+      top: topOffset,
+      bottom: topOffset + viewportHeight,
+      bottomOffset: actionBarHeight
+    };
+  }, []);
+
   const selectAtPoint = useCallback(() => {
     const { x, y: rawY } = lastPointRef.current;
 
@@ -43,19 +56,6 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
       lastIdRef.current = id;
     }
   }, [getViewportBounds, onSelect]);
-
-  const getViewportBounds = useCallback(() => {
-    const viewport = window.visualViewport;
-    const topOffset = viewport?.offsetTop || 0;
-    const viewportHeight = viewport?.height || window.innerHeight || document.documentElement.clientHeight;
-    const actionBar = document.querySelector('[data-selection-action-bar="true"]');
-    const actionBarHeight = actionBar?.getBoundingClientRect().height || 0;
-    return {
-      top: topOffset,
-      bottom: topOffset + viewportHeight,
-      bottomOffset: actionBarHeight
-    };
-  }, []);
 
   const tickAutoScroll = useCallback(() => {
     if (!isDraggingRef.current || scrollSpeedRef.current === 0) {

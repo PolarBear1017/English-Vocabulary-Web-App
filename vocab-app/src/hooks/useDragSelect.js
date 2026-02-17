@@ -84,11 +84,11 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
       onToggle?.(startId, event);
       setTimeout(() => {
         suppressClickRef.current = false;
-      }, 0);
+      }, 300);
     } else {
       setTimeout(() => {
         suppressClickRef.current = false;
-      }, 0);
+      }, 300);
     }
   }, [onToggle, restorePageState, stopAutoScroll]);
 

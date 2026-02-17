@@ -156,15 +156,16 @@ const useDragSelect = ({ enabled, onSelect, onToggle }) => {
 
     selectAtPoint();
 
-    const edgeZone = 120;
+    const topEdgeZone = 100;
+    const bottomEdgeZone = 200; // Larger zone for bottom to handle tab bars
     const { top, bottom, bottomOffset } = getViewportBounds();
     const y = event.clientY;
     let speed = 0;
-    if (y < top + edgeZone) {
-      const intensity = (top + edgeZone - y) / edgeZone;
+    if (y < top + topEdgeZone) {
+      const intensity = (top + topEdgeZone - y) / topEdgeZone;
       speed = -Math.max(2, Math.round(intensity * 16));
-    } else if (y > bottom - edgeZone - bottomOffset) {
-      const intensity = (y - (bottom - edgeZone - bottomOffset)) / edgeZone;
+    } else if (y > bottom - bottomEdgeZone - bottomOffset) {
+      const intensity = (y - (bottom - bottomEdgeZone - bottomOffset)) / bottomEdgeZone;
       speed = Math.max(2, Math.round(intensity * 16));
     }
     scrollSpeedRef.current = speed;

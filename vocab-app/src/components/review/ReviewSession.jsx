@@ -1,3 +1,4 @@
+import React, { useEffect } from 'react';
 import { X, Volume2, Sparkles, Lightbulb } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
 import { formatClozeSentence, highlightWord } from '../../utils/text.jsx';

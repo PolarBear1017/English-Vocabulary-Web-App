@@ -1,103 +1,88 @@
-import React, { useMemo } from 'react';
-import { isReviewDue } from '../utils/data';
+
+import React, { useContext, useMemo } from 'react';
+import { ReviewContext } from '../contexts/ReviewContext';
+import { LibraryContext } from '../contexts/LibraryContext';
+import { NavigationContext } from '../contexts/NavigationContext';
+import { PreferencesContext } from '../contexts/PreferencesContext';
 import ReviewSetup from '../components/review/ReviewSetup';
 import ReviewSession from '../components/review/ReviewSession';
-import { useReviewContext } from '../contexts/ReviewContext';
-import { useLibraryContext } from '../contexts/LibraryContext';
-import { useNavigationContext } from '../contexts/NavigationContext';
-import { usePreferencesContext } from '../contexts/PreferencesContext';
 
-const ReviewPage = () => {
-  const review = useReviewContext();
-  const library = useLibraryContext();
-  const navigation = useNavigationContext();
-  const preferences = usePreferencesContext();
-
-  const {
-    displayDueCount,
-    displayTotalWords
-  } = useMemo(() => {
-    const allSelected = review.state.selectedReviewFolders.includes('all');
-    if (allSelected) {
-      return {
-        displayDueCount: library.derived.index.dueCount,
-        displayTotalWords: library.derived.index.totalWords
-      };
+class ErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
     }
 
-    const selectedFolderIds = review.state.selectedReviewFolders;
-    // Filter vocabData to find words in selected folders
-    // A word might be in multiple folders, but vocabData is a flat list of unique words
-    // We just need to check if any of the word's folderIds are in the selectedFolderIds
-    const filteredWords = library.state.vocabData.filter(word => {
-      if (!word.folderIds || !Array.isArray(word.folderIds)) return false;
-      return word.folderIds.some(id => selectedFolderIds.includes(id));
-    });
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
 
-    return {
-      displayDueCount: filteredWords.filter(word => isReviewDue(word.nextReview)).length,
-      displayTotalWords: filteredWords.length
-    };
-  }, [
-    review.state.selectedReviewFolders,
-    library.derived.index.dueCount,
-    library.derived.index.totalWords,
-    library.state.vocabData
-  ]);
+    componentDidCatch(error, errorInfo) {
+        console.error("ReviewPage Error:", error, errorInfo);
+    }
 
-  if (navigation.state.activeTab === 'review_session' && review.state.reviewQueue.length > 0) {
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div className="p-8 text-center">
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">發生錯誤</h2>
+                    <p className="text-gray-600 mb-4">無法載入複習模式</p>
+                    <pre className="text-left bg-gray-100 p-4 rounded overflow-auto text-xs mb-4">
+                        {this.state.error?.toString()}
+                    </pre>
+                    <button
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    >
+                        重新整理
+                    </button>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+const ReviewPage = () => {
+    const { state: reviewState, derived: reviewDerived, actions: reviewActions } = useContext(ReviewContext);
+    const { state: libraryState, derived: libraryDerived } = useContext(LibraryContext);
+    const { state: navState, actions: navActions } = useContext(NavigationContext);
+    const preferences = useContext(PreferencesContext);
+
+    const activeTab = navState.activeTab;
+
+    const dueCount = useMemo(() => {
+        return libraryState.vocabData.filter(word => new Date(word.nextReview) <= new Date()).length;
+    }, [libraryState.vocabData]);
+
+    const totalWords = libraryState.vocabData.length;
+
+    if (activeTab === 'review_session') {
+        return (
+            <ErrorBoundary>
+                <ReviewSession
+                    {...reviewState}
+                    {...reviewDerived}
+                    {...reviewActions}
+                    setActiveTab={navActions.setActiveTab}
+                    preferredAccent={preferences?.state?.preferredAccent || 'us'}
+                    setPreferredAccent={preferences?.actions?.setPreferredAccent}
+                />
+            </ErrorBoundary>
+        );
+    }
+
     return (
-      <ReviewSession
-        reviewQueue={review.state.reviewQueue}
-        currentCardIndex={review.state.currentCardIndex}
-        reviewMode={review.state.reviewMode}
-        isFlipped={review.state.isFlipped}
-        userAnswer={review.state.userAnswer}
-        feedback={review.state.feedback}
-        lastResult={review.state.lastResult}
-        isAwaitingNext={review.state.isAwaitingNext}
-        answerHint={review.state.answerHint}
-        currentReviewWord={review.derived.currentReviewWord}
-        currentReviewEntries={review.derived.currentReviewEntries}
-        primaryReviewEntry={review.derived.primaryReviewEntry}
-        clozeExampleMain={review.derived.clozeExampleMain}
-        clozeTranslation={review.derived.clozeTranslation}
-        preferredReviewAudio={review.derived.preferredReviewAudio}
-        preferredAccent={preferences.state.preferredAccent}
-        setPreferredAccent={preferences.actions.setPreferredAccent}
-        setActiveTab={navigation.actions.setActiveTab}
-        setIsFlipped={review.actions.setIsFlipped}
-        handleAnswerChange={review.actions.handleAnswerChange}
-        checkAnswer={review.actions.checkAnswer}
-        processRating={review.actions.processRating}
-        advanceToNextCard={review.actions.advanceToNextCard}
-        giveHint={review.actions.giveHint}
-      />
+        <ReviewSetup
+            {...reviewState}
+            {...reviewDerived}
+            {...reviewActions}
+            dueCount={dueCount}
+            totalWords={totalWords}
+            sortedFolders={libraryState.folders}
+            allFolderIds={libraryDerived?.index?.allFolderIds || []}
+        />
     );
-  }
-
-  if (navigation.state.activeTab === 'review_session') {
-    return null;
-  }
-
-  return (
-    <div className="max-w-2xl mx-auto">
-      <ReviewSetup
-        reviewSetupView={review.state.reviewSetupView}
-        setReviewSetupView={review.actions.setReviewSetupView}
-        dueCount={displayDueCount}
-        totalWords={displayTotalWords}
-        selectedFolderLabel={review.derived.selectedFolderLabel}
-        selectedReviewFolders={review.state.selectedReviewFolders}
-        startReview={review.actions.startReview}
-        sortedFolders={library.derived.sortedFolders}
-        allFoldersSelected={review.derived.allFoldersSelected}
-        toggleReviewFolder={review.actions.toggleReviewFolder}
-        allFolderIds={library.derived.index.allFolderIds}
-        setSelectedReviewFolders={review.actions.setSelectedReviewFolders}
-      />
-    </div>
-  );
 };
 
 export default ReviewPage;

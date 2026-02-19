@@ -67,6 +67,20 @@ const ReviewPage = () => {
 
     const totalWords = filteredWords.length;
 
+    const foldersWithStats = useMemo(() => {
+        if (!libraryState.folders || !libraryDerived?.index?.statsByFolderId) {
+            return libraryState.folders || [];
+        }
+        return libraryState.folders.map(folder => {
+            const stats = libraryDerived.index.statsByFolderId[folder.id];
+            return {
+                ...folder,
+                wordCount: stats?.count || 0,
+                dueCount: stats?.dueCount || 0
+            };
+        });
+    }, [libraryState.folders, libraryDerived?.index?.statsByFolderId]);
+
     if (activeTab === 'review_session') {
         return (
             <ErrorBoundary>
@@ -82,21 +96,8 @@ const ReviewPage = () => {
         );
     }
 
-    const foldersWithStats = useMemo(() => {
-        if (!libraryState.folders || !libraryDerived?.index?.statsByFolderId) {
-            return libraryState.folders || [];
-        }
-        return libraryState.folders.map(folder => {
-            const stats = libraryDerived.index.statsByFolderId[folder.id];
-            return {
-                ...folder,
-                wordCount: stats?.count || 0,
-                dueCount: stats?.dueCount || 0
-            };
-        });
-    }, [libraryState.folders, libraryDerived?.index?.statsByFolderId]);
-
     return (
+
         <ReviewSetup
             {...reviewState}
             {...reviewDerived}

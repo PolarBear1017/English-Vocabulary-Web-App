@@ -1,0 +1,302 @@
+import * as cheerio from 'cheerio';
+
+export const scrapeCambridge = async (word) => {
+    const targetUrl = `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
+    const response = await fetch(targetUrl, {
+        headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+            'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7'
+        }
+    });
+
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+
+    const isFound = $('.di-title').length > 0 || $('.def-block').length > 0;
+    if (!isFound) return null;
+
+    const pos = $('.pos').first().text() || 'unknown';
+    const phonetic = $('.us .ipa').first().text() || $('.ipa').first().text() || '';
+
+    const entries = [];
+    $('.def-block').each((_, block) => {
+        const definitionText = $(block).find('.def').first().text().replace(':', '').trim();
+
+        // Fix: Exclude .trans elements that are inside .examp (examples)
+        // The structure is usually .def-body > .trans or .def-block > .trans
+        let translationText = $(block).find('.trans')
+            .filter((i, el) => $(el).parents('.examp').length === 0)
+            .first()
+            .text()
+            .trim();
+
+        const examples = $(block)
+            .find('.examp')
+            .map((_, el) => $(el).text().trim())
+            .get()
+            .filter(Boolean);
+
+        // Smart POS extraction: find the closest POS tag in the hierarchy
+        // Usually it's in a previous sibling .pos-header or parent's sibling
+        let entryPos = $(block).closest('.entry-body__el').find('.pos').first().text();
+        if (!entryPos) entryPos = $(block).closest('.pr').find('.pos').first().text();
+        if (!entryPos) entryPos = pos; // Fallback to the top-level POS
+
+        if (definitionText) {
+            entries.push({
+                definition: definitionText,
+                translation: translationText,
+                example: examples[0] || '',
+                examples,
+                pos: entryPos
+            });
+        }
+    });
+
+    if (entries.length === 0) {
+        const definition = $('.def').first().text().replace(':', '').trim();
+        const translation = $('.trans').first().text().trim();
+        const example = $('.examp').first().text().trim();
+
+        if (definition) {
+            entries.push({
+                definition,
+                translation,
+                example,
+                examples: example ? [example] : []
+            });
+        }
+    }
+
+    const usAudioSource = $('.us.dpron-i source[type="audio/mpeg"]').first();
+    const ukAudioSource = $('.uk.dpron-i source[type="audio/mpeg"]').first();
+    const usAudioUrl = usAudioSource.attr('src')
+        ? 'https://dictionary.cambridge.org' + usAudioSource.attr('src')
+        : '';
+    const ukAudioUrl = ukAudioSource.attr('src')
+        ? 'https://dictionary.cambridge.org' + ukAudioSource.attr('src')
+        : '';
+
+    if (entries.length === 0) return null;
+
+    return {
+        word,
+        pos,
+        phonetic: phonetic ? `/${phonetic}/` : '',
+        definition: entries[0].definition,
+        translation: entries[0].translation,
+        example: entries[0].example,
+        entries,
+        audioUrl: usAudioUrl || ukAudioUrl,
+        usAudioUrl,
+        ukAudioUrl,
+        source: 'Cambridge'
+    };
+};
+
+export const scrapeYahoo = async (word) => {
+    try {
+        // Use the dictionary subdomain which has a cleaner layout and doesn't treat "apple" as a company
+        const url = `https://tw.dictionary.search.yahoo.com/search?p=${encodeURIComponent(word)}`;
+
+        // Use a standard browser User-Agent
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Yahoo scraper error:', response.status, response.statusText);
+            return {
+                source: 'Yahoo',
+                word,
+                entries: []
+            };
+        }
+
+        const html = await response.text();
+        const $ = cheerio.load(html);
+        const entries = [];
+        const seenDefinitions = new Set();
+
+        // Target the main dictionary card
+        // Specific class found: .dictionaryWordCard
+        const dictionaryCard = $('.dictionaryWordCard').first();
+
+        if (dictionaryCard.length > 0) {
+            // Extract simple definitions from the compList
+            const listItems = dictionaryCard.find('.compList > ul > li');
+
+            listItems.each((i, el) => {
+                const $el = $(el);
+
+                // Extract POS from .pos_button
+                const pos = $el.find('.pos_button').text().trim();
+
+                // Extract definition from .dictionaryExplanation
+                const defText = $el.find('.dictionaryExplanation').text().trim();
+
+                if (defText) {
+                    // Split by semicolon for separate meanings if desired, 
+                    // but for now keeping it as one string per POS often matches user expectation for a summary.
+                    const meanings = defText.split(';').map(s => s.trim()).filter(Boolean);
+
+                    meanings.forEach(meaning => {
+                        // Create a unique key to prevent exact duplicates
+                        const uniqueKey = `${pos}-${meaning}`;
+
+                        if (!seenDefinitions.has(uniqueKey)) {
+                            seenDefinitions.add(uniqueKey);
+                            entries.push({
+                                definition: meaning,
+                                translation: '', // Frontend displays both definition and translation, avoid duplication since definition is already Chinese
+                                example: '',
+                                examples: [],
+                                pos: pos || 'unknown'
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Fallback: generic .dd.card if specific structure fails
+        if (entries.length === 0) {
+            const fallbackCard = $('.dd.card').first();
+            if (fallbackCard.length > 0) {
+                fallbackCard.find('.compList > ul > li').each((i, el) => {
+                    const text = $(el).text().trim();
+                    const spaceIdx = text.indexOf(' ');
+                    if (spaceIdx > 0) {
+                        const pos = text.substring(0, spaceIdx).trim();
+                        const def = text.substring(spaceIdx).trim();
+                        if (pos && def && !seenDefinitions.has(def)) {
+                            seenDefinitions.add(def);
+                            entries.push({
+                                definition: def,
+                                translation: '', // Avoid duplication
+                                example: '',
+                                examples: [],
+                                pos: pos
+                            });
+                        }
+                    }
+                });
+            }
+        }
+
+        const audioUrl = `https://s.yimg.com/bg/dict/dreye/live/f/${encodeURIComponent(word).toLowerCase()}.mp3`;
+
+        return {
+            word,
+            pos: entries.length > 0 ? entries[0].pos : 'unknown',
+            phonetic: '',
+            definition: entries.length > 0 ? entries[0].definition : '',
+            translation: '', // Top level translation also empty
+            example: '',
+            entries,
+            audioUrl: audioUrl,
+            usAudioUrl: '',
+            ukAudioUrl: '',
+            source: 'Yahoo'
+        };
+    } catch (error) {
+        console.warn("Yahoo scraping failed", error);
+        return {
+            source: 'Yahoo',
+            word,
+            entries: []
+        };
+    }
+};
+
+export const scrapeGoogleTranslate = async (word) => {
+    try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&dt=bd&q=${encodeURIComponent(word)}`;
+
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+        });
+
+        if (!response.ok) {
+            console.error('Google Translate API error:', response.status, response.statusText);
+            return null;
+        }
+
+        const data = await response.json();
+
+        // data[0][0][0] contains the primary translation
+        const primaryTranslation = data[0]?.[0]?.[0];
+
+        if (!primaryTranslation) {
+            return null;
+        }
+
+        const entries = [];
+        const seenDefinitions = new Set();
+
+        // data[1] contains distinct parts of speech and their translations
+        // Structure: [ [ "noun", [ "銀行", "岸", ... ], [ [ "銀行", [ "bank" ] ], ... ], ... ], [ "verb", ... ] ]
+        const extraDefinitions = data[1];
+
+        if (Array.isArray(extraDefinitions)) {
+            extraDefinitions.forEach(posBlock => {
+                const pos = posBlock[0]; // e.g. "noun"
+                const terms = posBlock[1]; // e.g. ["銀行", "岸", ...]
+
+                if (Array.isArray(terms)) {
+                    terms.forEach(term => {
+                        if (!seenDefinitions.has(term)) {
+                            seenDefinitions.add(term);
+                            entries.push({
+                                definition: term,
+                                translation: '', // definition is in Chinese already
+                                example: '',
+                                examples: [],
+                                pos: pos
+                            });
+                        }
+                    });
+                }
+            });
+        }
+
+        // Fallback: if no dictionary entries found (e.g. simple phrase), use primary translation
+        if (entries.length === 0) {
+            entries.push({
+                definition: primaryTranslation,
+                translation: '',
+                example: '',
+                examples: [],
+                pos: 'unknown'
+            });
+        }
+
+        return {
+            word,
+            pos: entries.length > 0 ? entries[0].pos : 'unknown',
+            phonetic: '',
+            definition: primaryTranslation,
+            translation: '',
+            example: '',
+            entries: entries,
+            audioUrl: '',
+            usAudioUrl: '',
+            ukAudioUrl: '',
+            source: 'Google Translate'
+        };
+
+    } catch (error) {
+        console.warn("Google Translate API failed", error);
+        return null;
+    }
+};

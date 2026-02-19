@@ -39,9 +39,11 @@ const ReviewFoldersSelector = ({
         // result.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
         // For now, we rely on parent's sort for 'default' or assume sortedFolders is adequate if no specific sort 
         // actually, let's implement it if data is available, otherwise allow fallback
-        if (sortedFolders[0]?.created_at) {
-          result.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
-        }
+        result.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0);
+          const dateB = new Date(b.created_at || 0);
+          return dateB - dateA;
+        });
         break;
     }
     return result;

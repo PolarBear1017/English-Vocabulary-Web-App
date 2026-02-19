@@ -51,11 +51,21 @@ const ReviewPage = () => {
 
     const activeTab = navState.activeTab;
 
-    const dueCount = useMemo(() => {
-        return libraryState.vocabData.filter(word => new Date(word.nextReview) <= new Date()).length;
-    }, [libraryState.vocabData]);
+    const filteredWords = useMemo(() => {
+        const { selectedReviewFolders } = reviewState;
+        if (!selectedReviewFolders || selectedReviewFolders.includes('all')) {
+            return libraryState.vocabData;
+        }
+        return libraryState.vocabData.filter(word =>
+            word.folderIds && word.folderIds.some(id => selectedReviewFolders.includes(id))
+        );
+    }, [libraryState.vocabData, reviewState.selectedReviewFolders]);
 
-    const totalWords = libraryState.vocabData.length;
+    const dueCount = useMemo(() => {
+        return filteredWords.filter(word => new Date(word.nextReview) <= new Date()).length;
+    }, [filteredWords]);
+
+    const totalWords = filteredWords.length;
 
     if (activeTab === 'review_session') {
         return (
@@ -72,6 +82,20 @@ const ReviewPage = () => {
         );
     }
 
+    const foldersWithStats = useMemo(() => {
+        if (!libraryState.folders || !libraryDerived?.index?.statsByFolderId) {
+            return libraryState.folders || [];
+        }
+        return libraryState.folders.map(folder => {
+            const stats = libraryDerived.index.statsByFolderId[folder.id];
+            return {
+                ...folder,
+                wordCount: stats?.count || 0,
+                dueCount: stats?.dueCount || 0
+            };
+        });
+    }, [libraryState.folders, libraryDerived?.index?.statsByFolderId]);
+
     return (
         <ReviewSetup
             {...reviewState}
@@ -79,7 +103,7 @@ const ReviewPage = () => {
             {...reviewActions}
             dueCount={dueCount}
             totalWords={totalWords}
-            sortedFolders={libraryState.folders}
+            sortedFolders={foldersWithStats}
             allFolderIds={libraryDerived?.index?.allFolderIds || []}
         />
     );

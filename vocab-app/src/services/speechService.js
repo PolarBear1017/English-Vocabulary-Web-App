@@ -93,8 +93,9 @@ const playAudioWithContext = async (url, options = {}) => {
   // Notify that playback is starting
   notifyListeners('play', { source: audioSource });
 
-  // Use HTML5 Audio by default for pitch preservation
-  // This is much simpler and supports changing speed without changing pitch
+  // Use Web Audio API by default instead of HTML5 Audio.
+  // Although we lose native pitch preservation on speed changes, 
+  // this prevents the app from pausing background music (e.g., Spotify) on mobile devices.
   try {
     // Determine if we need to proxy the request
     // If it's an external URL (starts with http), use the proxy
@@ -103,58 +104,46 @@ const playAudioWithContext = async (url, options = {}) => {
       playUrl = `/api/proxy-audio?url=${encodeURIComponent(url)}`;
     }
 
-    const audio = new Audio(playUrl);
-
     // Resume AudioContext if suspended (for mobile rules)
-    // Even if we use HTML5 Audio, having the context running helps on some mobile browsers
     const ctx = getAudioContext();
     if (ctx && ctx.state === 'suspended') {
-      ctx.resume().catch(() => { });
+      await ctx.resume().catch(() => { });
     }
 
-    currentAudioElement = audio;
-
-    audio.playbackRate = rate;
-    // explicit preservation (default is true usually)
-    if (audio.preservesPitch !== undefined) {
-      audio.preservesPitch = true;
-    } else if (audio.mozPreservesPitch !== undefined) {
-      audio.mozPreservesPitch = true;
-    } else if (audio.webkitPreservesPitch !== undefined) {
-      audio.webkitPreservesPitch = true;
+    // Fetch and decode audio
+    const response = await fetch(playUrl);
+    if (!response.ok) {
+      throw new Error(`Network response was not ok: ${response.status}`);
     }
+    const arrayBuffer = await response.arrayBuffer();
+    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
 
-    // Safety timeout: if audio takes too long to start or play (e.g. 30s limit), force end
-    // This prevents indefinite hanging on network issues
+    const sourceNode = ctx.createBufferSource();
+    sourceNode.buffer = audioBuffer;
+    sourceNode.playbackRate.value = rate;
+
+    currentSource = sourceNode;
+
+    // Safety timeout: calculate duration based on buffer and rate
+    const durationMs = (audioBuffer.duration * 1000) / rate;
     const safetyTimeout = setTimeout(() => {
       console.warn("Audio playback timed out, forcing onEnd");
-      if (currentAudioElement === audio) {
-        currentAudioElement = null;
+      if (currentSource === sourceNode) {
+        currentSource = null;
         if (onEnd) onEnd();
       }
-    }, 30000);
+    }, durationMs + 2000); // 2 second buffer
 
-    // Add error listener
-    audio.onerror = (err) => {
+    sourceNode.onended = () => {
       clearTimeout(safetyTimeout);
-      console.error("Audio playback failed:", err);
-      currentAudioElement = null;
-      if (onPlaybackFailed) {
-        onPlaybackFailed();
-      } else {
+      if (currentSource === sourceNode) {
+        currentSource = null;
         if (onEnd) onEnd();
       }
     };
 
-    audio.onended = () => {
-      clearTimeout(safetyTimeout);
-      if (currentAudioElement === audio) {
-        currentAudioElement = null;
-        if (onEnd) onEnd();
-      }
-    };
-
-    await audio.play();
+    sourceNode.connect(ctx.destination);
+    sourceNode.start(0);
   } catch (err) {
     console.error("Playback error:", err);
     if (onPlaybackFailed) {

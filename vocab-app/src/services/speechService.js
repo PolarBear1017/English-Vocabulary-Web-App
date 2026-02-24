@@ -93,12 +93,9 @@ const playAudioWithContext = async (url, options = {}) => {
   // Notify that playback is starting
   notifyListeners('play', { source: audioSource });
 
-  // Use Web Audio API by default instead of HTML5 Audio.
-  // Although we lose native pitch preservation on speed changes, 
-  // this prevents the app from pausing background music (e.g., Spotify) on mobile devices.
+  // Use Web Audio API for everything to prevent pausing background music (e.g., Spotify) on mobile devices.
   try {
     // Determine if we need to proxy the request
-    // If it's an external URL (starts with http), use the proxy
     let playUrl = url;
     if (url.startsWith('http')) {
       playUrl = `/api/proxy-audio?url=${encodeURIComponent(url)}`;
@@ -116,16 +113,155 @@ const playAudioWithContext = async (url, options = {}) => {
       throw new Error(`Network response was not ok: ${response.status}`);
     }
     const arrayBuffer = await response.arrayBuffer();
-    const audioBuffer = await ctx.decodeAudioData(arrayBuffer);
+    const originalBuffer = await ctx.decodeAudioData(arrayBuffer);
+
+    let audioBufferToPlay = originalBuffer;
+
+    // Pitch-preserving Time-Stretching
+    // If rate is not 1.0, we manually process the buffer to stretch time without affecting pitch using soundtouchjs.
+    if (rate !== 1.0) {
+      try {
+        // Import SoundTouch dynamically
+        const { SoundTouch, SimpleFilter, WebAudioBufferSource } = await import('soundtouchjs');
+
+        const soundTouch = new SoundTouch(ctx.sampleRate);
+        soundTouch.tempo = rate;
+        // Do NOT set rate or pitch here, letting it default to 1.0 internally
+
+        // Use the library's official WebAudioBufferSource which natively handles stereo extraction correctly
+        const source = new WebAudioBufferSource(originalBuffer);
+        const filter = new SimpleFilter(source, soundTouch);
+
+        // Pre-calculate the exact needed length for the new buffer
+        const expectedDuration = originalBuffer.duration / rate;
+        const expectedFrames = Math.ceil(expectedDuration * ctx.sampleRate);
+
+        // Create a new buffer to hold the stretched audio
+        let stretchedBuffer = ctx.createBuffer(
+          originalBuffer.numberOfChannels,
+          expectedFrames,
+          ctx.sampleRate
+        );
+
+        // We process the audio in chunks until it's fully stretched into the new buffer
+        const chunkSize = 8192;
+        let framesExtracted = 0;
+        let totalExtracted = 0;
+        const channels = originalBuffer.numberOfChannels;
+        const outputData = new Float32Array(chunkSize * 2); // SoundTouch JS filter.extract expects interleaved L/R (always length*2 array)
+
+        // Safety limit to prevent infinite loops 
+        const MAX_ITERATIONS = Math.ceil(expectedFrames / chunkSize) * 3;
+        let iterations = 0;
+
+        while (totalExtracted < expectedFrames && iterations < MAX_ITERATIONS) {
+          iterations++;
+          const framesToExtract = Math.min(chunkSize, expectedFrames - totalExtracted);
+
+          // SoundTouch JS extract puts stereo interleaved data into outputData even if it's mono
+          framesExtracted = filter.extract(outputData, framesToExtract);
+
+          if (framesExtracted === 0) {
+            break;
+          }
+
+          // De-interleave and copy to output buffer
+          if (channels === 2) {
+            const leftData = stretchedBuffer.getChannelData(0);
+            const rightData = stretchedBuffer.getChannelData(1);
+            for (let i = 0; i < framesExtracted; i++) {
+              leftData[totalExtracted + i] = outputData[i * 2];
+              rightData[totalExtracted + i] = outputData[i * 2 + 1];
+            }
+          } else {
+            const channelData = stretchedBuffer.getChannelData(0);
+            for (let i = 0; i < framesExtracted; i++) {
+              channelData[totalExtracted + i] = outputData[i * 2]; // For mono, it still acts like stereo under the hood, so grab first channel
+            }
+          }
+
+          totalExtracted += framesExtracted;
+        }
+
+        // Validate extraction
+        if (totalExtracted > 0) {
+          if (totalExtracted < expectedFrames) {
+            const slicedBuffer = ctx.createBuffer(channels, totalExtracted, ctx.sampleRate);
+            for (let c = 0; c < channels; c++) {
+              slicedBuffer.getChannelData(c).set(stretchedBuffer.getChannelData(c).subarray(0, totalExtracted));
+            }
+            audioBufferToPlay = slicedBuffer;
+          } else {
+            audioBufferToPlay = stretchedBuffer;
+          }
+        } else {
+          console.warn("SoundTouchJS extracted 0 frames. Falling back to original audio.");
+          // Keep audioBufferToPlay as originalBuffer, fallback to modifying playbackRate natively
+          const sourceNode = ctx.createBufferSource();
+          sourceNode.buffer = originalBuffer;
+          sourceNode.playbackRate.value = rate;
+          currentSource = sourceNode;
+
+          const durationMs = (originalBuffer.duration * 1000) / rate;
+          const safetyTimeout = setTimeout(() => {
+            if (currentSource === sourceNode) {
+              currentSource = null;
+              if (onEnd) onEnd();
+            }
+          }, durationMs + 2000);
+
+          sourceNode.onended = () => {
+            clearTimeout(safetyTimeout);
+            if (currentSource === sourceNode) {
+              currentSource = null;
+              if (onEnd) onEnd();
+            }
+          };
+
+          sourceNode.connect(ctx.destination);
+          sourceNode.start(0);
+          return; // Exit early since we handled fallback playback natively
+        }
+      } catch (err) {
+        console.error("SoundTouchJS Time-Stretching Failed:", err);
+        // Fallback to original buffer with native playback rate if stretching fails entirely
+        const sourceNode = ctx.createBufferSource();
+        sourceNode.buffer = originalBuffer;
+        sourceNode.playbackRate.value = rate;
+        currentSource = sourceNode;
+
+        const durationMs = (originalBuffer.duration * 1000) / rate;
+        const safetyTimeout = setTimeout(() => {
+          if (currentSource === sourceNode) {
+            currentSource = null;
+            if (onEnd) onEnd();
+          }
+        }, durationMs + 2000);
+
+        sourceNode.onended = () => {
+          clearTimeout(safetyTimeout);
+          if (currentSource === sourceNode) {
+            currentSource = null;
+            if (onEnd) onEnd();
+          }
+        };
+
+        sourceNode.connect(ctx.destination);
+        sourceNode.start(0);
+        return; // Exit early
+      }
+    }
 
     const sourceNode = ctx.createBufferSource();
-    sourceNode.buffer = audioBuffer;
-    sourceNode.playbackRate.value = rate;
+    sourceNode.buffer = audioBufferToPlay;
+
+    // We already stretched the audio buffer itself, so playbackRate remains 1.0
+    sourceNode.playbackRate.value = 1.0;
 
     currentSource = sourceNode;
 
-    // Safety timeout: calculate duration based on buffer and rate
-    const durationMs = (audioBuffer.duration * 1000) / rate;
+    // Safety timeout: calculate duration based on buffer (it's already adjusted if stretched)
+    const durationMs = audioBufferToPlay.duration * 1000;
     const safetyTimeout = setTimeout(() => {
       console.warn("Audio playback timed out, forcing onEnd");
       if (currentSource === sourceNode) {

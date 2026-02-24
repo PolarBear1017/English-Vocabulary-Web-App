@@ -22,6 +22,7 @@
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
+    "soundtouchjs": "^0.3.0",
     "ts-fsrs": "^4.6.2",
     "use-long-press": "^3.3.0"
   },

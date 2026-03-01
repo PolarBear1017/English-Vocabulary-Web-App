@@ -192,7 +192,17 @@ export const scrapeYahoo = async (word) => {
             }
         }
 
-        const audioUrl = `https://s.yimg.com/bg/dict/dreye/live/f/${encodeURIComponent(word).toLowerCase()}.mp3`;
+        let usAudioUrl = '';
+        let ukAudioUrl = '';
+        let audioUrl = '';
+
+        const audioUrlMatches = html.match(/https:\/\/[\w.-]+\.yimg\.com\/bg\/dict\/[^"]+\.mp3/g);
+        if (audioUrlMatches && audioUrlMatches.length > 0) {
+            const uniqueAudioUrls = [...new Set(audioUrlMatches)];
+            usAudioUrl = uniqueAudioUrls.find(url => url.includes('_us_')) || uniqueAudioUrls[0];
+            ukAudioUrl = uniqueAudioUrls.find(url => url.includes('_gb_')) || '';
+            audioUrl = usAudioUrl; // Use the found URL as the primary one
+        }
 
         return {
             word,
@@ -203,8 +213,8 @@ export const scrapeYahoo = async (word) => {
             example: '',
             entries,
             audioUrl: audioUrl,
-            usAudioUrl: '',
-            ukAudioUrl: '',
+            usAudioUrl: usAudioUrl,
+            ukAudioUrl: ukAudioUrl,
             source: 'Yahoo'
         };
     } catch (error) {

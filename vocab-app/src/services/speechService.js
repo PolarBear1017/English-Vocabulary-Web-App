@@ -419,14 +419,10 @@ const getAudioUrl = (word, priorityList = ['us', 'uk', 'google', 'general']) => 
         }
         break;
       case 'yahoo':
-        // Yahoo audio might be in audioUrl if source was Yahoo, 
-        // OR we can construct it dynamically if not present but needed
-        if (word.source === 'Yahoo' && word.audioUrl) {
+        // Yahoo audio might be in audioUrl if source was Yahoo.
+        // Ignore old 'dreye' urls since they are likely broken 403s.
+        if (word.source === 'Yahoo' && word.audioUrl && !word.audioUrl.includes('dreye/live')) {
           return word.audioUrl;
-        }
-        // Fallback: construct it dynamically if we just have the word
-        if (word.word) {
-          return `https://s.yimg.com/bg/dict/dreye/live/f/${encodeURIComponent(word.word).toLowerCase()}.mp3`;
         }
         break;
       default:

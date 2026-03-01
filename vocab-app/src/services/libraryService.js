@@ -56,7 +56,6 @@ const fetchUserLibrary = async (userId) => {
         pos,
         phonetic,
         example,
-        mnemonics,
         audio_url,
         us_audio_url,
         uk_audio_url

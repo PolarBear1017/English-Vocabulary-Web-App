@@ -14,17 +14,22 @@ const normalizeSelectedDefinitions = (raw) => {
       return null;
     }
   }
-  return null;
 };
 
 const mapLibraryRowToWord = (item) => {
   const normalizedFolderIds = (() => {
     // 1. Try to read from the new Junction Table (Relation)
-    if (item.library_folder_map && Array.isArray(item.library_folder_map)) {
-      const ids = item.library_folder_map
-        .map(ref => ref.folder_id?.toString())
-        .filter(Boolean);
-      if (ids.length > 0) return ids;
+    if (item.library_folder_map) {
+      if (Array.isArray(item.library_folder_map)) {
+        const ids = item.library_folder_map
+          .map(ref => ref.folder_id?.toString())
+          .filter(Boolean);
+        if (ids.length > 0) return ids;
+      } else if (typeof item.library_folder_map === 'object') {
+        // Fallback for object-type response if relationship is 1-to-1 somehow
+        const folderIdStr = item.library_folder_map.folder_id?.toString();
+        if (folderIdStr) return [folderIdStr];
+      }
     }
 
     // 2. Fallback: Single folder_id (Legacy - if still populated via joins)

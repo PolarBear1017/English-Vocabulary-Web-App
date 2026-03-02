@@ -148,7 +148,7 @@ const useWordStorage = ({
 
       try {
         const { data, error } = await saveWordWithPreferences({
-          wordData: searchResult,
+          wordData: existingWord ? { ...existingWord, source: searchResult.source, isAiGenerated: searchResult.isAiGenerated } : searchResult,
           userId: session.user.id,
           folderId: normalizedFolderId,
           selectedDefinitions

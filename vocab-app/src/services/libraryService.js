@@ -42,28 +42,49 @@ const updateFolder = async ({ folderId, name, description, userId }) => {
 };
 
 const fetchUserLibrary = async (userId) => {
-  return supabase
-    .from('user_library')
-    .select(`
-      *,
-      library_folder_map (
-        folder_id
-      ),
-      dictionary (
-        word,
-        definition,
-        translation,
-        pos,
-        phonetic,
-        example,
-        audio_url,
-        us_audio_url,
-        uk_audio_url
-      )
-    `)
-    .eq('user_id', userId)
-    .order('created_at', { ascending: false })
-    .limit(20000);
+  const allData = [];
+  const pageSize = 1000;
+  let from = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const { data, error } = await supabase
+      .from('user_library')
+      .select(`
+        *,
+        library_folder_map (
+          folder_id
+        ),
+        dictionary (
+          word,
+          definition,
+          translation,
+          pos,
+          phonetic,
+          example,
+          audio_url,
+          us_audio_url,
+          uk_audio_url
+        )
+      `)
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .range(from, from + pageSize - 1);
+
+    if (error) throw error;
+
+    if (data && data.length > 0) {
+      allData.push(...data);
+      from += pageSize;
+      if (data.length < pageSize) {
+        hasMore = false;
+      }
+    } else {
+      hasMore = false;
+    }
+  }
+
+  return { data: allData, error: null };
 };
 
 const fetchDictionaryWord = async (word) => {

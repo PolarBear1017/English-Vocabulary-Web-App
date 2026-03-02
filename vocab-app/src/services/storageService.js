@@ -34,7 +34,11 @@ const readJSON = (key, fallback) => {
 };
 
 const writeJSON = (key, value) => {
-  localStorage.setItem(key, JSON.stringify(value));
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+  } catch (error) {
+    console.warn(`Failed to write JSON for key ${key} to localStorage:`, error);
+  }
 };
 
 const readString = (key, fallback = '') => {
@@ -43,7 +47,11 @@ const readString = (key, fallback = '') => {
 };
 
 const writeString = (key, value) => {
-  localStorage.setItem(key, value);
+  try {
+    localStorage.setItem(key, value);
+  } catch (error) {
+    console.warn(`Failed to write string for key ${key} to localStorage:`, error);
+  }
 };
 
 const loadCachedFolders = () => readJSON(STORAGE_KEYS.folders, [{ id: 'default', name: '預設資料夾', words: [] }]);

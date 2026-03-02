@@ -1,2 +1,7 @@
 .vercel
 .env*.local
+node_modules_old_2/
+vocab-app_new/
+test_write.txt
+node_modules/
+.DS_Store

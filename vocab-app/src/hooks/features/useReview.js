@@ -46,7 +46,11 @@ const useReview = ({
   });
 
   useEffect(() => {
-    localStorage.setItem('review_selected_folders', JSON.stringify(selectedReviewFolders));
+    try {
+      localStorage.setItem('review_selected_folders', JSON.stringify(selectedReviewFolders));
+    } catch (e) {
+      console.warn('Failed to save review folders selection', e);
+    }
   }, [selectedReviewFolders]);
   const [reviewSetupView, setReviewSetupView] = useState('main');
   const processRatingRef = useRef(null);

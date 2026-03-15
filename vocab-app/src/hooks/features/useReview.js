@@ -115,31 +115,62 @@ const useReview = ({
     const now = new Date();
     const rolloverCutoff = new Date(now);
     rolloverCutoff.setHours(24, 0, 0, 0);
-    const dueWords = words
-      .filter(word => isReviewDue(word.nextReview, rolloverCutoff))
-      .sort((a, b) => getReviewTimestamp(a.nextReview) - getReviewTimestamp(b.nextReview));
 
-    if (dueWords.length >= batchSize) {
-      return dueWords.slice(0, batchSize);
+    const dueWords = [];
+    const newWords = [];
+    const notDueWords = [];
+
+    // Categorize words
+    words.forEach(word => {
+      const isNew = (word.proficiencyScore || 0) === 0;
+      if (isNew) {
+        newWords.push(word);
+      } else if (isReviewDue(word.nextReview, rolloverCutoff)) {
+        dueWords.push(word);
+      } else {
+        notDueWords.push(word);
+      }
+    });
+
+    // Sort by review priority
+    dueWords.sort((a, b) => getReviewTimestamp(a.nextReview) - getReviewTimestamp(b.nextReview));
+    notDueWords.sort((a, b) => getReviewTimestamp(a.nextReview, Number.MAX_SAFE_INTEGER) - getReviewTimestamp(b.nextReview, Number.MAX_SAFE_INTEGER));
+
+    const combined = [];
+
+    // 1. Allocate up to ~30% for new words
+    const idealNewWordsCount = Math.floor(batchSize * 0.3);
+    const actualNewWordsToPick = Math.min(newWords.length, idealNewWordsCount);
+
+    for (let i = 0; i < actualNewWordsToPick; i++) {
+      combined.push(newWords.shift());
     }
 
-    const slotsNeeded = batchSize - dueWords.length;
-    const dueIds = new Set(dueWords.map(word => word.id));
-    const newWords = words.filter(word => (word.proficiencyScore || 0) === 0 && !dueIds.has(word.id));
-    const fillNewWords = newWords.slice(0, slotsNeeded);
-    const selectedIds = new Set([...dueWords, ...fillNewWords].map(word => word.id));
-    const remainingSlots = slotsNeeded - fillNewWords.length;
-
-    let fillNotDue = [];
-    if (remainingSlots > 0) {
-      fillNotDue = words
-        .filter(word => !isReviewDue(word.nextReview, rolloverCutoff) && !selectedIds.has(word.id))
-        .sort((a, b) => getReviewTimestamp(a.nextReview, Number.MAX_SAFE_INTEGER)
-          - getReviewTimestamp(b.nextReview, Number.MAX_SAFE_INTEGER))
-        .slice(0, remainingSlots);
+    // 2. Fill available remaining slots with due words
+    const remainingSlots1 = batchSize - combined.length;
+    const actualDueWordsToPick = Math.min(dueWords.length, remainingSlots1);
+    for (let i = 0; i < actualDueWordsToPick; i++) {
+      combined.push(dueWords.shift());
     }
 
-    const combined = [...dueWords, ...fillNewWords, ...fillNotDue].slice(0, batchSize);
+    // 3. Fill any remaining empty slots using leftover new words, then not due words
+    const remainingSlots2 = batchSize - combined.length;
+    if (remainingSlots2 > 0) {
+      const leftoverNewToPick = Math.min(newWords.length, remainingSlots2);
+      for (let i = 0; i < leftoverNewToPick; i++) {
+        combined.push(newWords.shift());
+      }
+
+      const slotsLeftForNotDue = batchSize - combined.length;
+      if (slotsLeftForNotDue > 0) {
+        const notDueToPick = Math.min(notDueWords.length, slotsLeftForNotDue);
+        for (let i = 0; i < notDueToPick; i++) {
+          combined.push(notDueWords.shift());
+        }
+      }
+    }
+
+    // Shuffle the batch
     for (let i = combined.length - 1; i > 0; i -= 1) {
       const j = Math.floor(Math.random() * (i + 1));
       [combined[i], combined[j]] = [combined[j], combined[i]];

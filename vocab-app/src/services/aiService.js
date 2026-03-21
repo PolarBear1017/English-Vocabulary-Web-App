@@ -158,33 +158,52 @@ const formatEtymology = (data) => {
   return parts.join('\n\n');
 };
 
+const getStructuredDetails = (data) => {
+  if (!data) return null;
+  const memoryZone = data.memoryZone || data;
+  if (memoryZone.prefix || memoryZone.root || memoryZone.suffix) {
+    return {
+      prefix: memoryZone.prefix || '',
+      prefixMeaning: memoryZone.prefixMeaning || '',
+      root: memoryZone.root || '',
+      rootMeaning: memoryZone.rootMeaning || '',
+      suffix: memoryZone.suffix || '',
+      suffixMeaning: memoryZone.suffixMeaning || '',
+    };
+  }
+  return null;
+};
+
 const normalizeMnemonic = (data) => {
   if (!data) {
     return { method: 'Etymology', content: '' };
   }
 
   let structuredData = data;
-  // Try to parse if it's nested JSON string in mnemonics or data itself
   if (typeof data === 'string' && data.trim().startsWith('{')) {
     try { structuredData = JSON.parse(data); } catch (e) { }
   } else if (data.mnemonics && typeof data.mnemonics === 'string' && data.mnemonics.trim().startsWith('{')) {
     try { structuredData = JSON.parse(data.mnemonics); } catch (e) { }
   }
 
+  const details = getStructuredDetails(structuredData);
+
   const formatted = formatEtymology(structuredData);
   if (formatted) {
     const method = data.method || data.strategy || 'Etymology';
-    return { method, content: formatted };
+    return { method, content: formatted, details };
   }
 
   if (typeof data === 'string') {
-    return { method: 'Etymology', content: data.trim() };
+    return { method: 'Etymology', content: data.trim(), details: null };
   }
   if (typeof data.mnemonics === 'string') {
-    return { method: 'Etymology', content: data.mnemonics.trim() };
+    return { method: 'Etymology', content: data.mnemonics.trim(), details: null };
   }
   const content = data.content
-    || data.memoryZone
+    || data.story
+    || data.memoryZone?.story
+    || (typeof data.memoryZone === 'string' ? data.memoryZone : '')
     || data.memoryZoneContent
     || data.memory_aid
     || data['memory aid']
@@ -193,7 +212,7 @@ const normalizeMnemonic = (data) => {
   const fallback = data.rawText || data.raw || '';
 
   const finalContent = safeString(content || fallback);
-  return { method, content: finalContent.trim() };
+  return { method, content: finalContent.trim(), details };
 };
 
 const fetchDefinition = async ({ groqKey, word }) => {

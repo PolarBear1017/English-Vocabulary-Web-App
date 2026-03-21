@@ -5,3 +5,4 @@ vocab-app_new/
 test_write.txt
 node_modules/
 .DS_Store
+supabase/.temp/

@@ -45,7 +45,15 @@ If you need quotation marks, use fullwidth brackets like 「」 or 『』 instea
   "translation": "核心定義（可用繁體中文簡述）",
   "examples": ["Example sentence 1", "Example sentence 2"],
   "practicalTips": "常見搭配或使用情境（繁中）",
-  "memoryZone": "拆解字根/字首/字尾並以繁中解釋記憶法"
+  "memoryZone": {
+    "prefix": "字首或無 (格式: prefix-)",
+    "prefixMeaning": "字首意思",
+    "root": "字根",
+    "rootMeaning": "字根意思",
+    "suffix": "字尾或無 (格式: -suffix)",
+    "suffixMeaning": "字尾意思",
+    "story": "拆解字根/字首/字尾並以繁中解釋記憶法"
+  }
 }`;
 
 const buildMnemonicPrompt = (word: string, definition: string) => `
@@ -60,8 +68,14 @@ Return ONLY a valid JSON object (no markdown) with this key.
 IMPORTANT: Output must be valid JSON. Do NOT include any unescaped double quotes inside string values.
 If you need quotation marks, use fullwidth brackets like 「」 or 『』 instead of ".
 {
-  "method": "方法名稱 (例如: Etymology)",
-  "content": "用繁體中文。請包含字根/字首/字尾拆解 + 連結記憶的有趣或合理聯想。"
+  "method": "字根字首記憶法",
+  "prefix": "字首或無",
+  "prefixMeaning": "字首意思",
+  "root": "字根",
+  "rootMeaning": "字根意思",
+  "suffix": "字尾或無",
+  "suffixMeaning": "字尾意思",
+  "content": "連結記憶的有趣或合理聯想故事（必填）"
 }`;
 
 const buildStoryPrompt = (words: string[]) => `

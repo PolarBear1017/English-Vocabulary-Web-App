@@ -5,10 +5,16 @@ const SearchMnemonic = ({ mnemonics, groqApiKey, aiLoading, onGenerate }) => {
   const displayText = useMemo(() => {
     if (!mnemonics) return '';
     if (typeof mnemonics === 'string') return mnemonics;
-    const method = mnemonics.method ? `方法：${mnemonics.method}` : '';
     const content = mnemonics.content || '';
-    return [method, content].filter(Boolean).join('\n');
+    return content;
   }, [mnemonics]);
+
+  const methodText = useMemo(() => {
+    if (!mnemonics || typeof mnemonics === 'string') return '';
+    return mnemonics.method || '';
+  }, [mnemonics]);
+
+  const details = mnemonics?.details;
 
   return (
     <div className="bg-gradient-to-r from-purple-50 to-indigo-50 p-5 rounded-xl border border-purple-100 relative group">
@@ -36,9 +42,38 @@ const SearchMnemonic = ({ mnemonics, groqApiKey, aiLoading, onGenerate }) => {
         )}
       </div>
 
-      {displayText ? (
+      {displayText || details ? (
         <div className="relative">
-          <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line">{displayText}</p>
+          {methodText && <p className="text-sm font-semibold text-purple-700 mb-2">{methodText}</p>}
+          
+          {details && (
+            <div className="flex flex-wrap gap-2 mb-3">
+              {details.prefix && details.prefix !== '無' && (
+                <div className="bg-blue-100/80 text-blue-800 px-3 py-1.5 rounded-lg text-sm border border-blue-200">
+                  <span className="font-bold mr-1 block sm:inline">{details.prefix}</span>
+                  <span className="text-blue-600/80 text-xs sm:text-sm">{details.prefixMeaning}</span>
+                </div>
+              )}
+              {details.root && details.root !== '無' && (
+                <div className="bg-emerald-100/80 text-emerald-800 px-3 py-1.5 rounded-lg text-sm border border-emerald-200">
+                  <span className="font-bold mr-1 block sm:inline">{details.root}</span>
+                  <span className="text-emerald-600/80 text-xs sm:text-sm">{details.rootMeaning}</span>
+                </div>
+              )}
+              {details.suffix && details.suffix !== '無' && (
+                <div className="bg-pink-100/80 text-pink-800 px-3 py-1.5 rounded-lg text-sm border border-pink-200">
+                  <span className="font-bold mr-1 block sm:inline">{details.suffix}</span>
+                  <span className="text-pink-600/80 text-xs sm:text-sm">{details.suffixMeaning}</span>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {displayText && (
+            <p className="text-gray-700 text-sm leading-relaxed whitespace-pre-line bg-white/50 p-3 rounded-lg border border-purple-50/50">
+              {displayText}
+            </p>
+          )}
         </div>
       ) : (
         <div className="text-center py-2">

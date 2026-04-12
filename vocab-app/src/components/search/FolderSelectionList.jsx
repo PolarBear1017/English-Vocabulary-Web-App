@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { CheckCircle, Circle, FileText, Info, Plus, Search } from 'lucide-react';
+import { CheckCircle, Circle, FileText, Info, Plus, Search, ArrowUpDown } from 'lucide-react';
 
 const FolderSelectionList = ({
   folders,
@@ -15,6 +15,7 @@ const FolderSelectionList = ({
   onCreateFolder
 }) => {
   const [query, setQuery] = useState('');
+  const [folderSortBy, setFolderSortBy] = useState('created_desc');
   const [isCreating, setIsCreating] = useState(false);
   const [createValue, setCreateValue] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -102,10 +103,19 @@ const FolderSelectionList = ({
   }, [showShortcutTip]);
 
   const sortedFolders = useMemo(() => {
-    const reversed = [...(folders || [])].reverse();
+    let copy = [...(folders || [])];
+    if (folderSortBy === 'name_asc') {
+      copy.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'zh-Hant'));
+    } else {
+      if (copy.length > 0 && copy[0].created_at) {
+        copy.sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+      } else {
+        copy.reverse();
+      }
+    }
     const saved = [];
     const unsaved = [];
-    reversed.forEach((folder) => {
+    copy.forEach((folder) => {
       if (savedIdSet.has(folder.id?.toString())) {
         saved.push(folder);
       } else {
@@ -113,7 +123,7 @@ const FolderSelectionList = ({
       }
     });
     return [...saved, ...unsaved];
-  }, [folders, savedIdSet]);
+  }, [folders, savedIdSet, folderSortBy]);
 
   const filteredFolders = useMemo(() => {
     if (!normalizedQuery) return sortedFolders;
@@ -292,15 +302,28 @@ const FolderSelectionList = ({
         </div>
       </div>
 
-      <div className="relative">
-        <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-        <input
-          type="text"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="搜尋或建立資料夾..."
-          className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
-        />
+      <div className="flex items-center gap-2">
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="搜尋或建立..."
+            className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
+          />
+        </div>
+        <div className="flex items-center gap-1.5 text-sm text-gray-600 flex-shrink-0">
+          <ArrowUpDown className="w-4 h-4" />
+          <select
+            className="border border-gray-200 rounded-xl px-2 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+            value={folderSortBy}
+            onChange={(e) => setFolderSortBy(e.target.value)}
+          >
+            <option value="created_desc">最新</option>
+            <option value="name_asc">名稱 A-Z</option>
+          </select>
+        </div>
       </div>
 
       {isCreating && (

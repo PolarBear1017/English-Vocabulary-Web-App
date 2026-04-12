@@ -3,6 +3,7 @@ import { RefreshCw, ArrowUpDown, Plus, Search, X } from 'lucide-react';
 import FolderCard from './FolderCard';
 import LibraryWordDetail from './LibraryWordDetail';
 import { isWordMatch } from '../../utils/data';
+import { speak } from '../../services/speechService';
 
 const LibraryOverview = ({
   sortedFolders,
@@ -26,8 +27,8 @@ const LibraryOverview = ({
   dragHandleProps,
   entriesByFolderId,
   statsByFolderId,
-  handleDeleteWord,
-  handleEditWord
+  onRemoveWordFromFolder,
+  onSearchWord
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
   const [viewingWord, setViewingWord] = React.useState(null);
@@ -157,25 +158,24 @@ const LibraryOverview = ({
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 animate-in fade-in duration-200">
           <div className="w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="relative">
-              <button
-                onClick={() => setViewingWord(null)}
-                className="absolute right-4 top-4 z-10 p-2 bg-white/80 backdrop-blur-sm rounded-full hover:bg-white text-gray-500 hover:text-gray-700 transition"
-              >
-                <X className="w-5 h-5" />
-              </button>
               <LibraryWordDetail
                 entry={viewingWord}
+                onSpeak={speak}
                 onClose={() => setViewingWord(null)}
+                onNavigateToSearch={(word) => {
+                  if (onSearchWord) onSearchWord(word);
+                  setViewingWord(null);
+                }}
                 onDeleteWord={() => {
                   const folderId = Object.keys(entriesByFolderId).find(fid =>
                     entriesByFolderId[fid].some(w => w.id === viewingWord.id)
                   );
-                  handleDeleteWord(viewingWord, folderId);
-                  setViewingWord(null);
-                }}
-                onEditWord={() => {
-                  handleEditWord(viewingWord);
-                  setViewingWord(viewingWord);
+                  if (confirm(`確定要將 "${viewingWord.word}" 從資料庫移除嗎？`)) {
+                    if (folderId && onRemoveWordFromFolder) {
+                      onRemoveWordFromFolder(viewingWord, folderId);
+                    }
+                    setViewingWord(null);
+                  }
                 }}
               />
             </div>

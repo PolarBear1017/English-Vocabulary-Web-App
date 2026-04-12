@@ -234,6 +234,11 @@ const LibraryTab = () => {
           dragHandleProps={folderDrag.dragHandleProps}
           entriesByFolderId={index.entriesByFolderId}
           statsByFolderId={index.statsByFolderId}
+          onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
+          onSearchWord={(word) => {
+            navigation.actions.setActiveTab('search');
+            search.actions.handleSearch(word);
+          }}
         />
       ) : (
         <FolderDetail

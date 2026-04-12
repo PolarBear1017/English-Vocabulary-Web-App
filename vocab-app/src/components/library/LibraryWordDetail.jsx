@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play, X } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
@@ -14,7 +14,8 @@ const LibraryWordDetail = ({
   hasNextWord,
   onEditWord,
   onDeleteWord,
-  isPlaying = false // New prop
+  isPlaying = false,
+  onClose
 }) => {
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [tipOpen, setTipOpen] = useState(false);
@@ -155,7 +156,7 @@ const LibraryWordDetail = ({
               查看完整解釋
             </button>
           </div>
-          {(onPrevWord || onNextWord || onEditWord || onDeleteWord) && (
+          {(onPrevWord || onNextWord || onEditWord || onDeleteWord || onClose) && (
             <div className="flex items-center gap-2">
               {(onPrevWord || onNextWord) && (
                 <div className="flex items-center gap-1 mr-1">
@@ -221,6 +222,16 @@ const LibraryWordDetail = ({
                   title="刪除單字"
                 >
                   <Trash2 className="w-4 h-4" />
+                </button>
+              )}
+              {onClose && (
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
+                  title="關閉視窗"
+                >
+                  <X className="w-5 h-5" />
                 </button>
               )}
             </div>

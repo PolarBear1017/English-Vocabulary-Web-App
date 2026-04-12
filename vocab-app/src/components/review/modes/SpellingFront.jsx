@@ -13,9 +13,12 @@ const SpellingFront = ({
 }) => {
     return (
         <div className="space-y-4 w-full">
-            <div className="text-xl text-gray-600">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
+            <div className="text-xl font-bold text-gray-800">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
+            {(primaryReviewEntry.definition || currentReviewWord.definition) && (
+                <div className="text-base text-gray-600">{primaryReviewEntry.definition || currentReviewWord.definition}</div>
+            )}
             {currentReviewWord.pos && (
-                <div className="text-base text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
+                <div className="text-sm text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>
             )}
             <div className="relative w-full">
                 <input

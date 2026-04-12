@@ -8,6 +8,13 @@ import SearchMnemonic from './SearchMnemonic';
 import FolderSelectionList from './FolderSelectionList';
 import AddDefinitionModal from './AddDefinitionModal';
 
+const getEntryKey = (item) => {
+  if (!item) return '|||';
+  const def = (typeof item === 'string' ? item : item.definition || '').trim();
+  const trans = (typeof item === 'string' ? '' : item.translation || '').trim();
+  return def + '|||' + trans;
+};
+
 const SearchResultCard = ({
   searchResult,
   normalizedEntries,
@@ -39,6 +46,7 @@ const SearchResultCard = ({
   const [showDefaultTip, setShowDefaultTip] = useState(false);
   const [isSwitchingSource, setIsSwitchingSource] = useState(false);
   const [customDefinitions, setCustomDefinitions] = useState([]);
+  const [deletedCustomDefs, setDeletedCustomDefs] = useState(new Set());
   const [isAddingDefinition, setIsAddingDefinition] = useState(false);
   const isProcessingRef = useRef(false);
   const defaultTipRef = useRef(null);
@@ -48,6 +56,7 @@ const SearchResultCard = ({
     setSelectedEntryIndices(null);
     setIsSwitchingSource(false);
     setCustomDefinitions([]);
+    setDeletedCustomDefs(new Set());
   }, [searchResult?.word]);
 
   useEffect(() => {
@@ -65,55 +74,63 @@ const SearchResultCard = ({
   const selectedDefinitionSet = useMemo(() => {
     const raw = savedWordInSearch?.selectedDefinitions || savedWordInSearch?.selected_definitions;
     if (!Array.isArray(raw)) return new Set();
-    return new Set(raw
-      .map((item) => (item?.definition || '').trim())
-      .filter(Boolean));
+    return new Set(raw.map(getEntryKey).filter(k => k !== '|||'));
   }, [savedWordInSearch]);
 
   const orderedEntries = useMemo(() => {
-    const combined = [...normalizedEntries, ...customDefinitions];
+    const combined = [];
+    const existingKeys = new Set();
+    const isDeleted = (item) => deletedCustomDefs.has(getEntryKey(item));
 
-    // Also include saved definitions that are not in scraped or custom list
-    // (This handles previously saved custom definitions)
+    normalizedEntries.forEach(d => {
+       const key = getEntryKey(d);
+       if (!existingKeys.has(key)) {
+         combined.push(d);
+         existingKeys.add(key);
+       }
+    });
+
+    customDefinitions.forEach(d => {
+       const key = getEntryKey(d);
+       if (!existingKeys.has(key) && !isDeleted(d)) {
+         combined.push({ ...d, isCustom: true });
+         existingKeys.add(key);
+       }
+    });
+
+    const processSaved = (savedList) => {
+      savedList.forEach(saved => {
+        const key = getEntryKey(saved);
+        if (key !== '|||' && !existingKeys.has(key) && !isDeleted(saved)) {
+          combined.push({ ...saved, isCustom: true });
+          existingKeys.add(key);
+        }
+      });
+    };
+
     if (savedWordInSearch?.selectedDefinitions) {
-      const existingDefs = new Set(combined.map(d => (d.definition || '').trim()));
-      savedWordInSearch.selectedDefinitions.forEach(saved => {
-        const defText = (saved.definition || '').trim();
-        if (defText && !existingDefs.has(defText)) {
-          combined.push(saved);
-          existingDefs.add(defText);
-        }
-      });
+      processSaved(savedWordInSearch.selectedDefinitions);
     } else if (savedWordInSearch?.selected_definitions) {
-      // Handle legacy camelCase/snake_case if needed, though usually mapped
-      const existingDefs = new Set(combined.map(d => (d.definition || '').trim()));
-      savedWordInSearch.selected_definitions.forEach(saved => {
-        const defText = (saved.definition || '').trim();
-        if (defText && !existingDefs.has(defText)) {
-          combined.push(saved);
-          existingDefs.add(defText);
-        }
-      });
+      processSaved(savedWordInSearch.selected_definitions);
     }
 
     if (combined.length === 0) return [];
 
-    // If we have selected definitions, pin them to top
     if (selectedDefinitionSet.size === 0) return combined;
 
     const pinned = [];
     const rest = [];
 
     combined.forEach((entry) => {
-      const key = (entry.definition || '').trim();
-      if (selectedDefinitionSet.has(key)) {
+      const key = getEntryKey(entry);
+      if (selectedDefinitionSet.has(key) && key !== '|||') {
         pinned.push(entry);
       } else {
         rest.push(entry);
       }
     });
     return [...pinned, ...rest];
-  }, [normalizedEntries, selectedDefinitionSet, customDefinitions, savedWordInSearch]);
+  }, [normalizedEntries, selectedDefinitionSet, customDefinitions, savedWordInSearch, deletedCustomDefs]);
 
   const selectedEntries = useMemo(() => {
     if (orderedEntries.length === 0) return [];
@@ -123,13 +140,9 @@ const SearchResultCard = ({
 
   const hasDefinitionChanges = useMemo(() => {
     if (!savedWordInSearch) return false;
-    const currentDefs = selectedEntries
-      .map((entry) => (entry.definition || '').trim())
-      .filter(Boolean);
+    const currentDefs = selectedEntries.map(getEntryKey).filter(k => k !== '|||');
     const originalDefsRaw = savedWordInSearch.selectedDefinitions || [];
-    const originalDefs = originalDefsRaw
-      .map((item) => (typeof item === 'string' ? item : item?.definition)?.trim())
-      .filter(Boolean);
+    const originalDefs = originalDefsRaw.map(getEntryKey).filter(k => k !== '|||');
     if (currentDefs.length !== originalDefs.length) return true;
     const originalSet = new Set(originalDefs);
     for (const def of currentDefs) {
@@ -273,7 +286,7 @@ const SearchResultCard = ({
     }
     const indices = [];
     orderedEntries.forEach((entry, index) => {
-      const key = (entry.definition || '').trim();
+      const key = getEntryKey(entry);
       if (selectedDefinitionSet.has(key)) indices.push(index);
     });
     if (indices.length === 0) {
@@ -377,6 +390,16 @@ const SearchResultCard = ({
           onToggleAll={handleToggleAll}
           allSelected={selectedEntryIndices === null}
           readOnly={!isSelectingView}
+          onDeleteEntry={(entry) => {
+            setCustomDefinitions(prev => prev.filter(d => 
+              getEntryKey(d) !== getEntryKey(entry)
+            ));
+            setDeletedCustomDefs(prev => {
+              const next = new Set(prev);
+              next.add(getEntryKey(entry));
+              return next;
+            });
+          }}
         />
 
 

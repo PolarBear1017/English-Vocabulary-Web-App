@@ -25,8 +25,8 @@ const AddDefinitionModal = ({ isOpen, onClose, onConfirm }) => {
 
     const handleSubmit = (e) => {
         e.preventDefault();
-        if (!definition.trim()) {
-            setError('請輸入英文解釋');
+        if (!definition.trim() && !translation.trim()) {
+            setError('請至少輸入英文或中文解釋');
             return;
         }
 
@@ -79,7 +79,7 @@ const AddDefinitionModal = ({ isOpen, onClose, onConfirm }) => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">
-                            英文解釋 (Definition) <span className="text-red-500">*</span>
+                            英文解釋 (Definition)
                         </label>
                         <input
                             type="text"
@@ -92,7 +92,6 @@ const AddDefinitionModal = ({ isOpen, onClose, onConfirm }) => {
                             className={`w-full rounded-lg shadow-sm focus:ring-blue-500 py-2.5 ${error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
                                 }`}
                         />
-                        {error && <p className="mt-1 text-sm text-red-500">{error}</p>}
                     </div>
 
                     <div>
@@ -102,11 +101,16 @@ const AddDefinitionModal = ({ isOpen, onClose, onConfirm }) => {
                         <input
                             type="text"
                             value={translation}
-                            onChange={(e) => setTranslation(e.target.value)}
+                            onChange={(e) => {
+                                setTranslation(e.target.value);
+                                if (error) setError('');
+                            }}
                             placeholder="Ex: 蘋果"
-                            className="w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 py-2.5"
+                            className={`w-full rounded-lg shadow-sm focus:ring-blue-500 py-2.5 ${error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+                                }`}
                         />
                     </div>
+                    {error && <div className="text-sm text-red-500 mt-1">{error}</div>}
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, Volume2 } from 'lucide-react';
+import { Check, Volume2, Trash2 } from 'lucide-react';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text.jsx';
 import { speak } from '../../services/speechService';
@@ -12,7 +12,8 @@ const SearchResultEntries = ({
   onToggleEntry,
   onToggleAll,
   allSelected,
-  readOnly = false
+  readOnly = false,
+  onDeleteEntry
 }) => {
   const { state: { audioSpeed } } = useSettingsContext();
 
@@ -59,7 +60,20 @@ const SearchResultEntries = ({
               className={`relative ${baseClassName} ${interactiveClassName}`}
             >
               {!readOnly && (
-                <div className="absolute top-3 right-3">
+                <div className="absolute top-3 right-3 flex items-center gap-2">
+                  {entry.isCustom && onDeleteEntry && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteEntry(entry);
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition z-10"
+                      title="刪除此自訂解釋"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  )}
                   <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full border transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
                     }`}>
                     <Check className="w-3.5 h-3.5" />

@@ -245,14 +245,26 @@ export const scrapeGoogleTranslate = async (word) => {
         const data = await response.json();
 
         // data[0][0][0] contains the primary translation
-        const primaryTranslation = data[0]?.[0]?.[0];
+        let primaryTranslation = data[0]?.[0]?.[0];
 
         if (!primaryTranslation) {
             return null;
         }
 
+        primaryTranslation = primaryTranslation.trim();
+
         const entries = [];
         const seenDefinitions = new Set();
+
+        // 確保最優先的主翻譯不會遺漏，並且放在第一位
+        seenDefinitions.add(primaryTranslation);
+        entries.push({
+            definition: primaryTranslation,
+            translation: '',
+            example: '',
+            examples: [],
+            pos: 'unknown'
+        });
 
         // data[1] contains distinct parts of speech and their translations
         // Structure: [ [ "noun", [ "銀行", "岸", ... ], [ [ "銀行", [ "bank" ] ], ... ], ... ], [ "verb", ... ] ]
@@ -264,7 +276,8 @@ export const scrapeGoogleTranslate = async (word) => {
                 const terms = posBlock[1]; // e.g. ["銀行", "岸", ...]
 
                 if (Array.isArray(terms)) {
-                    terms.forEach(term => {
+                    terms.forEach(termRaw => {
+                        const term = termRaw.trim();
                         if (!seenDefinitions.has(term)) {
                             seenDefinitions.add(term);
                             entries.push({
@@ -274,20 +287,15 @@ export const scrapeGoogleTranslate = async (word) => {
                                 examples: [],
                                 pos: pos
                             });
+                        } else if (term === primaryTranslation) {
+                            // 若主翻譯剛好在詳解中出現，更新其真實的詞性
+                            const primaryEntry = entries.find(e => e.definition === primaryTranslation);
+                            if (primaryEntry && primaryEntry.pos === 'unknown') {
+                                primaryEntry.pos = pos;
+                            }
                         }
                     });
                 }
-            });
-        }
-
-        // Fallback: if no dictionary entries found (e.g. simple phrase), use primary translation
-        if (entries.length === 0) {
-            entries.push({
-                definition: primaryTranslation,
-                translation: '',
-                example: '',
-                examples: [],
-                pos: 'unknown'
             });
         }
 

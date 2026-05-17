@@ -142,10 +142,6 @@ const useWordStorage = ({
         });
       }
 
-      if (showToastFlag) {
-        toast.success('已加入單字庫！');
-      }
-
       try {
         const { data, error } = await saveWordWithPreferences({
           wordData: existingWord ? { ...existingWord, source: searchResult.source, isAiGenerated: searchResult.isAiGenerated } : searchResult,
@@ -187,6 +183,10 @@ const useWordStorage = ({
           }
           return prev.map(word => word.id === reconciledWord.id ? reconciledWord : word);
         });
+
+        if (showToastFlag) {
+          toast.success('已加入單字庫！');
+        }
         return true;
       } catch (error) {
         console.error("儲存失敗:", error);

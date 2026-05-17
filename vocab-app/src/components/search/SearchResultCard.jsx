@@ -213,6 +213,7 @@ const SearchResultCard = ({
     const addList = Array.isArray(addIds) ? addIds : [];
     let isDefinitionsUpdated = false;
     let hasAddSuccess = false;
+    let hasError = false;
     const hasRemove = removeList.length > 0;
     const normalizeFolderIds = (ids) => (Array.isArray(ids) ? ids.map(id => id?.toString()).filter(Boolean) : []);
     let currentWordState = savedWordInSearch
@@ -230,9 +231,14 @@ const SearchResultCard = ({
               ...currentWordState,
               folderIds: Array.from(new Set([...(currentWordState.folderIds || []), folderId?.toString()].filter(Boolean)))
             };
+          } else {
+            hasError = true;
+            break;
           }
         }
       }
+
+      if (hasError) return;
 
       if (removeList.length > 0) {
         for (const folderId of removeList) {
@@ -249,6 +255,9 @@ const SearchResultCard = ({
         const updated = await handleSaveWord(targetFolderId || null, currentWordState);
         if (updated) {
           isDefinitionsUpdated = true;
+        } else {
+          hasError = true;
+          return;
         }
       }
 
@@ -270,9 +279,11 @@ const SearchResultCard = ({
     } finally {
       setIsConfirmingFolders(false);
       isProcessingRef.current = false;
-      resetSaveFlow();
+      if (!hasError) {
+        resetSaveFlow();
+      }
     }
-  }, [handleSaveWord, hasDefinitionChanges, isConfirmingFolders, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch]);
+  }, [handleSaveWord, hasDefinitionChanges, isConfirmingFolders, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch, searchResult]);
 
   const applySavedSelection = useCallback(() => {
     if (orderedEntries.length === 0) {

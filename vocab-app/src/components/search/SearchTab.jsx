@@ -49,7 +49,7 @@ const SearchTab = () => {
 
   const savedWordInSearch = useMemo(() => {
     if (!searchResult) return null;
-    return library.derived.index.wordByText.get(searchResult.word) || null;
+    return library.derived.index.wordByText.get(searchResult.word.toLowerCase()) || null;
   }, [library.derived.index.wordByText, searchResult]);
 
   return (
@@ -109,6 +109,7 @@ const SearchTab = () => {
           folders={folders}
           lastUsedFolderIds={lastUsedFolderIds}
           onSaveWord={search.actions.saveFromSearch}
+          onUpdateWordFolders={library.actions.updateWordFolders}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           onUpdateLastUsedFolderIds={library.actions.updateLastUsedFolderIds}
           onCreateFolder={library.actions.createFolder}

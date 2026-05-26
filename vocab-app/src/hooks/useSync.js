@@ -11,7 +11,7 @@ import { entryToWord } from '../utils/mapper';
 
 const DEFAULT_FOLDERS = [{ id: 'default', name: '預設資料夾', words: [] }];
 
-const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
+const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const isSyncing = useRef(false);
 
@@ -29,7 +29,20 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
 
       if (data) {
         const loadedVocab = data.map(mapLibraryRowToWord);
-        setVocabData(loadedVocab);
+        setVocabData(prev => {
+          const pendingWords = prev.filter(word => 
+            word.id?.toString().startsWith('temp-') || word.isLocal
+          );
+          
+          const merged = [...loadedVocab];
+          pendingWords.forEach(pending => {
+            const exists = merged.some(w => w.word.toLowerCase() === pending.word.toLowerCase());
+            if (!exists) {
+              merged.push(pending);
+            }
+          });
+          return merged;
+        });
       }
       setIsDataLoaded(true);
       return true;
@@ -52,7 +65,10 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
     const handleFocusOrVisible = () => {
       if (document.visibilityState !== 'visible') return;
       if (!session?.user) return;
-      // Do not reset isDataLoaded to false here to avoid blocking UI during background refresh
+      if (syncLockRef?.current > 0) {
+        console.log("Database write is active, skipping background sync to avoid race condition.");
+        return;
+      }
       loadData(session.user.id).catch(() => { });
     };
 
@@ -63,7 +79,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData }) => {
       window.removeEventListener('focus', handleFocusOrVisible);
       document.removeEventListener('visibilitychange', handleFocusOrVisible);
     };
-  }, [loadData, session]);
+  }, [loadData, session, syncLockRef]);
 
   const syncLocalWords = useCallback(async () => {
     if (!session?.user?.id) return;

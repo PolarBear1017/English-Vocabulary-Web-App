@@ -44,7 +44,7 @@ const useLibraryIndex = ({ folders, vocabData }) => {
     const map = new Map();
     vocabData.forEach(word => {
       if (word.word) {
-        map.set(word.word, word);
+        map.set(word.word.toLowerCase(), word);
       }
     });
     return map;

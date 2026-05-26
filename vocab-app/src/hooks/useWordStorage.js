@@ -15,6 +15,7 @@ const useWordStorage = ({
   setVocabData,
   showToast,
   pendingSavesRef,
+  syncLockRef,
   isDataLoaded
 }) => {
   const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null, options = {}) => {
@@ -67,22 +68,24 @@ const useWordStorage = ({
     const nowIso = new Date().toISOString();
 
     try {
+      if (syncLockRef) syncLockRef.current += 1;
       if (!session) {
+        let resultWord;
         if (existingWord) {
           const nextFolderIds = normalizedFolderId
             ? Array.from(new Set([...(existingWord.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
             : (existingWord.folderIds || []);
-          const updatedLocal = createVocabularyWord({
+          resultWord = createVocabularyWord({
             ...existingWord,
             folderIds: nextFolderIds,
             selectedDefinitions: normalizedSelectedDefinitions ?? existingWord.selectedDefinitions ?? null,
             source: existingWord.source ?? searchResult.source ?? null,
             isAiGenerated: existingWord.isAiGenerated ?? searchResult.isAiGenerated ?? false
           });
-          setVocabData(prev => prev.map(word => word.id === existingWord.id ? { ...updatedLocal, isLocal: true } : word));
+          setVocabData(prev => prev.map(word => word.id === existingWord.id ? { ...resultWord, isLocal: true } : word));
         } else {
           const tempId = `local-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-          const localWord = createVocabularyWord({
+          resultWord = createVocabularyWord({
             ...searchResult,
             id: tempId,
             folderIds: normalizedFolderId ? [normalizedFolderId] : [],
@@ -94,54 +97,15 @@ const useWordStorage = ({
             source: searchResult.source ?? null,
             isAiGenerated: searchResult.isAiGenerated ?? false
           });
-          setVocabData(prev => [...prev, { ...localWord, isLocal: true }]);
+          setVocabData(prev => [...prev, { ...resultWord, isLocal: true }]);
         }
         if (showToastFlag) {
           toast.success('已暫存於本機 (訪客模式)');
         }
-        return true;
+        return resultWord;
       }
 
-      const optimisticId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-      const optimisticFolderIds = normalizedFolderId
-        ? Array.from(new Set([...(existingWord?.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
-        : (existingWord?.folderIds || []);
-
-      const optimisticWord = createVocabularyWord({
-        ...(existingWord || searchResult),
-        id: existingWord?.id || optimisticId,
-        folderIds: optimisticFolderIds,
-        selectedDefinitions: normalizedSelectedDefinitions ?? existingWord?.selectedDefinitions ?? null,
-        addedAt: existingWord?.addedAt || nowIso,
-        nextReview: existingWord?.nextReview || nowIso,
-        due: existingWord?.due || nowIso,
-        proficiencyScore: existingWord?.proficiencyScore ?? 0,
-        source: existingWord?.source ?? searchResult.source ?? null,
-        isAiGenerated: existingWord?.isAiGenerated ?? searchResult.isAiGenerated ?? false
-      });
-
-      const previousWord = existingWord ? { ...existingWord } : null;
-
-      if (existingWord) {
-        setVocabData(prev => prev.map(word => word.id === existingWord.id ? optimisticWord : word));
-      } else {
-        setVocabData(prev => {
-          const already = prev.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
-          if (already) {
-            const nextFolderIds = normalizedFolderId
-              ? Array.from(new Set([...(already.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
-              : (already.folderIds || []);
-            const updated = createVocabularyWord({
-              ...already,
-              folderIds: nextFolderIds,
-              selectedDefinitions: normalizedSelectedDefinitions ?? already.selectedDefinitions ?? null
-            });
-            return prev.map(word => word.id === already.id ? updated : word);
-          }
-          return [...prev, optimisticWord];
-        });
-      }
-
+      // Logged in mode - NO optimistic updates
       try {
         const { data, error } = await saveWordWithPreferences({
           wordData: existingWord ? { ...existingWord, source: searchResult.source, isAiGenerated: searchResult.isAiGenerated } : searchResult,
@@ -155,11 +119,9 @@ const useWordStorage = ({
         const libraryEntry = Array.isArray(data) ? data[0] : data;
         if (!libraryEntry) throw new Error("儲存失敗 (無回傳資料)");
 
-
-
         const reconciledWord = entryToWord({
           entry: libraryEntry,
-          baseWord: optimisticWord,
+          baseWord: existingWord || searchResult,
           normalizedFolderId,
           normalizedSelectedDefinitions,
           nowIso
@@ -177,17 +139,17 @@ const useWordStorage = ({
         }
 
         setVocabData(prev => {
-          const existingOptimistic = prev.find(word => word.id === optimisticWord.id);
-          if (existingOptimistic) {
-            return prev.map(word => word.id === optimisticWord.id ? reconciledWord : word);
+          const exists = prev.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
+          if (exists) {
+            return prev.map(word => word.id === exists.id ? reconciledWord : word);
           }
-          return prev.map(word => word.id === reconciledWord.id ? reconciledWord : word);
+          return [...prev, reconciledWord];
         });
 
         if (showToastFlag) {
           toast.success('已加入單字庫！');
         }
-        return true;
+        return reconciledWord;
       } catch (error) {
         console.error("儲存失敗:", error);
 
@@ -198,18 +160,46 @@ const useWordStorage = ({
           message = "資料庫尚未更新。請先新增 selected_definitions 欄位。";
         }
         console.error("儲存失敗細節:", message);
-        if (previousWord) {
-          setVocabData(prev => prev.map(word => word.id === previousWord.id ? previousWord : word));
-        } else {
-          setVocabData(prev => prev.filter(word => word.id !== optimisticWord.id));
-        }
         toast.error('儲存失敗，請再試一次');
         return false;
       }
     } finally {
       pendingSavesRef.current.delete(pendingKey);
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+      }
     }
-  }, [folders, pendingSavesRef, session, setVocabData, showToast, vocabData]);
+  }, [folders, pendingSavesRef, session, setVocabData, showToast, vocabData, syncLockRef]);
+
+  const updateWordFolders = useCallback(async (word, folderIds) => {
+    if (!word) return false;
+    const normalizedFolderIds = (Array.isArray(folderIds) ? folderIds : [])
+      .map(id => id?.toString())
+      .filter(Boolean);
+
+    try {
+      if (syncLockRef) syncLockRef.current += 1;
+      if (session?.user) {
+        if (!word.libraryId) {
+          throw new Error("找不到單字的 libraryId，無法更新資料夾");
+        }
+        const { error } = await updateUserLibraryFoldersByLibraryId({
+          userId: session.user.id,
+          libraryId: word.libraryId,
+          folderIds: normalizedFolderIds
+        });
+
+        if (error) throw error;
+      }
+
+      setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: normalizedFolderIds } : item));
+      return true;
+    } finally {
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+      }
+    }
+  }, [session, setVocabData, syncLockRef]);
 
   const handleRemoveWordFromFolder = useCallback(async (word, folderId) => {
     const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
@@ -220,12 +210,31 @@ const useWordStorage = ({
 
     const nextFolders = currentFolders.filter(id => id !== normalizedFolderId);
 
-    if (nextFolders.length === 0) {
+    try {
+      if (syncLockRef) syncLockRef.current += 1;
+      if (nextFolders.length === 0) {
+        if (session?.user) {
+          const { error } = await updateUserLibraryFoldersByLibraryId({
+            userId: session.user.id,
+            libraryId: word.libraryId,
+            folderIds: []
+          });
+
+          if (error) {
+            alert("移除失敗: " + error.message);
+            return;
+          }
+        }
+
+        setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: [] } : item));
+        return;
+      }
+
       if (session?.user) {
         const { error } = await updateUserLibraryFoldersByLibraryId({
           userId: session.user.id,
           libraryId: word.libraryId,
-          folderIds: []
+          folderIds: nextFolders
         });
 
         if (error) {
@@ -234,25 +243,13 @@ const useWordStorage = ({
         }
       }
 
-      setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: [] } : item));
-      return;
-    }
-
-    if (session?.user) {
-      const { error } = await updateUserLibraryFoldersByLibraryId({
-        userId: session.user.id,
-        libraryId: word.libraryId,
-        folderIds: nextFolders
-      });
-
-      if (error) {
-        alert("移除失敗: " + error.message);
-        return;
+      setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: nextFolders } : item));
+    } finally {
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
       }
     }
-
-    setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: nextFolders } : item));
-  }, [session, setVocabData]);
+  }, [session, setVocabData, syncLockRef]);
 
   const handleRemoveWordsFromFolder = useCallback(async (words, folderId) => {
     const normalizedFolderId = folderId?.toString();
@@ -260,47 +257,54 @@ const useWordStorage = ({
     const targets = Array.isArray(words) ? words : [];
     if (targets.length === 0) return false;
 
-    const updates = [];
-    const failed = [];
+    try {
+      if (syncLockRef) syncLockRef.current += 1;
+      const updates = [];
+      const failed = [];
 
-    for (const word of targets) {
-      const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
-      if (!currentFolders.includes(normalizedFolderId)) continue;
-      const nextFolders = currentFolders.filter(id => id !== normalizedFolderId);
+      for (const word of targets) {
+        const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
+        if (!currentFolders.includes(normalizedFolderId)) continue;
+        const nextFolders = currentFolders.filter(id => id !== normalizedFolderId);
 
-      if (session?.user) {
-        if (!word.libraryId) {
-          failed.push(word.id);
-          continue;
+        if (session?.user) {
+          if (!word.libraryId) {
+            failed.push(word.id);
+            continue;
+          }
+          const { error } = await updateUserLibraryFoldersByLibraryId({
+            userId: session.user.id,
+            libraryId: word.libraryId,
+            folderIds: nextFolders
+          });
+
+          if (error) {
+            failed.push(word.id);
+            continue;
+          }
         }
-        const { error } = await updateUserLibraryFoldersByLibraryId({
-          userId: session.user.id,
-          libraryId: word.libraryId,
-          folderIds: nextFolders
-        });
 
-        if (error) {
-          failed.push(word.id);
-          continue;
-        }
+        updates.push({ id: word.id, folderIds: nextFolders });
       }
 
-      updates.push({ id: word.id, folderIds: nextFolders });
-    }
+      if (updates.length > 0) {
+        setVocabData(prev => prev.map(item => {
+          const update = updates.find(entry => entry.id === item.id);
+          return update ? { ...item, folderIds: update.folderIds } : item;
+        }));
+      }
 
-    if (updates.length > 0) {
-      setVocabData(prev => prev.map(item => {
-        const update = updates.find(entry => entry.id === item.id);
-        return update ? { ...item, folderIds: update.folderIds } : item;
-      }));
-    }
+      if (failed.length > 0) {
+        alert(`移除失敗: ${failed.length} 個單字未更新`);
+      }
 
-    if (failed.length > 0) {
-      alert(`移除失敗: ${failed.length} 個單字未更新`);
+      return updates.length > 0;
+    } finally {
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+      }
     }
-
-    return updates.length > 0;
-  }, [session, setVocabData]);
+  }, [session, setVocabData, syncLockRef]);
 
   const handleMoveWordsToFolder = useCallback(async (words, fromFolderId, toFolderId) => {
     const normalizedFromId = fromFolderId?.toString();
@@ -311,49 +315,56 @@ const useWordStorage = ({
     const targets = Array.isArray(words) ? words : [];
     if (targets.length === 0) return false;
 
-    const updates = [];
-    const failed = [];
+    try {
+      if (syncLockRef) syncLockRef.current += 1;
+      const updates = [];
+      const failed = [];
 
-    for (const word of targets) {
-      const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
-      if (!currentFolders.includes(normalizedFromId)) continue;
+      for (const word of targets) {
+        const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];
+        if (!currentFolders.includes(normalizedFromId)) continue;
 
-      const withoutFrom = currentFolders.filter(id => id !== normalizedFromId);
-      const nextFolders = Array.from(new Set([...withoutFrom, normalizedToId]));
+        const withoutFrom = currentFolders.filter(id => id !== normalizedFromId);
+        const nextFolders = Array.from(new Set([...withoutFrom, normalizedToId]));
 
-      if (session?.user) {
-        if (!word.libraryId) {
-          failed.push(word.id);
-          continue;
+        if (session?.user) {
+          if (!word.libraryId) {
+            failed.push(word.id);
+            continue;
+          }
+          const { error } = await updateUserLibraryFoldersByLibraryId({
+            userId: session.user.id,
+            libraryId: word.libraryId,
+            folderIds: nextFolders
+          });
+
+          if (error) {
+            failed.push(word.id);
+            continue;
+          }
         }
-        const { error } = await updateUserLibraryFoldersByLibraryId({
-          userId: session.user.id,
-          libraryId: word.libraryId,
-          folderIds: nextFolders
-        });
 
-        if (error) {
-          failed.push(word.id);
-          continue;
-        }
+        updates.push({ id: word.id, folderIds: nextFolders });
       }
 
-      updates.push({ id: word.id, folderIds: nextFolders });
-    }
+      if (updates.length > 0) {
+        setVocabData(prev => prev.map(item => {
+          const update = updates.find(entry => entry.id === item.id);
+          return update ? { ...item, folderIds: update.folderIds } : item;
+        }));
+      }
 
-    if (updates.length > 0) {
-      setVocabData(prev => prev.map(item => {
-        const update = updates.find(entry => entry.id === item.id);
-        return update ? { ...item, folderIds: update.folderIds } : item;
-      }));
-    }
+      if (failed.length > 0) {
+        alert(`移動失敗: ${failed.length} 個單字未更新`);
+      }
 
-    if (failed.length > 0) {
-      alert(`移動失敗: ${failed.length} 個單字未更新`);
+      return updates.length > 0;
+    } finally {
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+      }
     }
-
-    return updates.length > 0;
-  }, [session, setVocabData]);
+  }, [session, setVocabData, syncLockRef]);
 
   const updateWord = useCallback((wordId, updates) => {
     setVocabData(prev => prev.map(word => word.id === wordId ? { ...word, ...updates } : word));
@@ -362,6 +373,7 @@ const useWordStorage = ({
   return {
     actions: {
       saveWordToFolder,
+      updateWordFolders,
       handleRemoveWordFromFolder,
       handleRemoveWordsFromFolder,
       handleMoveWordsToFolder,

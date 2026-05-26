@@ -158,6 +158,31 @@ const updateUserLibraryFoldersByWord = async ({ userId, wordId, folderIds }) => 
 };
 
 const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderIds }) => {
+  // Try atomic RPC first to prevent race conditions & intermediate states
+  try {
+    const { error: rpcError } = await supabase.rpc('update_word_folders', {
+      p_user_id: userId,
+      p_library_id: libraryId,
+      p_folder_ids: (Array.isArray(folderIds) ? folderIds : [])
+        .map(id => id?.toString())
+        .filter(id => id && id !== 'default')
+    });
+
+    if (!rpcError) {
+      return { data: [], error: null };
+    }
+
+    // PGRST202/42883 mean function not found. If it's a different database error, return it immediately.
+    const isFuncMissing = rpcError.code === 'PGRST202' || rpcError.code === '42883' || rpcError.message?.includes('does not exist');
+    if (!isFuncMissing) {
+      return { error: rpcError };
+    }
+    console.warn('Supabase RPC "update_word_folders" not found. Falling back to non-atomic update.');
+  } catch (err) {
+    console.warn('Error invoking RPC "update_word_folders", falling back to non-atomic update.', err);
+  }
+
+  // Fallback: Delete then Insert (Non-atomic)
   // 1. Delete existing mappings
   const { error: deleteError } = await supabase
     .from('library_folder_map')

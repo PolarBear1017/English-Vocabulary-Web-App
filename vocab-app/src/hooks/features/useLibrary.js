@@ -38,6 +38,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   const [wordSortBy, setWordSortBy] = useState(() => loadWordSortBy());
   const [lastUsedFolderIds, setLastUsedFolderIds] = useState(() => loadLastUsedFolders());
   const pendingSavesRef = useRef(new Set());
+  const syncLockRef = useRef(0); // Tracks active database write operations to prevent background sync race conditions
 
   const index = useLibraryIndex({ folders, vocabData });
 
@@ -45,7 +46,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     session,
     setFolders,
     setVocabData,
-    vocabData
+    vocabData,
+    syncLockRef
   });
 
   const { actions: folderActions } = useFolderCRUD({
@@ -63,6 +65,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     setVocabData,
     showToast,
     pendingSavesRef,
+    syncLockRef,
     isDataLoaded: sync.state.isDataLoaded
   });
 
@@ -190,6 +193,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       handleDeleteFolders: folderActions.handleDeleteFolders,
       handleEditFolder: folderActions.handleEditFolder,
       saveWordToFolder: wordActions.saveWordToFolder,
+      updateWordFolders: wordActions.updateWordFolders,
       handleRemoveWordFromFolder: wordActions.handleRemoveWordFromFolder,
       handleRemoveWordsFromFolder: wordActions.handleRemoveWordsFromFolder,
       handleMoveWordsToFolder: wordActions.handleMoveWordsToFolder,

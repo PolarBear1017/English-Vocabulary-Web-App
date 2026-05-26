@@ -27,6 +27,7 @@ const SearchResultCard = ({
   folders,
   lastUsedFolderIds,
   onSaveWord,
+  onUpdateWordFolders,
   onRemoveWordFromFolder,
   onUpdateLastUsedFolderIds,
   onCreateFolder,
@@ -211,71 +212,73 @@ const SearchResultCard = ({
     setIsConfirmingFolders(true);
     const removeList = Array.isArray(removeIds) ? removeIds : [];
     const addList = Array.isArray(addIds) ? addIds : [];
-    let isDefinitionsUpdated = false;
-    let hasAddSuccess = false;
+    const selectedList = Array.isArray(selectedIds) ? selectedIds : [];
+
+    let isSaved = false;
     let hasError = false;
-    const hasRemove = removeList.length > 0;
-    const normalizeFolderIds = (ids) => (Array.isArray(ids) ? ids.map(id => id?.toString()).filter(Boolean) : []);
-    let currentWordState = savedWordInSearch
-      ? { ...savedWordInSearch, folderIds: normalizeFolderIds(savedWordInSearch.folderIds) }
-      : { ...searchResult, folderIds: [] };
 
     try {
-      if (addList.length > 0) {
-        for (const folderId of addList) {
-          const saved = await handleSaveWord(folderId, currentWordState);
-          if (saved) {
-            isDefinitionsUpdated = true;
-            hasAddSuccess = true;
-            currentWordState = {
-              ...currentWordState,
-              folderIds: Array.from(new Set([...(currentWordState.folderIds || []), folderId?.toString()].filter(Boolean)))
-            };
-          } else {
-            hasError = true;
-            break;
+      if (!savedWordInSearch) {
+        // --- CASE 1: Word is NOT saved yet ---
+        // Save the word first to the first selected folder (or null)
+        const firstFolderId = selectedList[0] || null;
+        const savedWord = await handleSaveWord(firstFolderId, searchResult);
+        
+        if (savedWord) {
+          isSaved = true;
+          // If the user selected more than one folder, associate the rest
+          if (selectedList.length > 1 && onUpdateWordFolders) {
+            await onUpdateWordFolders(savedWord, selectedList);
           }
-        }
-      }
-
-      if (hasError) return;
-
-      if (removeList.length > 0) {
-        for (const folderId of removeList) {
-          await onRemoveWordFromFolder?.(currentWordState, folderId);
-          currentWordState = {
-            ...currentWordState,
-            folderIds: (currentWordState.folderIds || []).filter(id => id !== folderId?.toString())
-          };
-        }
-      }
-
-      if (hasDefinitionChanges && !isDefinitionsUpdated) {
-        const targetFolderId = Array.isArray(selectedIds) ? selectedIds[0] : null;
-        const updated = await handleSaveWord(targetFolderId || null, currentWordState);
-        if (updated) {
-          isDefinitionsUpdated = true;
         } else {
           hasError = true;
-          return;
+        }
+      } else {
+        // --- CASE 2: Word is ALREADY saved ---
+        let currentWord = savedWordInSearch;
+        
+        // If definitions changed, update them first
+        if (hasDefinitionChanges) {
+          const targetFolderId = selectedList[0] || null;
+          const updatedWord = await handleSaveWord(targetFolderId, savedWordInSearch);
+          if (updatedWord) {
+            currentWord = updatedWord;
+            isSaved = true;
+          } else {
+            hasError = true;
+          }
+        }
+
+        // If no errors so far, update all folder mappings at once
+        if (!hasError && onUpdateWordFolders) {
+          await onUpdateWordFolders(currentWord, selectedList);
+          isSaved = true;
         }
       }
 
-      if (hasAddSuccess && hasRemove) {
-        toast.success('資料夾更新成功');
-      } else if (hasAddSuccess) {
-        toast.success('已加入資料夾');
-      } else if (hasRemove) {
-        toast.success('已從資料夾移除');
-      }
+      if (!hasError) {
+        const hasAdd = addList.length > 0;
+        const hasRemove = removeList.length > 0;
+        if (hasAdd && hasRemove) {
+          toast.success('資料夾更新成功');
+        } else if (hasAdd) {
+          toast.success('已加入資料夾');
+        } else if (hasRemove) {
+          toast.success('已從資料夾移除');
+        }
 
-      if (isDefinitionsUpdated && hasDefinitionChanges) {
-        toast.success('已更新解釋');
-      }
+        if (hasDefinitionChanges && isSaved) {
+          toast.success('已更新解釋');
+        }
 
-      if (Array.isArray(addList) && addList.length > 0) {
-        onUpdateLastUsedFolderIds?.(addList);
+        if (addList.length > 0) {
+          onUpdateLastUsedFolderIds?.(addList);
+        }
       }
+    } catch (err) {
+      console.error('儲存單字至資料夾失敗:', err);
+      toast.error('儲存失敗，請重試');
+      hasError = true;
     } finally {
       setIsConfirmingFolders(false);
       isProcessingRef.current = false;
@@ -283,7 +286,16 @@ const SearchResultCard = ({
         resetSaveFlow();
       }
     }
-  }, [handleSaveWord, hasDefinitionChanges, isConfirmingFolders, onRemoveWordFromFolder, onUpdateLastUsedFolderIds, resetSaveFlow, savedWordInSearch, searchResult]);
+  }, [
+    handleSaveWord,
+    hasDefinitionChanges,
+    isConfirmingFolders,
+    onUpdateWordFolders,
+    onUpdateLastUsedFolderIds,
+    resetSaveFlow,
+    savedWordInSearch,
+    searchResult
+  ]);
 
   const applySavedSelection = useCallback(() => {
     if (orderedEntries.length === 0) {

@@ -150,7 +150,7 @@ const FolderDetail = ({
                   <Pencil className="w-4 h-4" />
                 </button>
               )}
-              {onDeleteFolder && !isSelectionMode && activeFolder.id !== 'default' && (
+              {onDeleteFolder && !isSelectionMode && (
                 <button
                   onClick={onDeleteFolder}
                   className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 transition"

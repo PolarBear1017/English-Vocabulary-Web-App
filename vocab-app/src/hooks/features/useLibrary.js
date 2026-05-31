@@ -55,7 +55,9 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     folders,
     setFolders,
     viewingFolderId,
-    setViewingFolderId
+    setViewingFolderId,
+    vocabData,
+    setVocabData
   });
 
   const { actions: wordActions } = useWordStorage({

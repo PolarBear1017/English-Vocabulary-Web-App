@@ -104,7 +104,7 @@ const LibraryTab = () => {
   };
 
   const selectAllFolders = () => {
-    const selectableIds = sortedFolders.filter(folder => folder.id !== 'default').map(folder => folder.id);
+    const selectableIds = sortedFolders.map(folder => folder.id);
     if (selectedFolderIds.length === selectableIds.length) {
       setFolderSelection([]);
       return;
@@ -113,19 +113,19 @@ const LibraryTab = () => {
   };
 
   const selectFolderId = (folderId) => {
-    if (!folderId || folderId === 'default') return;
+    if (!folderId) return;
     if (!selectedFolderIds.includes(folderId)) {
       toggleFolderSelection(folderId);
     }
   };
 
   const deleteSelectedFolders = async () => {
-    const deletableIds = selectedFolderIds.filter(id => id !== 'default');
+    const deletableIds = selectedFolderIds;
     if (deletableIds.length === 0) {
       alert('請先選取可刪除的資料夾');
       return;
     }
-    if (!confirm(`確定刪除選取的 ${deletableIds.length} 個資料夾？(資料夾內的單字不會被刪除，只會移除分類)`)) {
+    if (!confirm(`確定刪除選取的 ${deletableIds.length} 個資料夾？(資料夾內的單字會同步斷開關聯，若不屬於其他資料夾則會被完全刪除)`)) {
       return;
     }
     const success = await library.actions.handleDeleteFolders(deletableIds);
@@ -311,7 +311,7 @@ const LibraryTab = () => {
         <SelectionActionBar
           count={selectedFolderCount}
           onSelectAll={selectAllFolders}
-          selectAllLabel={selectedFolderIds.length === sortedFolders.filter(folder => folder.id !== 'default').length ? '取消全選' : '全選'}
+          selectAllLabel={selectedFolderIds.length === sortedFolders.length ? '取消全選' : '全選'}
           onClear={exitFolderSelectionMode}
           actions={[
             { key: 'delete', label: '刪除', variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete', disabled: selectedFolderCount === 0 }

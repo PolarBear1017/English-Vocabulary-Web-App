@@ -54,7 +54,7 @@ const writeString = (key, value) => {
   }
 };
 
-const loadCachedFolders = () => readJSON(STORAGE_KEYS.folders, [{ id: 'default', name: '預設資料夾', words: [] }]);
+const loadCachedFolders = () => readJSON(STORAGE_KEYS.folders, []);
 const saveCachedFolders = (folders) => writeJSON(STORAGE_KEYS.folders, folders);
 
 const loadCachedVocab = () => readJSON(STORAGE_KEYS.vocabData, []);

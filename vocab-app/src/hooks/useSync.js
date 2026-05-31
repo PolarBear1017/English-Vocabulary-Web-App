@@ -9,8 +9,6 @@ import {
 import { mapLibraryRowToWord } from '../domain/mappers/libraryMapper';
 import { entryToWord } from '../utils/mapper';
 
-const DEFAULT_FOLDERS = [{ id: 'default', name: '預設資料夾', words: [] }];
-
 const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const isSyncing = useRef(false);
@@ -20,7 +18,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) 
       const { data: dbFolders, error: folderError } = await fetchFolders(userId);
       if (folderError) throw folderError;
 
-      const allFolders = [...DEFAULT_FOLDERS];
+      const allFolders = [];
       if (dbFolders) allFolders.push(...dbFolders.map(f => ({ ...f, id: f.id?.toString(), words: [] })));
       setFolders(allFolders);
 

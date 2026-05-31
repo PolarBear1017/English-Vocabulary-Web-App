@@ -4,7 +4,8 @@ import { createVocabularyWord } from '../domain/models';
 import {
   updateUserLibraryFoldersByLibraryId,
   updateUserLibrarySourceByLibraryId,
-  saveWordWithPreferences
+  saveWordWithPreferences,
+  deleteUserLibraryEntry
 } from '../services/libraryService';
 import { entryToWord } from '../utils/mapper';
 
@@ -128,14 +129,17 @@ const useWordStorage = ({
         });
 
         if (libraryEntry?.id && searchResult?.source) {
-          updateUserLibrarySourceByLibraryId({
-            libraryId: libraryEntry.id,
-            source: searchResult.source,
-            isAiGenerated: Boolean(searchResult.isAiGenerated)
-          }).catch((error) => {
-            if (error?.message?.includes('column \"source\"')) return;
-            console.warn('更新來源失敗', error);
-          });
+          try {
+            await updateUserLibrarySourceByLibraryId({
+              libraryId: libraryEntry.id,
+              source: searchResult.source,
+              isAiGenerated: Boolean(searchResult.isAiGenerated)
+            });
+          } catch (error) {
+            if (!error?.message?.includes('column "source"')) {
+              console.warn('更新來源失敗', error);
+            }
+          }
         }
 
         setVocabData(prev => {
@@ -179,6 +183,21 @@ const useWordStorage = ({
 
     try {
       if (syncLockRef) syncLockRef.current += 1;
+      if (normalizedFolderIds.length === 0) {
+        if (session?.user) {
+          if (!word.libraryId) {
+            throw new Error("找不到單字的 libraryId，無法刪除單字");
+          }
+          const { error } = await deleteUserLibraryEntry({
+            userId: session.user.id,
+            libraryId: word.libraryId
+          });
+          if (error) throw error;
+        }
+        setVocabData(prev => prev.filter(item => item.id !== word.id));
+        return true;
+      }
+
       if (session?.user) {
         if (!word.libraryId) {
           throw new Error("找不到單字的 libraryId，無法更新資料夾");
@@ -214,10 +233,9 @@ const useWordStorage = ({
       if (syncLockRef) syncLockRef.current += 1;
       if (nextFolders.length === 0) {
         if (session?.user) {
-          const { error } = await updateUserLibraryFoldersByLibraryId({
+          const { error } = await deleteUserLibraryEntry({
             userId: session.user.id,
-            libraryId: word.libraryId,
-            folderIds: []
+            libraryId: word.libraryId
           });
 
           if (error) {
@@ -226,7 +244,7 @@ const useWordStorage = ({
           }
         }
 
-        setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: [] } : item));
+        setVocabData(prev => prev.filter(item => item.id !== word.id));
         return;
       }
 
@@ -260,6 +278,7 @@ const useWordStorage = ({
     try {
       if (syncLockRef) syncLockRef.current += 1;
       const updates = [];
+      const deletes = new Set();
       const failed = [];
 
       for (const word of targets) {
@@ -272,11 +291,22 @@ const useWordStorage = ({
             failed.push(word.id);
             continue;
           }
-          const { error } = await updateUserLibraryFoldersByLibraryId({
-            userId: session.user.id,
-            libraryId: word.libraryId,
-            folderIds: nextFolders
-          });
+          
+          let error;
+          if (nextFolders.length === 0) {
+            const res = await deleteUserLibraryEntry({
+              userId: session.user.id,
+              libraryId: word.libraryId
+            });
+            error = res.error;
+          } else {
+            const res = await updateUserLibraryFoldersByLibraryId({
+              userId: session.user.id,
+              libraryId: word.libraryId,
+              folderIds: nextFolders
+            });
+            error = res.error;
+          }
 
           if (error) {
             failed.push(word.id);
@@ -284,21 +314,28 @@ const useWordStorage = ({
           }
         }
 
-        updates.push({ id: word.id, folderIds: nextFolders });
+        if (nextFolders.length === 0) {
+          deletes.add(word.id);
+        } else {
+          updates.push({ id: word.id, folderIds: nextFolders });
+        }
       }
 
-      if (updates.length > 0) {
-        setVocabData(prev => prev.map(item => {
-          const update = updates.find(entry => entry.id === item.id);
-          return update ? { ...item, folderIds: update.folderIds } : item;
-        }));
+      if (updates.length > 0 || deletes.size > 0) {
+        setVocabData(prev => prev
+          .filter(item => !deletes.has(item.id))
+          .map(item => {
+            const update = updates.find(entry => entry.id === item.id);
+            return update ? { ...item, folderIds: update.folderIds } : item;
+          })
+        );
       }
 
       if (failed.length > 0) {
         alert(`移除失敗: ${failed.length} 個單字未更新`);
       }
 
-      return updates.length > 0;
+      return updates.length > 0 || deletes.size > 0;
     } finally {
       if (syncLockRef) {
         syncLockRef.current = Math.max(0, syncLockRef.current - 1);

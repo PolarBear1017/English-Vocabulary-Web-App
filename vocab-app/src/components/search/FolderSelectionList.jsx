@@ -228,13 +228,13 @@ const FolderSelectionList = ({
       const tagName = target?.tagName?.toLowerCase();
       const isTypingField = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
       if (isTypingField) return;
-      if (!(hasChanges || hasDefinitionChanges) || isConfirming) return;
+      if (!(hasChanges || hasDefinitionChanges) || isConfirming || (selectedIds.size === 0 && savedIdSet.size === 0)) return;
       event.preventDefault();
       handleConfirm();
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleConfirm, hasChanges, hasDefinitionChanges, isConfirming, onConfirm]);
+  }, [handleConfirm, hasChanges, hasDefinitionChanges, isConfirming, onConfirm, selectedIds.size, savedIdSet.size]);
 
   return (
     <div className="space-y-3">
@@ -416,7 +416,7 @@ const FolderSelectionList = ({
         <button
           type="button"
           onClick={handleConfirm}
-          disabled={!(hasChanges || hasDefinitionChanges) || isConfirming}
+          disabled={!(hasChanges || hasDefinitionChanges) || isConfirming || (selectedIds.size === 0 && savedIdSet.size === 0)}
           className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           確認

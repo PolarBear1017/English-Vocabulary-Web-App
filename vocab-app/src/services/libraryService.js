@@ -165,7 +165,7 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
       p_library_id: libraryId,
       p_folder_ids: (Array.isArray(folderIds) ? folderIds : [])
         .map(id => id?.toString())
-        .filter(id => id && id !== 'default')
+        .filter(id => id)
     });
 
     if (!rpcError) {
@@ -194,7 +194,7 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
 
   // 2. Insert new mappings
   if (Array.isArray(folderIds) && folderIds.length > 0) {
-    const validIds = [...new Set(folderIds)].filter(id => id && id !== 'default');
+    const validIds = [...new Set(folderIds)].filter(id => id);
     if (validIds.length === 0) return { data: [], error: null };
 
     const rows = validIds.map(fid => ({
@@ -228,8 +228,18 @@ const updateUserLibrarySourceByLibraryId = async ({ libraryId, source, isAiGener
     .eq('id', libraryId);
 };
 
+const deleteUserLibraryEntry = async ({ userId, libraryId }) => {
+  return supabase
+    .from('user_library')
+    .delete()
+    .eq('user_id', userId)
+    .eq('id', libraryId);
+};
+
 const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
-  const targetFolderId = (folderId === 'default') ? null : folderId;
+  // Ensure folderId is null if not provided
+  const targetFolderId = !folderId ? null : folderId;
+  
   return supabase.rpc('save_word_with_preferences', {
     p_word_data: wordData,
     p_user_id: userId,
@@ -255,5 +265,6 @@ export {
   updateUserLibraryFoldersByLibraryId,
   updateUserLibraryProgress,
   updateUserLibrarySourceByLibraryId,
+  deleteUserLibraryEntry,
   saveWordWithPreferences
 };

@@ -56,10 +56,8 @@ const FolderCard = ({
     ? Math.round((totalProficiency / (totalCount * 5)) * 100)
     : 0;
 
-  const disableSelect = folder.id === 'default';
   const longPressTriggeredRef = useRef(false);
   const bindLongPress = useLongPress(() => {
-    if (disableSelect) return;
     longPressTriggeredRef.current = true;
     onEnterSelectionMode?.(folder.id);
   }, {
@@ -94,7 +92,7 @@ const FolderCard = ({
     if (isSelectionMode) {
       event.preventDefault();
       event.stopPropagation();
-      if (!disableSelect) onToggleSelect?.(folder.id, event);
+      onToggleSelect?.(folder.id, event);
       return;
     }
     onOpen?.();
@@ -152,13 +150,12 @@ const FolderCard = ({
             <button
               onClick={(event) => {
                 event.stopPropagation();
-                if (!disableSelect) onToggleSelect?.(folder.id, event);
+                onToggleSelect?.(folder.id, event);
               }}
               {...dragHandleProps}
               className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
-                } ${disableSelect ? 'opacity-40 cursor-not-allowed' : 'hover:border-blue-400'}`}
-              title={disableSelect ? '預設資料夾無法刪除' : '選取資料夾'}
-              disabled={disableSelect}
+                } hover:border-blue-400`}
+              title="選取資料夾"
             >
               <Check className="w-4 h-4" />
             </button>
@@ -213,19 +210,17 @@ const FolderCard = ({
                     </button>
                   )}
 
-                  {folder.id !== 'default' && (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIsMenuOpen(false);
-                        onDelete();
-                      }}
-                      className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      刪除
-                    </button>
-                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsMenuOpen(false);
+                      onDelete();
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    刪除
+                  </button>
                 </div>
               )}
             </div>

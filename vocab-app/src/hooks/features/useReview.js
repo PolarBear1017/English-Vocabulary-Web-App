@@ -45,6 +45,23 @@ const useReview = ({
     }
   });
 
+  const [onlyStarred, setOnlyStarred] = useState(() => {
+    try {
+      const saved = localStorage.getItem('review_only_starred');
+      return saved === 'true';
+    } catch (e) {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('review_only_starred', String(onlyStarred));
+    } catch (e) {
+      console.warn('Failed to save review only_starred selection', e);
+    }
+  }, [onlyStarred]);
+
   useEffect(() => {
     try {
       localStorage.setItem('review_selected_folders', JSON.stringify(selectedReviewFolders));
@@ -183,6 +200,7 @@ const useReview = ({
     const isAllSelected = selectedIds.includes('all')
       || (allFolderIds.length > 0 && allFolderIds.every(id => selectedIds.includes(id)));
     const filteredWords = vocabData.filter(word => {
+      if (onlyStarred && !word.isStarred) return false;
       if (isAllSelected) return true;
       return word.folderIds && word.folderIds.some(id => selectedIds.includes(id));
     });
@@ -462,7 +480,8 @@ const useReview = ({
       hasMistake,
       lastResult,
       selectedReviewFolders,
-      reviewSetupView
+      reviewSetupView,
+      onlyStarred
     },
     derived: {
       currentReviewWord,
@@ -477,6 +496,7 @@ const useReview = ({
     actions: {
       setReviewSetupView,
       setSelectedReviewFolders,
+      setOnlyStarred,
       setReviewMode,
       setIsFlipped,
       startReview,

@@ -248,6 +248,13 @@ const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDef
   });
 };
 
+const toggleUserLibraryStar = async ({ libraryId, isStarred }) => {
+  return supabase
+    .from('user_library')
+    .update({ is_starred: isStarred })
+    .eq('id', libraryId);
+};
+
 export {
   fetchFolders,
   createFolder,
@@ -266,5 +273,6 @@ export {
   updateUserLibraryProgress,
   updateUserLibrarySourceByLibraryId,
   deleteUserLibraryEntry,
-  saveWordWithPreferences
+  saveWordWithPreferences,
+  toggleUserLibraryStar
 };

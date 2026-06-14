@@ -28,6 +28,7 @@ const LibraryOverview = ({
   entriesByFolderId,
   statsByFolderId,
   onRemoveWordFromFolder,
+  onToggleStar,
   onSearchWord
 }) => {
   const [searchQuery, setSearchQuery] = React.useState('');
@@ -135,6 +136,7 @@ const LibraryOverview = ({
               onGenerateStory={() => generateFolderStory(folder)}
               searchQuery={searchQuery}
               onOpenWordDetail={(word) => setViewingWord(word)}
+              onToggleStar={onToggleStar}
             />
           ))}
         </div>
@@ -177,6 +179,7 @@ const LibraryOverview = ({
                     setViewingWord(null);
                   }
                 }}
+                onToggleStar={onToggleStar}
               />
             </div>
           </div>

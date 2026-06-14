@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Volume2, Trash2, Check } from 'lucide-react';
+import { Volume2, Trash2, Check, Star } from 'lucide-react';
 import { useLongPress } from 'use-long-press';
 import { speak } from '../../services/speechService';
 import { formatDate } from '../../utils/data';
@@ -34,7 +34,8 @@ const WordRow = ({
     onRemoveWordFromFolder,
     activeFolder,
     searchQuery,
-    hideMetadata
+    hideMetadata,
+    onToggleStar
 }) => {
     const { state: { preferredAccent } } = usePreferencesContext();
     const longPressTriggeredRef = useRef(false);
@@ -91,6 +92,20 @@ const WordRow = ({
                     <span className="font-bold text-lg text-gray-800 group-hover:text-blue-600 transition">
                         <HighlightedText text={word.word} query={searchQuery} />
                     </span>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleStar?.(word);
+                        }}
+                        className={`p-1 rounded-full transition-all duration-200 ${
+                            word.isStarred 
+                                ? 'text-amber-500 hover:text-amber-600 hover:scale-110' 
+                                : 'text-gray-300 hover:text-amber-400 hover:scale-110'
+                        }`}
+                        title={word.isStarred ? "取消星號" : "標註星號"}
+                    >
+                        <Star className={`w-4.5 h-4.5 ${word.isStarred ? 'fill-amber-500 text-amber-500' : ''}`} />
+                    </button>
                     <button onClick={(e) => {
                         e.stopPropagation();
                         // Determine preferred audio URL based on accent preference

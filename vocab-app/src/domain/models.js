@@ -106,7 +106,8 @@ const createVocabularyWord = (data = {}) => ({
   proficiencyScore: Number.isFinite(data.proficiencyScore) ? data.proficiencyScore : 0,
   selectedDefinitions: Array.isArray(data.selectedDefinitions) ? data.selectedDefinitions : data.selectedDefinitions ?? null,
   source: data.source ?? null,
-  isAiGenerated: Boolean(data.isAiGenerated)
+  isAiGenerated: Boolean(data.isAiGenerated),
+  isStarred: Boolean(data.isStarred)
 });
 
 export { createSearchResult, createVocabularyWord };

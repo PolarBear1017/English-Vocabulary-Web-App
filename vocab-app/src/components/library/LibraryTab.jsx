@@ -235,6 +235,7 @@ const LibraryTab = () => {
           entriesByFolderId={index.entriesByFolderId}
           statsByFolderId={index.statsByFolderId}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
+          onToggleStar={library.actions.toggleWordStar}
           onSearchWord={(word) => {
             navigation.actions.setActiveTab('search');
             search.actions.handleSearch(word);
@@ -257,6 +258,7 @@ const LibraryTab = () => {
           onEnterSelectionMode={enterWordSelectionMode}
           dragHandleProps={wordDrag.dragHandleProps}
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
+          onToggleStar={library.actions.toggleWordStar}
           onGoSearch={() => {
             navigation.actions.setActiveTab('search');
             library.actions.setViewingFolderId(null);

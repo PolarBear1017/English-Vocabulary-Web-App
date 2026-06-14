@@ -67,7 +67,8 @@ const entryToWord = ({
     lapses: entry?.lapses ?? baseWord.lapses ?? null,
     state: entry?.state ?? baseWord.state ?? null,
     last_review: entry?.last_review ?? baseWord.last_review ?? null,
-    proficiencyScore: entry?.proficiency_score ?? baseWord.proficiencyScore ?? 0
+    proficiencyScore: entry?.proficiency_score ?? baseWord.proficiencyScore ?? 0,
+    isStarred: entry?.is_starred ?? baseWord.isStarred ?? false
   });
 };
 

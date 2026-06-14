@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Folder, Book, RefreshCw, Settings, Mic, Info } from 'lucide-react';
+import { ArrowRight, Folder, Book, RefreshCw, Settings, Mic, Info, Star } from 'lucide-react';
 import ReviewFoldersSelector from './ReviewFoldersSelector';
 
 const ReviewSetup = ({
@@ -14,7 +14,9 @@ const ReviewSetup = ({
   allFoldersSelected,
   toggleReviewFolder,
   allFolderIds,
-  setSelectedReviewFolders
+  setSelectedReviewFolders,
+  onlyStarred,
+  setOnlyStarred
 }) => {
   const [showHint, setShowHint] = React.useState(false);
 
@@ -79,6 +81,33 @@ const ReviewSetup = ({
         </div>
         <ArrowRight className="w-5 h-5 text-gray-300" />
       </button>
+
+      {/* 只複習星號單字 Toggle */}
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition mb-8">
+        <div className="flex items-center gap-4">
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center transition ${onlyStarred ? 'bg-amber-100 text-amber-500' : 'bg-gray-100 text-gray-400'}`}>
+            <Star className={`w-5 h-5 ${onlyStarred ? 'fill-amber-500' : ''}`} />
+          </div>
+          <div className="text-left">
+            <div className="font-bold text-gray-800">只複習星號單字</div>
+            <div className="text-sm text-gray-500">僅篩選標註了星號的單字進行複習</div>
+          </div>
+        </div>
+        <button
+          onClick={() => setOnlyStarred(!onlyStarred)}
+          className={`w-12 h-6 flex items-center rounded-full p-1 cursor-pointer transition-colors duration-250 ease-in-out focus:outline-none ${
+            onlyStarred ? 'bg-amber-500' : 'bg-gray-300'
+          }`}
+          role="switch"
+          aria-checked={onlyStarred}
+        >
+          <div
+            className={`bg-white w-4 h-4 rounded-full shadow-md transform duration-250 ease-in-out ${
+              onlyStarred ? 'translate-x-6' : 'translate-x-0'
+            }`}
+          />
+        </button>
+      </div>
 
       <h3 className="font-bold text-gray-700 mb-4">選擇複習模式</h3>
       <div className="grid grid-cols-1 gap-4">

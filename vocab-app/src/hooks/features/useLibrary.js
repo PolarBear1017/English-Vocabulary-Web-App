@@ -201,6 +201,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       handleMoveWordsToFolder: wordActions.handleMoveWordsToFolder,
       generateFolderStory,
       updateWord: wordActions.updateWord,
+      toggleWordStar: wordActions.toggleWordStar,
       updateLastUsedFolderIds
     }
   };

@@ -5,7 +5,8 @@ import {
   updateUserLibraryFoldersByLibraryId,
   updateUserLibrarySourceByLibraryId,
   saveWordWithPreferences,
-  deleteUserLibraryEntry
+  deleteUserLibraryEntry,
+  toggleUserLibraryStar
 } from '../services/libraryService';
 import { entryToWord } from '../utils/mapper';
 
@@ -407,6 +408,40 @@ const useWordStorage = ({
     setVocabData(prev => prev.map(word => word.id === wordId ? { ...word, ...updates } : word));
   }, [setVocabData]);
 
+  const toggleWordStar = useCallback(async (word) => {
+    if (!word) return false;
+    const nextStarred = !word.isStarred;
+    
+    setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, isStarred: nextStarred } : item));
+    
+    if (session?.user) {
+      if (!word.libraryId) {
+        console.warn("找不到單字的 libraryId，無法更新星號至雲端");
+        return false;
+      }
+      try {
+        if (syncLockRef) syncLockRef.current += 1;
+        const { error } = await toggleUserLibraryStar({
+          libraryId: word.libraryId,
+          isStarred: nextStarred
+        });
+        if (error) throw error;
+      } catch (error) {
+        console.error("同步星號狀態失敗:", error);
+        setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, isStarred: word.isStarred } : item));
+        toast.error("星號同步失敗，請稍後再試");
+        return false;
+      } finally {
+        if (syncLockRef) {
+          syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+        }
+      }
+    } else {
+      toast.success(nextStarred ? "已標註星號 (訪客模式)" : "已取消星號 (訪客模式)");
+    }
+    return true;
+  }, [session, setVocabData, syncLockRef]);
+
   return {
     actions: {
       saveWordToFolder,
@@ -414,7 +449,8 @@ const useWordStorage = ({
       handleRemoveWordFromFolder,
       handleRemoveWordsFromFolder,
       handleMoveWordsToFolder,
-      updateWord
+      updateWord,
+      toggleWordStar
     },
     state: {
       vocabData

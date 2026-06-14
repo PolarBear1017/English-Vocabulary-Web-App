@@ -36,7 +36,8 @@ const FolderCard = ({
   onStartReview,
   onGenerateStory,
   searchQuery,
-  onOpenWordDetail
+  onOpenWordDetail,
+  onToggleStar
 }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
@@ -130,6 +131,7 @@ const FolderCard = ({
                         isSelectionMode={false}
                         isSelected={false}
                         hideMetadata={true}
+                        onToggleStar={onToggleStar}
                       />
                     </div>
                   ))}

@@ -52,14 +52,18 @@ const ReviewPage = () => {
     const activeTab = navState.activeTab;
 
     const filteredWords = useMemo(() => {
-        const { selectedReviewFolders } = reviewState;
-        if (!selectedReviewFolders || selectedReviewFolders.includes('all')) {
-            return libraryState.vocabData;
+        const { selectedReviewFolders, onlyStarred } = reviewState;
+        let words = libraryState.vocabData || [];
+        if (onlyStarred) {
+            words = words.filter(word => word.isStarred);
         }
-        return libraryState.vocabData.filter(word =>
+        if (!selectedReviewFolders || selectedReviewFolders.includes('all')) {
+            return words;
+        }
+        return words.filter(word =>
             word.folderIds && word.folderIds.some(id => selectedReviewFolders.includes(id))
         );
-    }, [libraryState.vocabData, reviewState.selectedReviewFolders]);
+    }, [libraryState.vocabData, reviewState.selectedReviewFolders, reviewState.onlyStarred]);
 
     const dueCount = useMemo(() => {
         return filteredWords.filter(word => new Date(word.nextReview) <= new Date()).length;

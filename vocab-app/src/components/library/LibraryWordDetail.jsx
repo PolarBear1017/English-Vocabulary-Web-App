@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play, X, Star } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
@@ -15,7 +15,8 @@ const LibraryWordDetail = ({
   onEditWord,
   onDeleteWord,
   isPlaying = false,
-  onClose
+  onClose,
+  onToggleStar
 }) => {
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [tipOpen, setTipOpen] = useState(false);
@@ -93,6 +94,19 @@ const LibraryWordDetail = ({
                 aria-label="播放發音"
               >
                 <Volume2 className="w-5 h-5 text-blue-600" />
+              </button>
+              <button
+                type="button"
+                onClick={() => onToggleStar?.(entry)}
+                className={`p-2 bg-white rounded-full shadow-sm active:scale-95 transition-all duration-200 ${
+                  entry.isStarred 
+                    ? 'text-amber-500 hover:text-amber-600 hover:scale-110' 
+                    : 'text-gray-300 hover:text-amber-400 hover:scale-110'
+                }`}
+                title={entry.isStarred ? "取消星號" : "標註星號"}
+                aria-label={entry.isStarred ? "取消星號" : "標註星號"}
+              >
+                <Star className={`w-5 h-5 ${entry.isStarred ? 'fill-amber-500 text-amber-500' : ''}`} />
               </button>
               {hasAccentToggle && (
                 <div className="flex items-center gap-1 text-xs">

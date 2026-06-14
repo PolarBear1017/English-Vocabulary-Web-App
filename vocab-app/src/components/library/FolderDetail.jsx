@@ -43,6 +43,7 @@ const FolderDetail = ({
   onEnterSelectionMode,
   dragHandleProps,
   onRemoveWordFromFolder,
+  onToggleStar,
   onGoSearch,
   onSearchWord
 }) => {
@@ -215,6 +216,7 @@ const FolderDetail = ({
               setViewingWord(null);
             }
           }}
+          onToggleStar={onToggleStar}
         />
       ) : (
         <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -233,6 +235,7 @@ const FolderDetail = ({
                   onRemoveWordFromFolder={onRemoveWordFromFolder}
                   activeFolder={activeFolder}
                   searchQuery={searchQuery}
+                  onToggleStar={onToggleStar}
                 />
               ))}
             </div>

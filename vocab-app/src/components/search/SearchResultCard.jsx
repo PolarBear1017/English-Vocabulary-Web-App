@@ -226,9 +226,12 @@ const SearchResultCard = ({
         
         if (savedWord) {
           isSaved = true;
-          // If the user selected more than one folder, associate the rest
-          if (selectedList.length > 1 && onUpdateWordFolders) {
-            await onUpdateWordFolders(savedWord, selectedList);
+          // Associate folder mappings explicitly for all selected folders
+          if (onUpdateWordFolders) {
+            const updateSuccess = await onUpdateWordFolders(savedWord, selectedList);
+            if (updateSuccess === false) {
+              hasError = true;
+            }
           }
         } else {
           hasError = true;
@@ -251,8 +254,12 @@ const SearchResultCard = ({
 
         // If no errors so far, update all folder mappings at once
         if (!hasError && onUpdateWordFolders) {
-          await onUpdateWordFolders(currentWord, selectedList);
-          isSaved = true;
+          const updateSuccess = await onUpdateWordFolders(currentWord, selectedList);
+          if (updateSuccess === false) {
+            hasError = true;
+          } else {
+            isSaved = true;
+          }
         }
       }
 

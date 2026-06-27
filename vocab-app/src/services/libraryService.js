@@ -158,6 +158,10 @@ const updateUserLibraryFoldersByWord = async ({ userId, wordId, folderIds }) => 
 };
 
 const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderIds }) => {
+  console.group('🛠️ [Debug] 更新單字資料夾關聯 (updateUserLibraryFoldersByLibraryId)');
+  console.log('Library ID:', libraryId);
+  console.log('Target Folder IDs:', folderIds);
+
   // Try atomic RPC first to prevent race conditions & intermediate states
   try {
     const { error: rpcError } = await supabase.rpc('update_word_folders', {
@@ -169,12 +173,17 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
     });
 
     if (!rpcError) {
+      console.log('✅ RPC update_word_folders 執行成功！');
+      console.groupEnd();
       return { data: [], error: null };
     }
 
+    console.warn('⚠️ RPC update_word_folders 回傳錯誤:', rpcError);
     // PGRST202/42883 mean function not found. If it's a different database error, return it immediately.
     const isFuncMissing = rpcError.code === 'PGRST202' || rpcError.code === '42883' || rpcError.message?.includes('does not exist');
     if (!isFuncMissing) {
+      console.error('❌ 資料庫執行 RPC 出錯 (非函數不存在):', rpcError);
+      console.groupEnd();
       return { error: rpcError };
     }
     console.warn('Supabase RPC "update_word_folders" not found. Falling back to non-atomic update.');
@@ -183,19 +192,26 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
   }
 
   // Fallback: Delete then Insert (Non-atomic)
-  // 1. Delete existing mappings
+  console.log('🔄 執行 Fallback: 清除現有關聯...');
   const { error: deleteError } = await supabase
     .from('library_folder_map')
     .delete()
     .eq('library_id', libraryId)
     .eq('user_id', userId);
 
-  if (deleteError) return { error: deleteError };
+  if (deleteError) {
+    console.error('❌ Fallback Delete 失敗:', deleteError);
+    console.groupEnd();
+    return { error: deleteError };
+  }
 
   // 2. Insert new mappings
   if (Array.isArray(folderIds) && folderIds.length > 0) {
     const validIds = [...new Set(folderIds)].filter(id => id);
-    if (validIds.length === 0) return { data: [], error: null };
+    if (validIds.length === 0) {
+      console.groupEnd();
+      return { data: [], error: null };
+    }
 
     const rows = validIds.map(fid => ({
       library_id: libraryId,
@@ -203,11 +219,21 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
       user_id: userId
     }));
 
-    return supabase
+    console.log('🔄 執行 Fallback: 新增關聯...', rows);
+    const res = await supabase
       .from('library_folder_map')
       .insert(rows);
+
+    if (res.error) {
+      console.error('❌ Fallback Insert 失敗:', res.error);
+    } else {
+      console.log('✅ Fallback Insert 成功');
+    }
+    console.groupEnd();
+    return res;
   }
 
+  console.groupEnd();
   return { data: [], error: null };
 };
 

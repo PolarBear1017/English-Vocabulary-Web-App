@@ -11,9 +11,10 @@ const SOURCE_OPTIONS = [
 ];
 
 const EXTERNAL_LINKS = [
-  { label: 'Oxford Learner\'s', url: (word) => `https://www.oxfordlearnersdictionaries.com/definition/english/${word}` },
-  { label: 'Longman', url: (word) => `https://www.ldoceonline.com/dictionary/${word}` },
-  { label: 'Merriam-Webster', url: (word) => `https://www.merriam-webster.com/dictionary/${word}` },
+  { label: 'Cambridge', url: (word) => `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word.toLowerCase().trim())}` },
+  { label: 'Oxford Learner\'s', url: (word) => `https://www.oxfordlearnersdictionaries.com/definition/english/${encodeURIComponent(word.toLowerCase().trim())}` },
+  { label: 'Longman', url: (word) => `https://www.ldoceonline.com/dictionary/${encodeURIComponent(word.toLowerCase().trim())}` },
+  { label: 'Merriam-Webster', url: (word) => `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word.toLowerCase().trim())}` },
 ];
 
 const SearchResultHeader = ({

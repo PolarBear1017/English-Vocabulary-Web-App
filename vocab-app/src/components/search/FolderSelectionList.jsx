@@ -115,16 +115,20 @@ const FolderSelectionList = ({
       }
     }
     const saved = [];
+    const newlySelected = [];
     const unsaved = [];
     copy.forEach((folder) => {
-      if (savedIdSet.has(folder.id?.toString())) {
+      const idStr = folder.id?.toString();
+      if (savedIdSet.has(idStr)) {
         saved.push(folder);
+      } else if (selectedIds.has(idStr)) {
+        newlySelected.push(folder);
       } else {
         unsaved.push(folder);
       }
     });
-    return [...saved, ...unsaved];
-  }, [folders, savedIdSet, folderSortBy]);
+    return [...saved, ...newlySelected, ...unsaved];
+  }, [folders, savedIdSet, selectedIds, folderSortBy]);
 
   const filteredFolders = useMemo(() => {
     if (!normalizedQuery) return sortedFolders;

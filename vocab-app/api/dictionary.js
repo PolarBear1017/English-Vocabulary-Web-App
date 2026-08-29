@@ -7,19 +7,28 @@ const isChinese = (text) => /[\u4e00-\u9fa5]/.test(text);
 // Translate Chinese to English using Google Translate API
 const translateToEnglish = async (text) => {
   try {
-    // sl=zh-TW (source), tl=en (target)
-    // dt=t (translation), dt=bd (dictionary/alternatives)
-    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=zh-TW&tl=en&dt=t&dt=bd&q=${encodeURIComponent(text)}`;
+    const clients = ['dict-chrome-ex', 'gtx'];
+    let data = null;
 
-    const response = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    for (const client of clients) {
+      try {
+        const url = `https://translate.googleapis.com/translate_a/single?client=${client}&sl=zh-TW&tl=en&dt=t&dt=bd&q=${encodeURIComponent(text)}`;
+        const response = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+          }
+        });
+        if (response.ok) {
+          data = await response.json();
+          break;
+        }
+      } catch (err) {
+        // try next client
       }
-    });
+    }
 
-    if (!response.ok) return null;
+    if (!data) return null;
 
-    const data = await response.json();
     // data[0][0][0] is the primary translated text
     const primary = data[0]?.[0]?.[0];
 

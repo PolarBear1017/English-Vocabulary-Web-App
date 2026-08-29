@@ -1,4 +1,36 @@
 import * as cheerio from 'cheerio';
+import https from 'node:https';
+import dns from 'node:dns';
+
+try {
+    dns.setDefaultResultOrder('ipv4first');
+} catch (e) {
+    // Ignore in environments where not supported
+}
+
+const fetchHttpsText = (url) => {
+    return new Promise((resolve) => {
+        const req = https.get(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            },
+            timeout: 8000
+        }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve({ ok: res.statusCode === 200, status: res.statusCode, text: data }));
+        });
+        req.on('timeout', () => {
+            req.destroy();
+            resolve({ ok: false, status: 408, text: '' });
+        });
+        req.on('error', (err) => resolve({ ok: false, status: 500, error: err.message, text: '' }));
+    });
+};
 
 export const scrapeCambridge = async (word) => {
     const targetUrl = `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
@@ -98,22 +130,22 @@ export const scrapeCambridge = async (word) => {
 
 export const scrapeYahoo = async (word) => {
     try {
-        // Use the dictionary subdomain which has a cleaner layout and doesn't treat "apple" as a company
-        const url = `https://tw.dictionary.search.yahoo.com/search?p=${encodeURIComponent(word)}`;
+        const urls = [
+            `https://tw.dictionary.search.yahoo.com/search?p=${encodeURIComponent(word)}`,
+            `https://tw.dictionary.yahoo.com/dictionary?p=${encodeURIComponent(word)}`
+        ];
 
-        // Use a standard browser User-Agent
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-                'Accept-Language': 'en-US,en;q=0.5',
-                'Cache-Control': 'no-cache',
-                'Pragma': 'no-cache'
+        let html = null;
+        for (const url of urls) {
+            const res = await fetchHttpsText(url);
+            if (res.ok && res.text && res.text.length > 5000) {
+                html = res.text;
+                break;
             }
-        });
+        }
 
-        if (!response.ok) {
-            console.error('Yahoo scraper error:', response.status, response.statusText);
+        if (!html) {
+            console.error('Yahoo scraper: All endpoints failed or returned empty response');
             return {
                 source: 'Yahoo',
                 word,
@@ -121,42 +153,32 @@ export const scrapeYahoo = async (word) => {
             };
         }
 
-        const html = await response.text();
         const $ = cheerio.load(html);
         const entries = [];
-        const seenDefinitions = new Set();
+        const seenTranslations = new Set();
 
-        // Target the main dictionary card
-        // Specific class found: .dictionaryWordCard
+        // Target the main dictionary card (.dictionaryWordCard)
         const dictionaryCard = $('.dictionaryWordCard').first();
 
         if (dictionaryCard.length > 0) {
-            // Extract simple definitions from the compList
             const listItems = dictionaryCard.find('.compList > ul > li');
 
             listItems.each((i, el) => {
                 const $el = $(el);
-
-                // Extract POS from .pos_button
                 const pos = $el.find('.pos_button').text().trim();
-
-                // Extract definition from .dictionaryExplanation
                 const defText = $el.find('.dictionaryExplanation').text().trim();
 
                 if (defText) {
-                    // Split by semicolon for separate meanings if desired, 
-                    // but for now keeping it as one string per POS often matches user expectation for a summary.
                     const meanings = defText.split(';').map(s => s.trim()).filter(Boolean);
 
                     meanings.forEach(meaning => {
-                        // Create a unique key to prevent exact duplicates
                         const uniqueKey = `${pos}-${meaning}`;
 
-                        if (!seenDefinitions.has(uniqueKey)) {
-                            seenDefinitions.add(uniqueKey);
+                        if (!seenTranslations.has(uniqueKey)) {
+                            seenTranslations.add(uniqueKey);
                             entries.push({
-                                definition: meaning,
-                                translation: '', // Frontend displays both definition and translation, avoid duplication since definition is already Chinese
+                                definition: '',
+                                translation: meaning,
                                 example: '',
                                 examples: [],
                                 pos: pos || 'unknown'
@@ -177,14 +199,14 @@ export const scrapeYahoo = async (word) => {
                     if (spaceIdx > 0) {
                         const pos = text.substring(0, spaceIdx).trim();
                         const def = text.substring(spaceIdx).trim();
-                        if (pos && def && !seenDefinitions.has(def)) {
-                            seenDefinitions.add(def);
+                        if (pos && def && !seenTranslations.has(def)) {
+                            seenTranslations.add(def);
                             entries.push({
-                                definition: def,
-                                translation: '', // Avoid duplication
+                                definition: '',
+                                translation: def,
                                 example: '',
                                 examples: [],
-                                pos: pos
+                                pos: pos || 'unknown'
                             });
                         }
                     }
@@ -201,15 +223,17 @@ export const scrapeYahoo = async (word) => {
             const uniqueAudioUrls = [...new Set(audioUrlMatches)];
             usAudioUrl = uniqueAudioUrls.find(url => url.includes('_us_')) || uniqueAudioUrls[0];
             ukAudioUrl = uniqueAudioUrls.find(url => url.includes('_gb_')) || '';
-            audioUrl = usAudioUrl; // Use the found URL as the primary one
+            audioUrl = usAudioUrl;
         }
+
+        const topTranslation = entries.length > 0 ? entries[0].translation : '';
 
         return {
             word,
             pos: entries.length > 0 ? entries[0].pos : 'unknown',
             phonetic: '',
-            definition: entries.length > 0 ? entries[0].definition : '',
-            translation: '', // Top level translation also empty
+            definition: '',
+            translation: topTranslation,
             example: '',
             entries,
             audioUrl: audioUrl,
@@ -229,20 +253,31 @@ export const scrapeYahoo = async (word) => {
 
 export const scrapeGoogleTranslate = async (word) => {
     try {
-        const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=zh-TW&dt=t&dt=bd&q=${encodeURIComponent(word)}`;
+        const clients = ['dict-chrome-ex', 'gtx'];
+        let data = null;
 
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        for (const client of clients) {
+            try {
+                const url = `https://translate.googleapis.com/translate_a/single?client=${client}&sl=en&tl=zh-TW&dt=t&dt=bd&dt=rm&q=${encodeURIComponent(word)}`;
+                const response = await fetch(url, {
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36'
+                    }
+                });
+
+                if (response.ok) {
+                    data = await response.json();
+                    break;
+                }
+            } catch (err) {
+                // try next client
             }
-        });
-
-        if (!response.ok) {
-            console.error('Google Translate API error:', response.status, response.statusText);
-            return null;
         }
 
-        const data = await response.json();
+        if (!data) {
+            console.error('Google Translate API failed on all clients');
+            return null;
+        }
 
         // data[0][0][0] contains the primary translation
         let primaryTranslation = data[0]?.[0]?.[0];
@@ -253,21 +288,24 @@ export const scrapeGoogleTranslate = async (word) => {
 
         primaryTranslation = primaryTranslation.trim();
 
+        // Extract phonetic (e.g. data[0][1][3] is English IPA or data[0][1][2])
+        const phoneticRaw = data[0]?.[1]?.[3] || data[0]?.[1]?.[2] || '';
+        const phonetic = phoneticRaw ? `/${phoneticRaw}/` : '';
+
         const entries = [];
-        const seenDefinitions = new Set();
+        const seenTranslations = new Set();
 
         // 確保最優先的主翻譯不會遺漏，並且放在第一位
-        seenDefinitions.add(primaryTranslation);
+        seenTranslations.add(primaryTranslation);
         entries.push({
-            definition: primaryTranslation,
-            translation: '',
+            definition: '',
+            translation: primaryTranslation,
             example: '',
             examples: [],
             pos: 'unknown'
         });
 
         // data[1] contains distinct parts of speech and their translations
-        // Structure: [ [ "noun", [ "銀行", "岸", ... ], [ [ "銀行", [ "bank" ] ], ... ], ... ], [ "verb", ... ] ]
         const extraDefinitions = data[1];
 
         if (Array.isArray(extraDefinitions)) {
@@ -278,18 +316,18 @@ export const scrapeGoogleTranslate = async (word) => {
                 if (Array.isArray(terms)) {
                     terms.forEach(termRaw => {
                         const term = termRaw.trim();
-                        if (!seenDefinitions.has(term)) {
-                            seenDefinitions.add(term);
+                        if (!seenTranslations.has(term)) {
+                            seenTranslations.add(term);
                             entries.push({
-                                definition: term,
-                                translation: '', // definition is in Chinese already
+                                definition: '',
+                                translation: term,
                                 example: '',
                                 examples: [],
                                 pos: pos
                             });
                         } else if (term === primaryTranslation) {
                             // 若主翻譯剛好在詳解中出現，更新其真實的詞性
-                            const primaryEntry = entries.find(e => e.definition === primaryTranslation);
+                            const primaryEntry = entries.find(e => e.translation === primaryTranslation);
                             if (primaryEntry && primaryEntry.pos === 'unknown') {
                                 primaryEntry.pos = pos;
                             }
@@ -302,9 +340,9 @@ export const scrapeGoogleTranslate = async (word) => {
         return {
             word,
             pos: entries.length > 0 ? entries[0].pos : 'unknown',
-            phonetic: '',
-            definition: primaryTranslation,
-            translation: '',
+            phonetic,
+            definition: '',
+            translation: primaryTranslation,
             example: '',
             entries: entries,
             audioUrl: '',

@@ -81,9 +81,9 @@ const SearchResultEntries = ({
                 </div>
               )}
               <div className={readOnly ? '' : 'pr-10'}>
-                {entry.translation && (
+                {(entry.translation || entry.definition) && (
                   <p className="text-lg text-gray-800 font-medium flex items-center gap-2">
-                    {entry.translation}
+                    {entry.translation || entry.definition}
                     {entry.pos && (
                       <span className="text-xs text-gray-500 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200 font-serif italic">
                         {entry.pos}
@@ -91,7 +91,7 @@ const SearchResultEntries = ({
                     )}
                   </p>
                 )}
-                {entry.definition && <p className="text-gray-600 mt-1">{entry.definition}</p>}
+                {entry.translation && entry.definition && <p className="text-gray-600 mt-1">{entry.definition}</p>}
               </div>
               {entry.examples && entry.examples.length > 0 && (
                 <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">

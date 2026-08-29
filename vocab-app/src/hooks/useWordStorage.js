@@ -18,6 +18,7 @@ const useWordStorage = ({
   showToast,
   pendingSavesRef,
   syncLockRef,
+  lastMutationTimeRef,
   isDataLoaded
 }) => {
   const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null, options = {}) => {
@@ -151,6 +152,10 @@ const useWordStorage = ({
           return [...prev, reconciledWord];
         });
 
+        if (lastMutationTimeRef) {
+          lastMutationTimeRef.current = Date.now();
+        }
+
         if (showToastFlag) {
           toast.success('已加入單字庫！');
         }
@@ -174,10 +179,14 @@ const useWordStorage = ({
         syncLockRef.current = Math.max(0, syncLockRef.current - 1);
       }
     }
-  }, [folders, pendingSavesRef, session, setVocabData, showToast, vocabData, syncLockRef]);
+  }, [folders, pendingSavesRef, session, setVocabData, showToast, vocabData, syncLockRef, lastMutationTimeRef, isDataLoaded]);
 
   const updateWordFolders = useCallback(async (word, folderIds) => {
     if (!word) return false;
+    if (session?.user && !isDataLoaded) {
+      showToast?.('資料載入中，請稍後再試', 'info');
+      return false;
+    }
     const normalizedFolderIds = (Array.isArray(folderIds) ? folderIds : [])
       .map(id => id?.toString())
       .filter(Boolean);
@@ -196,6 +205,7 @@ const useWordStorage = ({
           if (error) throw error;
         }
         setVocabData(prev => prev.filter(item => item.id !== word.id));
+        if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
         return true;
       }
 
@@ -213,13 +223,14 @@ const useWordStorage = ({
       }
 
       setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: normalizedFolderIds } : item));
+      if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
       return true;
     } finally {
       if (syncLockRef) {
         syncLockRef.current = Math.max(0, syncLockRef.current - 1);
       }
     }
-  }, [session, setVocabData, syncLockRef]);
+  }, [session, setVocabData, syncLockRef, lastMutationTimeRef, isDataLoaded, showToast]);
 
   const handleRemoveWordFromFolder = useCallback(async (word, folderId) => {
     const currentFolders = Array.isArray(word.folderIds) ? word.folderIds.map(id => id?.toString()) : [];

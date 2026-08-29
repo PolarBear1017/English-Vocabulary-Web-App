@@ -9,18 +9,28 @@ import {
 import { mapLibraryRowToWord } from '../domain/mappers/libraryMapper';
 import { entryToWord } from '../utils/mapper';
 
-const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) => {
+const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, lastMutationTimeRef }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const isSyncing = useRef(false);
 
   const loadData = useCallback(async (userId) => {
+    const fetchStartTime = Date.now();
     try {
       const { data: dbFolders, error: folderError } = await fetchFolders(userId);
       if (folderError) throw folderError;
 
       const allFolders = [];
       if (dbFolders) allFolders.push(...dbFolders.map(f => ({ ...f, id: f.id?.toString(), words: [] })));
-      setFolders(allFolders);
+      
+      if (!syncLockRef?.current && (!lastMutationTimeRef?.current || lastMutationTimeRef.current < fetchStartTime)) {
+        setFolders(allFolders);
+      } else {
+        setFolders(prev => {
+          const loadedFolderIds = new Set(allFolders.map(f => f.id));
+          const prevOnly = prev.filter(f => !loadedFolderIds.has(f.id));
+          return [...allFolders, ...prevOnly];
+        });
+      }
 
       const { data, error } = await fetchUserLibrary(userId);
       if (error) throw error;
@@ -28,6 +38,36 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) 
       if (data) {
         const loadedVocab = data.map(mapLibraryRowToWord);
         setVocabData(prev => {
+          const isWritingNow = syncLockRef?.current > 0;
+          const hadWriteDuringFetch = lastMutationTimeRef?.current && lastMutationTimeRef.current >= fetchStartTime;
+
+          if (isWritingNow || hadWriteDuringFetch) {
+            console.log("Database write occurred during fetch/sync, performing smart merge to preserve local changes.");
+            const loadedMap = new Map();
+            loadedVocab.forEach(w => {
+              const key = (w.libraryId?.toString() || w.word || '').toLowerCase();
+              loadedMap.set(key, w);
+            });
+
+            const mergedMap = new Map();
+            loadedVocab.forEach(w => {
+              const key = (w.libraryId?.toString() || w.word || '').toLowerCase();
+              mergedMap.set(key, w);
+            });
+
+            prev.forEach(prevWord => {
+              const key = (prevWord.libraryId?.toString() || prevWord.word || '').toLowerCase();
+              const isLocalOrTemp = prevWord.id?.toString().startsWith('temp-') || prevWord.isLocal;
+              const isRecentlyModified = prevWord._lastModified && prevWord._lastModified >= fetchStartTime;
+
+              if (isLocalOrTemp || isRecentlyModified || !mergedMap.has(key)) {
+                mergedMap.set(key, prevWord);
+              }
+            });
+
+            return Array.from(mergedMap.values());
+          }
+
           const pendingWords = prev.filter(word => 
             word.id?.toString().startsWith('temp-') || word.isLocal
           );
@@ -49,7 +89,7 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef }) 
       setIsDataLoaded(true);
       throw error;
     }
-  }, [setFolders, setVocabData]);
+  }, [setFolders, setVocabData, syncLockRef, lastMutationTimeRef]);
 
   useEffect(() => {
     if (session?.user?.id) {

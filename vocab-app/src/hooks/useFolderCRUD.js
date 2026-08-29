@@ -14,7 +14,8 @@ const useFolderCRUD = ({
   viewingFolderId,
   setViewingFolderId,
   vocabData,
-  setVocabData
+  setVocabData,
+  lastMutationTimeRef
 }) => {
   const createFolder = useCallback(async ({ name, description }) => {
     const nextName = (name || '').trim();
@@ -41,6 +42,7 @@ const useFolderCRUD = ({
       }
       const created = { ...data, id: data.id?.toString() };
       setFolders(prev => [...prev, created]);
+      if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
       return created;
     }
 
@@ -51,8 +53,9 @@ const useFolderCRUD = ({
       words: []
     };
     setFolders(prev => [...prev, created]);
+    if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
     return created;
-  }, [session, setFolders]);
+  }, [session, setFolders, lastMutationTimeRef]);
 
   const handleDeleteFolder = useCallback(async (folderId) => {
     if (!confirm('確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)')) return;
@@ -97,7 +100,8 @@ const useFolderCRUD = ({
     );
 
     if (viewingFolderId === folderId) setViewingFolderId(null);
-  }, [session, setFolders, setViewingFolderId, viewingFolderId, vocabData, setVocabData]);
+    if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
+  }, [session, setFolders, setViewingFolderId, viewingFolderId, vocabData, setVocabData, lastMutationTimeRef]);
 
   const handleDeleteFolders = useCallback(async (folderIds) => {
     const deletableIds = (Array.isArray(folderIds) ? folderIds : [])
@@ -156,8 +160,9 @@ const useFolderCRUD = ({
     if (viewingFolderId && deletableIds.includes(viewingFolderId)) {
       setViewingFolderId(null);
     }
+    if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
     return true;
-  }, [session, setFolders, setViewingFolderId, viewingFolderId, vocabData, setVocabData]);
+  }, [session, setFolders, setViewingFolderId, viewingFolderId, vocabData, setVocabData, lastMutationTimeRef]);
 
   const handleEditFolder = useCallback(async (folder, updates) => {
     if (!folder) return false;
@@ -190,12 +195,14 @@ const useFolderCRUD = ({
       }
 
       setFolders(prev => prev.map(item => item.id === folder.id ? { ...item, ...data } : item));
+      if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
       return true;
     }
 
     setFolders(prev => prev.map(item => item.id === folder.id ? { ...item, ...payload } : item));
+    if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
     return true;
-  }, [session, setFolders]);
+  }, [session, setFolders, lastMutationTimeRef]);
 
   return {
     actions: {

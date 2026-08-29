@@ -107,6 +107,7 @@ const SearchTab = () => {
           savedWordInSearch={savedWordInSearch}
           saveButtonFeedback={saveButtonFeedback}
           folders={folders}
+          isDataLoaded={isDataLoaded}
           lastUsedFolderIds={lastUsedFolderIds}
           onSaveWord={search.actions.saveFromSearch}
           onUpdateWordFolders={library.actions.updateWordFolders}

@@ -39,6 +39,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   const [lastUsedFolderIds, setLastUsedFolderIds] = useState(() => loadLastUsedFolders());
   const pendingSavesRef = useRef(new Set());
   const syncLockRef = useRef(0); // Tracks active database write operations to prevent background sync race conditions
+  const lastMutationTimeRef = useRef(0); // Tracks timestamp of last local data write operation
 
   const index = useLibraryIndex({ folders, vocabData });
 
@@ -47,7 +48,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     setFolders,
     setVocabData,
     vocabData,
-    syncLockRef
+    syncLockRef,
+    lastMutationTimeRef
   });
 
   const { actions: folderActions } = useFolderCRUD({
@@ -57,7 +59,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     viewingFolderId,
     setViewingFolderId,
     vocabData,
-    setVocabData
+    setVocabData,
+    lastMutationTimeRef
   });
 
   const { actions: wordActions } = useWordStorage({
@@ -68,6 +71,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     showToast,
     pendingSavesRef,
     syncLockRef,
+    lastMutationTimeRef,
     isDataLoaded: sync.state.isDataLoaded
   });
 

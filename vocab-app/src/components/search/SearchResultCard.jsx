@@ -25,6 +25,7 @@ const SearchResultCard = ({
   savedWordInSearch,
   saveButtonFeedback,
   folders,
+  isDataLoaded = true,
   lastUsedFolderIds,
   onSaveWord,
   onUpdateWordFolders,
@@ -208,6 +209,10 @@ const SearchResultCard = ({
 
   const handleConfirmFolders = useCallback(async ({ addIds, removeIds, selectedIds }) => {
     if (isProcessingRef.current || isConfirmingFolders) return;
+    if (!isDataLoaded) {
+      toast.error('資料載入/同步中，請稍後再試');
+      return;
+    }
     isProcessingRef.current = true;
     setIsConfirmingFolders(true);
     const removeList = Array.isArray(removeIds) ? removeIds : [];
@@ -469,6 +474,7 @@ const SearchResultCard = ({
             <div className="relative z-50 w-full max-w-md mx-4 bg-white rounded-2xl shadow-xl border border-gray-100 p-5">
               <FolderSelectionList
                 folders={folders}
+                isDataLoaded={isDataLoaded}
                 savedFolderIds={savedWordInSearch?.folderIds}
                 lastUsedFolderIds={lastUsedFolderIds}
                 initialSelectedIds={draftFolderIds}

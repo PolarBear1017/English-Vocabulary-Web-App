@@ -191,50 +191,59 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
     console.warn('Error invoking RPC "update_word_folders", falling back to non-atomic update.', err);
   }
 
-  // Fallback: Delete then Insert (Non-atomic)
-  console.log('🔄 執行 Fallback: 清除現有關聯...');
-  const { error: deleteError } = await supabase
-    .from('library_folder_map')
-    .delete()
-    .eq('library_id', libraryId)
-    .eq('user_id', userId);
+  // Fallback: Non-atomic safely (Upsert new mappings first, then delete removed mappings)
+  console.log('🔄 執行 Fallback: 更新關聯...');
+  const validIds = [...new Set((Array.isArray(folderIds) ? folderIds : []).map(id => id?.toString()).filter(Boolean))];
 
-  if (deleteError) {
-    console.error('❌ Fallback Delete 失敗:', deleteError);
-    console.groupEnd();
-    return { error: deleteError };
-  }
-
-  // 2. Insert new mappings
-  if (Array.isArray(folderIds) && folderIds.length > 0) {
-    const validIds = [...new Set(folderIds)].filter(id => id);
-    if (validIds.length === 0) {
-      console.groupEnd();
-      return { data: [], error: null };
-    }
-
+  if (validIds.length > 0) {
     const rows = validIds.map(fid => ({
       library_id: libraryId,
       folder_id: fid,
       user_id: userId
     }));
 
-    console.log('🔄 執行 Fallback: 新增關聯...', rows);
-    const res = await supabase
+    console.log('🔄 執行 Fallback: 新增/更新關聯...', rows);
+    const insertRes = await supabase
       .from('library_folder_map')
-      .insert(rows);
+      .upsert(rows, { onConflict: 'library_id,folder_id', ignoreDuplicates: true });
 
-    if (res.error) {
-      console.error('❌ Fallback Insert 失敗:', res.error);
-    } else {
-      console.log('✅ Fallback Insert 成功');
+    if (insertRes.error) {
+      console.error('❌ Fallback Upsert 失敗:', insertRes.error);
+      console.groupEnd();
+      return insertRes;
     }
-    console.groupEnd();
-    return res;
-  }
 
-  console.groupEnd();
-  return { data: [], error: null };
+    // Clean up mappings that were removed
+    const { error: cleanupError } = await supabase
+      .from('library_folder_map')
+      .delete()
+      .eq('library_id', libraryId)
+      .eq('user_id', userId)
+      .not('folder_id', 'in', `(${validIds.join(',')})`);
+
+    if (cleanupError) {
+      console.warn('⚠️ Fallback Delete 警告:', cleanupError);
+    }
+    console.log('✅ Fallback 執行完成');
+    console.groupEnd();
+    return { data: insertRes.data, error: null };
+  } else {
+    // folderIds is empty, delete all mappings for this library_id
+    const { error: deleteError } = await supabase
+      .from('library_folder_map')
+      .delete()
+      .eq('library_id', libraryId)
+      .eq('user_id', userId);
+
+    if (deleteError) {
+      console.error('❌ Fallback Delete 失敗:', deleteError);
+      console.groupEnd();
+      return { error: deleteError };
+    }
+    console.log('✅ Fallback 刪除關聯完成');
+    console.groupEnd();
+    return { data: [], error: null };
+  }
 };
 
 const updateUserLibraryProgress = async ({ libraryId, payload }) => {

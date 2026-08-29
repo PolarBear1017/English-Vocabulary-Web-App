@@ -207,6 +207,10 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
       updateWord: wordActions.updateWord,
       toggleWordStar: wordActions.toggleWordStar,
       updateLastUsedFolderIds
+    },
+    refs: {
+      syncLockRef,
+      lastMutationTimeRef
     }
   };
 };

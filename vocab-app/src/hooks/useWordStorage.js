@@ -29,15 +29,11 @@ const useWordStorage = ({
     }
     const showToastFlag = options?.showToast !== false;
 
-    const folderName = folders.find(folder => folder.id === folderId)?.name || '資料夾';
-    const normalizedFolderId = folderId?.toString();
-    if (session?.user && normalizedFolderId) {
-      const isKnownFolder = folders.some(folder => folder.id === normalizedFolderId);
-      if (!isKnownFolder) {
-        showToast?.('資料夾尚未同步，請重新選擇或刷新', 'error');
-        return false;
-      }
-    }
+    const normalizedFolderIds = Array.isArray(folderId)
+      ? folderId.map(id => id?.toString()).filter(Boolean)
+      : (folderId ? [folderId.toString()] : []);
+    const primaryFolderId = normalizedFolderIds[0] || null;
+
     const existingWord = vocabData.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
 
     const normalizedSelectedDefinitions = Array.isArray(selectedDefinitions) ? selectedDefinitions : null;
@@ -55,16 +51,8 @@ const useWordStorage = ({
       const prev = normalizeDefs(existingWord?.selectedDefinitions || existingWord?.selected_definitions);
       return JSON.stringify(next) === JSON.stringify(prev);
     };
-    if (existingWord && normalizedFolderId && existingWord.folderIds?.includes(normalizedFolderId)) {
-      if (normalizedSelectedDefinitions && !sameDefinitions()) {
-        // allow update when only definitions changed
-      } else {
-        showToast?.(`「${searchResult.word}」已在「${folderName}」`, 'info');
-        return false;
-      }
-    }
 
-    const pendingKey = `${session?.user?.id || 'guest'}::${(searchResult.word || '').toLowerCase()}::${normalizedFolderId || ''}`;
+    const pendingKey = `${session?.user?.id || 'guest'}::${(searchResult.word || '').toLowerCase()}::${normalizedFolderIds.join(',')}`;
     if (pendingSavesRef.current.has(pendingKey)) return false;
     pendingSavesRef.current.add(pendingKey);
 
@@ -75,15 +63,14 @@ const useWordStorage = ({
       if (!session) {
         let resultWord;
         if (existingWord) {
-          const nextFolderIds = normalizedFolderId
-            ? Array.from(new Set([...(existingWord.folderIds || []).map(id => id?.toString()), normalizedFolderId])).filter(Boolean)
-            : (existingWord.folderIds || []);
+          const nextFolderIds = Array.from(new Set([...(existingWord.folderIds || []).map(id => id?.toString()), ...normalizedFolderIds])).filter(Boolean);
           resultWord = createVocabularyWord({
             ...existingWord,
             folderIds: nextFolderIds,
             selectedDefinitions: normalizedSelectedDefinitions ?? existingWord.selectedDefinitions ?? null,
             source: existingWord.source ?? searchResult.source ?? null,
-            isAiGenerated: existingWord.isAiGenerated ?? searchResult.isAiGenerated ?? false
+            isAiGenerated: existingWord.isAiGenerated ?? searchResult.isAiGenerated ?? false,
+            _lastModified: Date.now()
           });
           setVocabData(prev => prev.map(word => word.id === existingWord.id ? { ...resultWord, isLocal: true } : word));
         } else {
@@ -91,29 +78,31 @@ const useWordStorage = ({
           resultWord = createVocabularyWord({
             ...searchResult,
             id: tempId,
-            folderIds: normalizedFolderId ? [normalizedFolderId] : [],
+            folderIds: normalizedFolderIds,
             selectedDefinitions: normalizedSelectedDefinitions,
             addedAt: nowIso,
             nextReview: nowIso,
             due: nowIso,
             proficiencyScore: 0,
             source: searchResult.source ?? null,
-            isAiGenerated: searchResult.isAiGenerated ?? false
+            isAiGenerated: searchResult.isAiGenerated ?? false,
+            _lastModified: Date.now()
           });
           setVocabData(prev => [...prev, { ...resultWord, isLocal: true }]);
         }
+        if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
         if (showToastFlag) {
           toast.success('已暫存於本機 (訪客模式)');
         }
         return resultWord;
       }
 
-      // Logged in mode - NO optimistic updates
+      // Logged in mode
       try {
         const { data, error } = await saveWordWithPreferences({
           wordData: existingWord ? { ...existingWord, source: searchResult.source, isAiGenerated: searchResult.isAiGenerated } : searchResult,
           userId: session.user.id,
-          folderId: normalizedFolderId,
+          folderId: primaryFolderId,
           selectedDefinitions
         });
 
@@ -125,10 +114,16 @@ const useWordStorage = ({
         const reconciledWord = entryToWord({
           entry: libraryEntry,
           baseWord: existingWord || searchResult,
-          normalizedFolderId,
+          normalizedFolderId: primaryFolderId,
           normalizedSelectedDefinitions,
           nowIso
         });
+
+        const finalFolderIds = Array.from(new Set([
+          ...(reconciledWord.folderIds || []),
+          ...normalizedFolderIds
+        ]));
+        reconciledWord.folderIds = finalFolderIds;
 
         if (libraryEntry?.id && searchResult?.source) {
           try {
@@ -144,12 +139,14 @@ const useWordStorage = ({
           }
         }
 
+        const wordWithTimestamp = { ...reconciledWord, _lastModified: Date.now() };
+
         setVocabData(prev => {
           const exists = prev.find(word => (word.word || '').toLowerCase() === (searchResult.word || '').toLowerCase());
           if (exists) {
-            return prev.map(word => word.id === exists.id ? reconciledWord : word);
+            return prev.map(word => word.id === exists.id ? wordWithTimestamp : word);
           }
-          return [...prev, reconciledWord];
+          return [...prev, wordWithTimestamp];
         });
 
         if (lastMutationTimeRef) {
@@ -159,7 +156,7 @@ const useWordStorage = ({
         if (showToastFlag) {
           toast.success('已加入單字庫！');
         }
-        return reconciledWord;
+        return wordWithTimestamp;
       } catch (error) {
         console.error("儲存失敗:", error);
 
@@ -222,8 +219,9 @@ const useWordStorage = ({
         if (error) throw error;
       }
 
-      setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: normalizedFolderIds } : item));
-      if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
+      const now = Date.now();
+      setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, folderIds: normalizedFolderIds, _lastModified: now } : item));
+      if (lastMutationTimeRef) lastMutationTimeRef.current = now;
       return true;
     } finally {
       if (syncLockRef) {

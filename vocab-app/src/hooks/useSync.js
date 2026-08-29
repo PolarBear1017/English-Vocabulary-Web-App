@@ -40,15 +40,10 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, la
         setVocabData(prev => {
           const isWritingNow = syncLockRef?.current > 0;
           const hadWriteDuringFetch = lastMutationTimeRef?.current && lastMutationTimeRef.current >= fetchStartTime;
+          const hadRecentMutation = lastMutationTimeRef?.current && (Date.now() - lastMutationTimeRef.current < 15000);
 
-          if (isWritingNow || hadWriteDuringFetch) {
-            console.log("Database write occurred during fetch/sync, performing smart merge to preserve local changes.");
-            const loadedMap = new Map();
-            loadedVocab.forEach(w => {
-              const key = (w.libraryId?.toString() || w.word || '').toLowerCase();
-              loadedMap.set(key, w);
-            });
-
+          if (isWritingNow || hadWriteDuringFetch || hadRecentMutation) {
+            console.log("Database write active or occurred recently, performing smart merge to preserve local changes.");
             const mergedMap = new Map();
             loadedVocab.forEach(w => {
               const key = (w.libraryId?.toString() || w.word || '').toLowerCase();
@@ -58,10 +53,15 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, la
             prev.forEach(prevWord => {
               const key = (prevWord.libraryId?.toString() || prevWord.word || '').toLowerCase();
               const isLocalOrTemp = prevWord.id?.toString().startsWith('temp-') || prevWord.isLocal;
-              const isRecentlyModified = prevWord._lastModified && prevWord._lastModified >= fetchStartTime;
+              const isRecentlyModified = prevWord._lastModified && (Date.now() - prevWord._lastModified < 60000);
 
               if (isLocalOrTemp || isRecentlyModified || !mergedMap.has(key)) {
                 mergedMap.set(key, prevWord);
+              } else {
+                const loadedWord = mergedMap.get(key);
+                if (prevWord._lastModified && Array.isArray(prevWord.folderIds) && prevWord.folderIds.length > 0 && (!loadedWord.folderIds || loadedWord.folderIds.length === 0)) {
+                  mergedMap.set(key, { ...loadedWord, folderIds: prevWord.folderIds });
+                }
               }
             });
 
@@ -105,6 +105,10 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, la
       if (!session?.user) return;
       if (syncLockRef?.current > 0) {
         console.log("Database write is active, skipping background sync to avoid race condition.");
+        return;
+      }
+      if (lastMutationTimeRef?.current && (Date.now() - lastMutationTimeRef.current < 10000)) {
+        console.log("Recent database write occurred (<10s), skipping focus sync to prevent overwriting local state.");
         return;
       }
       loadData(session.user.id).catch(() => { });

@@ -32,6 +32,8 @@ const SearchResultCard = ({
   onRemoveWordFromFolder,
   onUpdateLastUsedFolderIds,
   onCreateFolder,
+  syncLockRef,
+  lastMutationTimeRef,
   groqApiKey,
   aiLoading,
   onGenerateMnemonic,
@@ -215,6 +217,8 @@ const SearchResultCard = ({
     }
     isProcessingRef.current = true;
     setIsConfirmingFolders(true);
+    if (syncLockRef) syncLockRef.current += 1;
+
     const removeList = Array.isArray(removeIds) ? removeIds : [];
     const addList = Array.isArray(addIds) ? addIds : [];
     const selectedList = Array.isArray(selectedIds) ? selectedIds : [];
@@ -225,13 +229,12 @@ const SearchResultCard = ({
     try {
       if (!savedWordInSearch) {
         // --- CASE 1: Word is NOT saved yet ---
-        // Save the word first to the first selected folder (or null)
         const firstFolderId = selectedList[0] || null;
         const savedWord = await handleSaveWord(firstFolderId, searchResult);
         
         if (savedWord) {
           isSaved = true;
-          // Associate folder mappings explicitly for all selected folders
+          // Associate folder mappings for all selected folders
           if (onUpdateWordFolders) {
             const updateSuccess = await onUpdateWordFolders(savedWord, selectedList);
             if (updateSuccess === false) {
@@ -257,7 +260,7 @@ const SearchResultCard = ({
           }
         }
 
-        // If no errors so far, update all folder mappings at once
+        // Update folder mappings
         if (!hasError && onUpdateWordFolders) {
           const updateSuccess = await onUpdateWordFolders(currentWord, selectedList);
           if (updateSuccess === false) {
@@ -292,6 +295,12 @@ const SearchResultCard = ({
       toast.error('儲存失敗，請重試');
       hasError = true;
     } finally {
+      if (syncLockRef) {
+        syncLockRef.current = Math.max(0, syncLockRef.current - 1);
+      }
+      if (lastMutationTimeRef) {
+        lastMutationTimeRef.current = Date.now();
+      }
       setIsConfirmingFolders(false);
       isProcessingRef.current = false;
       if (!hasError) {
@@ -306,7 +315,10 @@ const SearchResultCard = ({
     onUpdateLastUsedFolderIds,
     resetSaveFlow,
     savedWordInSearch,
-    searchResult
+    searchResult,
+    syncLockRef,
+    lastMutationTimeRef,
+    isDataLoaded
   ]);
 
   const applySavedSelection = useCallback(() => {

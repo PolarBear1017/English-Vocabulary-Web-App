@@ -114,6 +114,8 @@ const SearchTab = () => {
           onRemoveWordFromFolder={library.actions.handleRemoveWordFromFolder}
           onUpdateLastUsedFolderIds={library.actions.updateLastUsedFolderIds}
           onCreateFolder={library.actions.createFolder}
+          syncLockRef={library.refs?.syncLockRef}
+          lastMutationTimeRef={library.refs?.lastMutationTimeRef}
           groqApiKey={groqApiKey}
           aiLoading={aiLoading}
           onGenerateMnemonic={search.actions.generateAiMnemonic}

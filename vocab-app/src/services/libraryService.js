@@ -203,12 +203,19 @@ const updateUserLibraryFoldersByLibraryId = async ({ userId, libraryId, folderId
     }));
 
     console.log('🔄 執行 Fallback: 新增/更新關聯...', rows);
-    const insertRes = await supabase
+    let insertRes = await supabase
       .from('library_folder_map')
       .upsert(rows, { onConflict: 'library_id,folder_id', ignoreDuplicates: true });
 
     if (insertRes.error) {
-      console.error('❌ Fallback Upsert 失敗:', insertRes.error);
+      console.warn('Fallback Upsert 失敗，嘗試使用一般 Insert...', insertRes.error);
+      // Fallback if unique constraint or onConflict is not configured: delete then insert
+      await supabase.from('library_folder_map').delete().eq('library_id', libraryId).eq('user_id', userId);
+      insertRes = await supabase.from('library_folder_map').insert(rows);
+    }
+
+    if (insertRes.error) {
+      console.error('❌ Fallback Insert 失敗:', insertRes.error);
       console.groupEnd();
       return insertRes;
     }
@@ -272,15 +279,32 @@ const deleteUserLibraryEntry = async ({ userId, libraryId }) => {
 };
 
 const saveWordWithPreferences = async ({ wordData, userId, folderId, selectedDefinitions }) => {
-  // Ensure folderId is null if not provided
-  const targetFolderId = !folderId ? null : folderId;
+  const targetFolderId = !folderId ? null : (Array.isArray(folderId) ? folderId[0] : folderId);
+  const targetDefs = Array.isArray(selectedDefinitions) ? selectedDefinitions : null;
   
-  return supabase.rpc('save_word_with_preferences', {
+  // Try with p_ prefix first (V3 migration)
+  const res = await supabase.rpc('save_word_with_preferences', {
     p_word_data: wordData,
     p_user_id: userId,
     p_folder_id: targetFolderId,
-    p_selected_defs: selectedDefinitions
+    p_selected_defs: targetDefs
   });
+
+  if (!res.error) return res;
+
+  // Fallback to legacy parameter names without p_ prefix (V2 migration)
+  const isFuncMismatch = res.error?.code === 'PGRST202' || res.error?.code === '42883' || res.error?.message?.includes('does not exist') || res.error?.message?.includes('schema cache');
+  if (isFuncMismatch) {
+    console.warn('RPC with p_ prefix failed, attempting legacy RPC call without p_ prefix...');
+    return supabase.rpc('save_word_with_preferences', {
+      word_data: wordData,
+      user_id: userId,
+      folder_id: targetFolderId,
+      selected_defs: targetDefs
+    });
+  }
+
+  return res;
 };
 
 const toggleUserLibraryStar = async ({ libraryId, isStarred }) => {

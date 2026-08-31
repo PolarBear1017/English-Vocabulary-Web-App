@@ -354,6 +354,24 @@ const SearchResultCard = ({
     setSaveStep('folder');
   }, [applySavedSelection, saveStep]);
 
+  useEffect(() => {
+    if (saveStep !== 'idle') return;
+    const handleKeyDown = (event) => {
+      if (event.key !== 'Enter') return;
+      if (event.defaultPrevented) return;
+      const target = event.target;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTypingField = tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable;
+      if (isTypingField) return;
+
+      event.preventDefault();
+      handleStartSave();
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [handleStartSave, saveStep]);
+
   const handleCancelSave = useCallback(() => {
     resetSaveFlow();
   }, [resetSaveFlow]);

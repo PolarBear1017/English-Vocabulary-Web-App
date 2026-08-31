@@ -127,7 +127,7 @@ const FolderSelectionList = ({
         unsaved.push(folder);
       }
     });
-    return [...saved, ...newlySelected, ...unsaved];
+    return [...newlySelected, ...saved, ...unsaved];
   }, [folders, savedIdSet, selectedIds, folderSortBy]);
 
   const filteredFolders = useMemo(() => {
@@ -225,8 +225,13 @@ const FolderSelectionList = ({
   };
 
   useEffect(() => {
-    if (!onConfirm) return;
     const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        onCancel?.();
+        return;
+      }
+      if (!onConfirm) return;
       if (event.key !== 'Enter') return;
       if (event.defaultPrevented) return;
       const target = event.target;
@@ -239,7 +244,7 @@ const FolderSelectionList = ({
     };
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleConfirm, hasChanges, hasDefinitionChanges, isConfirming, onConfirm, selectedIds.size, savedIdSet.size]);
+  }, [handleConfirm, hasChanges, hasDefinitionChanges, isConfirming, onConfirm, onCancel, selectedIds.size, savedIdSet.size]);
 
   return (
     <div className="space-y-3">
@@ -255,10 +260,25 @@ const FolderSelectionList = ({
           >
             <Info className="w-4 h-4 text-gray-400 cursor-help" />
             <div
-              className={`absolute left-0 top-full mt-2 w-56 p-2 bg-white text-gray-700 text-xs rounded-lg shadow-lg border border-gray-100 transition-all duration-200 z-50 ${showShortcutTip ? 'opacity-100 visible' : 'opacity-0 invisible'
+              className={`absolute left-0 top-full mt-2 w-64 p-3 bg-white text-gray-700 text-xs rounded-xl shadow-xl border border-gray-100 transition-all duration-200 z-50 space-y-2 ${showShortcutTip ? 'opacity-100 visible' : 'opacity-0 invisible'
                 } group-hover:opacity-100 group-hover:visible`}
             >
-              小技巧：系統已預設勾選您上次使用的資料夾，直接按 Enter 鍵即可快速儲存！
+              <div className="font-bold text-gray-800 flex items-center gap-1.5">
+                <span>⌨️ 快捷鍵小技巧</span>
+              </div>
+              <div className="space-y-1.5 text-gray-600">
+                <div className="flex items-center justify-between gap-2">
+                  <span>確認儲存</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-700 shadow-sm">Enter</kbd>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span>關閉 / 取消</span>
+                  <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-700 shadow-sm">ESC</kbd>
+                </div>
+              </div>
+              <p className="text-[11px] text-gray-400 pt-1 border-t border-gray-100">
+                * 系統已預設勾選您上次使用的資料夾，查詢後連按兩次 Enter 即可極速存入！
+              </p>
               <div className="absolute left-3 bottom-full w-0 h-0 border-4 border-transparent border-b-white" />
             </div>
           </button>

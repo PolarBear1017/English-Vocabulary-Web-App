@@ -310,7 +310,19 @@ const speak = (text, audioUrl = null, options = {}) => {
   const { rate = 1.0, onEnd, source } = options;
 
   if (audioUrl) {
-    playAudioWithContext(audioUrl, { onEnd, source, rate });
+    playAudioWithContext(audioUrl, {
+      onEnd,
+      source,
+      rate,
+      onPlaybackFailed: () => {
+        if (options.onPlaybackFailed) {
+          options.onPlaybackFailed();
+        } else if (text) {
+          console.warn("Audio URL playback failed, falling back to TTS for:", text);
+          speak(text, null, options);
+        }
+      }
+    });
     return;
   }
 

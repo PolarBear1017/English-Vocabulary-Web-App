@@ -101,7 +101,9 @@
     "generating": "生成中...",
     "generateMnemonic": "生成字根/諧音記憶法",
     "setApiKeyForMnemonic": "請設定 API Key 以啟用記憶法生成",
-    "similarWords": "相似字"
+    "similarWords": "相似字",
+    "requireGroqKey": "請先在設定頁面輸入 Groq API Key",
+    "generationFailed": "生成失敗"
   },
   "library": {
     "title": "我的單字庫",
@@ -155,6 +157,7 @@
     "generateStory": "生成故事",
     "aiVocabularyStory": "AI 單字故事",
     "generatingStoryPrompt": "正在發揮創意編寫故事中...",
+    "storyGenerationFailed": "故事生成失敗",
     "readStory": "朗讀故事",
     "reviewCompletion": "複習完成度",
     "comprehensionDegree": "理解程度",
@@ -176,7 +179,14 @@
     "showTip": "顯示小技巧",
     "keyboardNavTip": "可以用鍵盤左右方向鍵切換上一張、下一張單字卡。",
     "mnemonics": "助記",
-    "notes": "筆記"
+    "notes": "筆記",
+    "storyMinWords": "資料夾內至少需要 3 個單字才能生成故事喔！",
+    "storyRequireGroq": "請先設定 Groq API Key 才能使用故事生成功能！",
+    "createFolderFailed": "建立資料夾失敗",
+    "deleteFolderFailed": "刪除失敗",
+    "updateFolderFailed": "更新失敗",
+    "removeFailed": "移除失敗",
+    "moveFailed": "移動失敗"
   },
   "settings": {
     "title": "設定",
@@ -245,7 +255,12 @@
       "google": "Google 翻譯",
       "yahoo": "Yahoo 字典",
       "general": "一般/其他 (General)"
-    }
+    },
+    "loginFailed": "登入失敗",
+    "logoutFailed": "登出失敗",
+    "enterEmailAndPassword": "請輸入 Email 和密碼",
+    "signUpFailed": "註冊失敗",
+    "signUpSuccess": "註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。"
   },
   "review": {
     "title": "複習中心",
@@ -315,5 +330,10 @@
     "play": "播放",
     "next": "下一個",
     "close": "關閉播放器"
+  },
+  "sync": {
+    "syncComplete": "同步完成！",
+    "syncFailed": "同步失敗",
+    "loginRequired": "請先登入才能同步資料！"
   }
 }

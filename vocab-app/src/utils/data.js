@@ -55,7 +55,7 @@ const mapGradeToFsrsRating = (grade) => {
   return Rating.Easy;
 };
 
-const formatDate = (date) => new Date(date).toLocaleDateString('zh-TW');
+const formatDate = (date, locale = 'zh-TW') => new Date(date).toLocaleDateString(locale);
 
 const splitExampleLines = (example = '') => {
   const trimmed = example.trim();

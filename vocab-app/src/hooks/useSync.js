@@ -8,6 +8,7 @@ import {
 } from '../services/libraryService';
 import { mapLibraryRowToWord } from '../domain/mappers/libraryMapper';
 import { entryToWord } from '../utils/mapper';
+import i18n from '../i18n/config';
 
 const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, lastMutationTimeRef }) => {
   const [isDataLoaded, setIsDataLoaded] = useState(false);
@@ -204,13 +205,13 @@ const useSync = ({ session, setFolders, setVocabData, vocabData, syncLockRef, la
     if (session?.user) {
       setIsDataLoaded(false);
       loadData(session.user.id)
-        .then(() => alert("同步完成！"))
+        .then(() => alert(i18n.t('sync.syncComplete', '同步完成！')))
         .catch((error) => {
           const message = error?.message || '請稍後再試';
-          alert(`同步失敗: ${message}`);
+          alert(`${i18n.t('sync.syncFailed', '同步失敗')}: ${message}`);
         });
     } else {
-      alert("請先登入才能同步資料！");
+      alert(i18n.t('sync.loginRequired', '請先登入才能同步資料！'));
     }
   }, [loadData, session]);
 

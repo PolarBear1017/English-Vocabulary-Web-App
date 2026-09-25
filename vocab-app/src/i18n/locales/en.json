@@ -102,7 +102,9 @@
     "generating": "Generating...",
     "generateMnemonic": "Generate etymology / mnemonic",
     "setApiKeyForMnemonic": "Please set API Key in settings to enable mnemonic generation",
-    "similarWords": "Similar Words"
+    "similarWords": "Similar Words",
+    "requireGroqKey": "Please enter your Groq API Key in settings first",
+    "generationFailed": "Generation failed"
   },
   "library": {
     "title": "My Vocabulary",
@@ -158,6 +160,7 @@
     "generateStory": "Generate Story",
     "aiVocabularyStory": "AI Vocabulary Story",
     "generatingStoryPrompt": "Creatively weaving a story with your words...",
+    "storyGenerationFailed": "Failed to generate story",
     "readStory": "Read Story",
     "reviewCompletion": "Review Progress",
     "comprehensionDegree": "Mastery",
@@ -179,7 +182,14 @@
     "showTip": "Show tip",
     "keyboardNavTip": "Use Left / Right arrow keys to switch between previous and next word cards.",
     "mnemonics": "Mnemonics",
-    "notes": "Notes"
+    "notes": "Notes",
+    "storyMinWords": "At least 3 words in the folder are required to generate a story!",
+    "storyRequireGroq": "Please configure Groq API Key to use story generation!",
+    "createFolderFailed": "Failed to create folder",
+    "deleteFolderFailed": "Failed to delete",
+    "updateFolderFailed": "Failed to update",
+    "removeFailed": "Failed to remove",
+    "moveFailed": "Failed to move"
   },
   "settings": {
     "title": "Settings",
@@ -248,7 +258,12 @@
       "google": "Google Translate",
       "yahoo": "Yahoo Dictionary",
       "general": "General / Other"
-    }
+    },
+    "loginFailed": "Login failed",
+    "logoutFailed": "Logout failed",
+    "enterEmailAndPassword": "Please enter email and password",
+    "signUpFailed": "Registration failed",
+    "signUpSuccess": "Registration successful! Please check your email to verify your account."
   },
   "review": {
     "title": "Review Center",
@@ -322,5 +337,10 @@
     "play": "Play",
     "next": "Next",
     "close": "Close player"
+  },
+  "sync": {
+    "syncComplete": "Sync complete!",
+    "syncFailed": "Sync failed",
+    "loginRequired": "Please log in to sync data!"
   }
 }

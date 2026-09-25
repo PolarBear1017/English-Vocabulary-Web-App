@@ -38,7 +38,7 @@ const WordRow = ({
     hideMetadata,
     onToggleStar
 }) => {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { state: { preferredAccent } } = usePreferencesContext();
     const longPressTriggeredRef = useRef(false);
     const bindLongPress = useLongPress(() => {
@@ -149,7 +149,7 @@ const WordRow = ({
                                 <div className="text-right min-w-[80px]">
                                     <div className="text-xs text-gray-400">{t('library.nextReview')}</div>
                                     <div className={`text-sm font-medium ${new Date(word.nextReview) <= new Date() ? 'text-red-500' : 'text-green-600'}`}>
-                                        {formatDate(word.nextReview)}
+                                        {formatDate(word.nextReview, i18n.language)}
                                     </div>
                                 </div>
                             </>

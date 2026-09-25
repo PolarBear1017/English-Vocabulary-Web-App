@@ -9,6 +9,7 @@ import {
   toggleUserLibraryStar
 } from '../services/libraryService';
 import { entryToWord } from '../utils/mapper';
+import i18n from '../i18n/config';
 
 const useWordStorage = ({
   session,
@@ -249,7 +250,7 @@ const useWordStorage = ({
           });
 
           if (error) {
-            alert("移除失敗: " + error.message);
+            alert(`${i18n.t('library.removeFailed', '移除失敗')}: ${error.message}`);
             return;
           }
         }
@@ -266,7 +267,7 @@ const useWordStorage = ({
         });
 
         if (error) {
-          alert("移除失敗: " + error.message);
+          alert(`${i18n.t('library.removeFailed', '移除失敗')}: ${error.message}`);
           return;
         }
       }
@@ -342,7 +343,7 @@ const useWordStorage = ({
       }
 
       if (failed.length > 0) {
-        alert(`移除失敗: ${failed.length} 個單字未更新`);
+        alert(`${i18n.t('library.removeFailed', '移除失敗')}: ${failed.length}`);
       }
 
       return updates.length > 0 || deletes.size > 0;
@@ -402,7 +403,7 @@ const useWordStorage = ({
       }
 
       if (failed.length > 0) {
-        alert(`移動失敗: ${failed.length} 個單字未更新`);
+        alert(`${i18n.t('library.moveFailed', '移動失敗')}: ${failed.length}`);
       }
 
       return updates.length > 0;

@@ -8,6 +8,7 @@ import {
 } from '../../domain/mappers/searchResultMapper';
 import { createSearchResult } from '../../domain/models';
 import { normalizeEntries } from '../../utils/data';
+import i18n from '../../i18n/config';
 
 const SEARCH_HISTORY_KEY = 'vocab_search_history';
 const HISTORY_LIMIT = 50;
@@ -219,7 +220,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
           if (!apiKeys?.groqKey) {
             console.warn("Skipping Groq AI: Missing API Key");
             if (forceSource === 'Groq AI') {
-              const error = new Error("請在設定頁面輸入 Groq API Key。");
+              const error = new Error(i18n.t('search.requireGroqKey', '請先在設定頁面輸入 Groq API Key'));
               error.code = AI_ERROR_CODES.MISSING_API_KEYS;
               throw error;
             }
@@ -313,7 +314,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
   const generateAiMnemonic = useCallback(async () => {
     if (!searchResult) return;
     if (!apiKeys?.groqKey) {
-      const error = new Error("請先在設定頁面輸入 Groq API Key");
+      const error = new Error(i18n.t('search.requireGroqKey', '請先在設定頁面輸入 Groq API Key'));
       error.code = AI_ERROR_CODES.MISSING_API_KEYS;
       setAiError({ code: error.code, message: error.message });
       onRequireApiKeys?.();
@@ -335,7 +336,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
         isAiGenerated: true
       }));
     } catch (error) {
-      alert("生成失敗: " + error.message);
+      alert(`${i18n.t('search.generationFailed', '生成失敗')}: ${error.message}`);
     } finally {
       setAiLoading(false);
     }

@@ -30,11 +30,16 @@ i18n
   });
 
 if (typeof document !== 'undefined') {
-  i18n.on('languageChanged', (lng) => {
+  const updateDocumentLangAndTitle = (lng) => {
     document.documentElement.lang = lng;
+    document.title = i18n.t('common.appTitle', '英語單字庫');
+  };
+
+  i18n.on('languageChanged', (lng) => {
+    updateDocumentLangAndTitle(lng);
   });
-  // 初始化當前 lang
-  document.documentElement.lang = i18n.resolvedLanguage || defaultLng;
+  // 初始化當前 lang 與 title
+  updateDocumentLangAndTitle(i18n.resolvedLanguage || defaultLng);
 }
 
 export default i18n;

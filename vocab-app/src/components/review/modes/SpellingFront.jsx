@@ -14,11 +14,16 @@ const SpellingFront = ({
 }) => {
     const { t } = useTranslation();
 
+    const translationText = primaryReviewEntry.translation || currentReviewWord.translation;
+    const definitionText = primaryReviewEntry.definition || currentReviewWord.definition;
+    const mainPrompt = translationText || definitionText;
+    const subPrompt = translationText && definitionText ? definitionText : null;
+
     return (
         <div className="space-y-4 w-full">
-            <div className="text-xl font-bold text-gray-800">{primaryReviewEntry.translation || currentReviewWord.translation}</div>
-            {(primaryReviewEntry.definition || currentReviewWord.definition) && (
-                <div className="text-base text-gray-600">{primaryReviewEntry.definition || currentReviewWord.definition}</div>
+            <div className="text-xl font-bold text-gray-800">{mainPrompt}</div>
+            {subPrompt && (
+                <div className="text-base text-gray-600">{subPrompt}</div>
             )}
             {currentReviewWord.pos && (
                 <div className="text-sm text-gray-500 font-serif italic lowercase">{currentReviewWord.pos}</div>

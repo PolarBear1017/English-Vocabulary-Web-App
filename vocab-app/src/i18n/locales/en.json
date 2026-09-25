@@ -22,7 +22,8 @@
     "saved": "Saved",
     "wordCount": "{{count}} words",
     "wordCount_one": "{{count}} word",
-    "wordCount_other": "{{count}} words"
+    "wordCount_other": "{{count}} words",
+    "appTitle": "English Vocabulary App"
   },
   "nav": {
     "search": "Search",

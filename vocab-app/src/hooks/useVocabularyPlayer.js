@@ -7,7 +7,7 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
     const [isPlaying, setIsPlaying] = useState(false);
     const [currentWordIndex, setCurrentWordIndex] = useState(-1);
     const [playbackState, setPlaybackState] = useState('idle'); // idle, playing_word, playing_def, waiting
-    const { state: { audioSourcePriority, audioSpeed, chineseAudioSpeed } } = useSettingsContext();
+    const { state: { audioSourcePriority, audioSpeed, chineseAudioSpeed, definitionLanguage } } = useSettingsContext();
 
     // Default priority or from settings
     const audioPriority = audioSourcePriority || options.audioPriority || ['us', 'uk', 'google', 'yahoo', 'general'];
@@ -57,19 +57,19 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
 
         // Get the first definition or translation
         const entries = normalizeEntries(word);
-        let textToSpeak = "";
 
         // Prefer selected definition if available
         const selectedDef = Array.isArray(word.selectedDefinitions) && word.selectedDefinitions.length > 0
             ? word.selectedDefinitions[0]
             : null;
 
-        if (selectedDef?.translation) {
-            textToSpeak = selectedDef.translation;
-        } else if (word.translation) {
-            textToSpeak = word.translation;
-        } else if (entries.length > 0) {
-            textToSpeak = entries[0].translation || entries[0].definition;
+        const isEnDef = definitionLanguage === 'en';
+        let textToSpeak = "";
+
+        if (isEnDef) {
+            textToSpeak = selectedDef?.definition || word.definition || (entries.length > 0 ? entries[0].definition : "");
+        } else {
+            textToSpeak = selectedDef?.translation || word.translation || (entries.length > 0 ? entries[0].translation || entries[0].definition : "");
         }
 
         if (!textToSpeak) {
@@ -78,17 +78,20 @@ export const useVocabularyPlayer = (words = [], options = {}) => {
             return;
         }
 
-        // Speak Chinese/Definition
+        const speakLang = isEnDef ? 'en-US' : 'zh-TW';
+        const speakRate = isEnDef ? (audioSpeed || 1.0) : (chineseAudioSpeed || 1.0);
+
+        // Speak Definition with matching language and speed
         speak(textToSpeak, null, {
-            lang: 'zh-TW',
-            rate: chineseAudioSpeed || 1.0,
+            lang: speakLang,
+            rate: speakRate,
             source: 'vocabulary-player',
             onEnd: () => {
                 setPlaybackState('waiting');
                 timeoutRef.current = setTimeout(playNext, 1500); // Pause between words
             }
         });
-    }, [playNext]);
+    }, [playNext, definitionLanguage, audioSpeed, chineseAudioSpeed]);
 
     const speakWord = useCallback((word) => {
         if (!isPlayingRef.current) return;

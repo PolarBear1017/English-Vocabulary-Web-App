@@ -293,7 +293,21 @@ const playAudioWithContext = async (url, options = {}) => {
 };
 
 const speak = (text, audioUrl = null, options = {}) => {
-  const { lang = 'en-US', rate = 1.0, onEnd, source } = options;
+  if (!text && !audioUrl) return;
+
+  const rawText = (text || '').trim();
+  const containsChinese = /[\u4e00-\u9fa5]/.test(rawText);
+
+  // Smart language resolution: auto-detect language based on script content
+  let resolvedLang = options.lang;
+  if (!resolvedLang) {
+    resolvedLang = containsChinese ? 'zh-TW' : 'en-US';
+  } else if (resolvedLang.startsWith('zh') && !containsChinese) {
+    resolvedLang = 'en-US';
+  }
+
+  const lang = resolvedLang;
+  const { rate = 1.0, onEnd, source } = options;
 
   if (audioUrl) {
     playAudioWithContext(audioUrl, { onEnd, source, rate });

@@ -41,6 +41,14 @@ describe('i18n configuration and switching', () => {
     expect(i18n.t('non.existent.key')).toBe('non.existent.key');
   });
 
+  it('provides localized appTitle in both languages', async () => {
+    await i18n.changeLanguage('zh-TW');
+    expect(i18n.t('common.appTitle')).toBe('英語單字庫');
+
+    await i18n.changeLanguage('en');
+    expect(i18n.t('common.appTitle')).toBe('English Vocabulary App');
+  });
+
   it('maintains strict key parity between zh-TW and en locales', () => {
     const getDeepKeys = (obj, prefix = '') => {
       let keys = [];

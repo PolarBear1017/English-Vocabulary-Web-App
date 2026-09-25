@@ -18,8 +18,12 @@ const notifyListeners = (event, data) => {
   listeners.forEach(callback => callback(event, data));
 };
 const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
   if (!audioContext || audioContext.state === 'closed') {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      audioContext = new AudioCtx();
+    }
   }
   return audioContext;
 };
@@ -75,7 +79,7 @@ const stopAudio = () => {
   }
 
   // Cancel speech synthesis
-  if ('speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
 
@@ -365,7 +369,7 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
   // Notify that playback is starting
   notifyListeners('play', { source });
 
-  if ('speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = rate;
@@ -418,8 +422,10 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
       if (onEnd) onEnd();
     }
   } else {
-    console.error("Browser does not support speech synthesis");
-    alert(i18n.t('settings.speechNotSupported', '瀏覽器不支援語音功能'));
+    console.warn("Browser does not support speech synthesis");
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      alert(i18n.t('settings.speechNotSupported', '瀏覽器不支援語音功能'));
+    }
     if (onEnd) onEnd();
   }
 };

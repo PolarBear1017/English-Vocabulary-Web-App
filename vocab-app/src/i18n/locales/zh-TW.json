@@ -103,7 +103,12 @@
     "setApiKeyForMnemonic": "請設定 API Key 以啟用記憶法生成",
     "similarWords": "相似字",
     "requireGroqKey": "請先在設定頁面輸入 Groq API Key",
-    "generationFailed": "生成失敗"
+    "generationFailed": "生成失敗",
+    "notFoundDef": "查無此字 (請檢查拼字，或在設定頁面輸入 API Key 以啟用 AI 救援)",
+    "unknown": "未知",
+    "sourceNotFound": "{{source}} 查無此字，請嘗試切換來源。",
+    "allSourcesNotFound": "所有來源皆查無此字。",
+    "queryFailed": "查詢失敗"
   },
   "library": {
     "title": "我的單字庫",
@@ -186,7 +191,8 @@
     "deleteFolderFailed": "刪除失敗",
     "updateFolderFailed": "更新失敗",
     "removeFailed": "移除失敗",
-    "moveFailed": "移動失敗"
+    "moveFailed": "移動失敗",
+    "confirmDeleteFolderSingle": "確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)"
   },
   "settings": {
     "title": "設定",
@@ -260,7 +266,8 @@
     "logoutFailed": "登出失敗",
     "enterEmailAndPassword": "請輸入 Email 和密碼",
     "signUpFailed": "註冊失敗",
-    "signUpSuccess": "註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。"
+    "signUpSuccess": "註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。",
+    "speechNotSupported": "瀏覽器不支援語音功能"
   },
   "review": {
     "title": "複習中心",
@@ -335,5 +342,17 @@
     "syncComplete": "同步完成！",
     "syncFailed": "同步失敗",
     "loginRequired": "請先登入才能同步資料！"
+  },
+  "toast": {
+    "syncingLocal": "正在同步本機單字...",
+    "syncSuccess": "本機單字已同步至雲端！",
+    "syncNetworkError": "同步失敗，請檢查網路連線",
+    "guestCached": "已暫存於本機 (訪客模式)",
+    "addedToLibrary": "已加入單字庫！",
+    "saveFailedRetry": "儲存失敗，請再試一次",
+    "starSyncFailed": "星號同步失敗，請稍後再試",
+    "starredGuest": "已標註星號 (訪客模式)",
+    "unstarredGuest": "已取消星號 (訪客模式)",
+    "loadingData": "資料載入中，請稍後再試"
   }
 }

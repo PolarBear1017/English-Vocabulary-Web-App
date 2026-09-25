@@ -1,3 +1,5 @@
+import i18n from '../i18n/config';
+
 let audioContext = null;
 let currentSource = null; // Track the currently playing source
 let currentAudioElement = null; // Track HTML5 Audio fallback
@@ -391,7 +393,7 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
     }
   } else {
     console.error("Browser does not support speech synthesis");
-    alert("瀏覽器不支援語音功能");
+    alert(i18n.t('settings.speechNotSupported', '瀏覽器不支援語音功能'));
     if (onEnd) onEnd();
   }
 };

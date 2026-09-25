@@ -2,6 +2,8 @@ import React, { useMemo } from 'react';
 import { Sparkles, Loader2, RefreshCw } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
+const isValidPart = (val) => Boolean(val && !['無', 'none', 'n/a', '-', 'null'].includes(val.trim().toLowerCase()));
+
 const SearchMnemonic = ({ mnemonics, groqApiKey, aiLoading, onGenerate }) => {
   const { t } = useTranslation();
   const displayText = useMemo(() => {
@@ -50,19 +52,19 @@ const SearchMnemonic = ({ mnemonics, groqApiKey, aiLoading, onGenerate }) => {
           
           {details && (
             <div className="flex flex-wrap gap-2 mb-3">
-              {details.prefix && details.prefix !== '無' && (
+              {isValidPart(details.prefix) && (
                 <div className="bg-blue-100/80 text-blue-800 px-3 py-1.5 rounded-lg text-sm border border-blue-200">
                   <span className="font-bold mr-1 block sm:inline">{details.prefix}</span>
                   <span className="text-blue-600/80 text-xs sm:text-sm">{details.prefixMeaning}</span>
                 </div>
               )}
-              {details.root && details.root !== '無' && (
+              {isValidPart(details.root) && (
                 <div className="bg-emerald-100/80 text-emerald-800 px-3 py-1.5 rounded-lg text-sm border border-emerald-200">
                   <span className="font-bold mr-1 block sm:inline">{details.root}</span>
                   <span className="text-emerald-600/80 text-xs sm:text-sm">{details.rootMeaning}</span>
                 </div>
               )}
-              {details.suffix && details.suffix !== '無' && (
+              {isValidPart(details.suffix) && (
                 <div className="bg-pink-100/80 text-pink-800 px-3 py-1.5 rounded-lg text-sm border border-pink-200">
                   <span className="font-bold mr-1 block sm:inline">{details.suffix}</span>
                   <span className="text-pink-600/80 text-xs sm:text-sm">{details.suffixMeaning}</span>

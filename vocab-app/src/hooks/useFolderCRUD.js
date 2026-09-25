@@ -59,7 +59,7 @@ const useFolderCRUD = ({
   }, [session, setFolders, lastMutationTimeRef]);
 
   const handleDeleteFolder = useCallback(async (folderId) => {
-    if (!confirm('確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)')) return;
+    if (!confirm(i18n.t('library.confirmDeleteFolderSingle', '確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)'))) return;
 
     if (session?.user) {
       // Find orphaned words

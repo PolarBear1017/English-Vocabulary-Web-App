@@ -1,5 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import i18n from './config';
+import zhTW from './locales/zh-TW.json';
+import en from './locales/en.json';
 
 describe('i18n configuration and switching', () => {
   beforeEach(async () => {
@@ -37,5 +39,32 @@ describe('i18n configuration and switching', () => {
   it('falls back to default language if key is missing in active language', async () => {
     await i18n.changeLanguage('en');
     expect(i18n.t('non.existent.key')).toBe('non.existent.key');
+  });
+
+  it('maintains strict key parity between zh-TW and en locales', () => {
+    const getDeepKeys = (obj, prefix = '') => {
+      let keys = [];
+      for (const [key, value] of Object.entries(obj)) {
+        const fullKey = prefix ? `${prefix}.${key}` : key;
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+          keys = keys.concat(getDeepKeys(value, fullKey));
+        } else {
+          // ignore _one and _other plural suffixes in parity check because English has special plurals
+          if (!fullKey.endsWith('_one') && !fullKey.endsWith('_other')) {
+            keys.push(fullKey);
+          }
+        }
+      }
+      return keys.sort();
+    };
+
+    const zhKeys = getDeepKeys(zhTW);
+    const enKeys = getDeepKeys(en);
+
+    const missingInEn = zhKeys.filter(k => !enKeys.includes(k));
+    const missingInZh = enKeys.filter(k => !zhKeys.includes(k));
+
+    expect(missingInEn).toEqual([]);
+    expect(missingInZh).toEqual([]);
   });
 });

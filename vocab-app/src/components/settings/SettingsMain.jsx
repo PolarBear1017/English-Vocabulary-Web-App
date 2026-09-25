@@ -11,10 +11,8 @@ const SettingsMain = ({
 }) => {
   const { t } = useTranslation();
 
-  const uiLangLabel = uiLanguage === 'en' ? 'English' : '繁體中文';
-  const defLangLabel = definitionLanguage === 'en'
-    ? (uiLanguage === 'en' ? 'English' : '英英')
-    : (uiLanguage === 'en' ? 'Traditional Chinese' : '繁中');
+  const uiLangLabel = uiLanguage === 'en' ? t('settings.langEn') : t('settings.langZhTw');
+  const defLangLabel = definitionLanguage === 'en' ? t('settings.defEn') : t('settings.defZhTw');
 
   return (
     <>

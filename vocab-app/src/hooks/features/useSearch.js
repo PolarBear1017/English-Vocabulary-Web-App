@@ -265,7 +265,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       if (forceSource) {
         const msg = lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS
           ? lastError.message
-          : `${forceSource} 查無此字，請嘗試切換來源。`;
+          : i18n.t('search.sourceNotFound', { source: forceSource, defaultValue: `${forceSource} 查無此字，請嘗試切換來源。` });
         setSearchError(msg);
         if (forceSource !== 'Groq AI') {
           updateResult(createSourceFallback(searchTerm, forceSource, msg));
@@ -273,13 +273,14 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
           onRequireApiKeys?.();
         }
       } else {
-        setSearchError("所有來源皆查無此字。");
-        updateResult(createSourceFallback(searchTerm, 'system', "所有來源皆查無此字。"));
+        const notFoundMsg = i18n.t('search.allSourcesNotFound', '所有來源皆查無此字。');
+        setSearchError(notFoundMsg);
+        updateResult(createSourceFallback(searchTerm, 'system', notFoundMsg));
       }
 
     } catch (error) {
       console.error(error);
-      setSearchError(`查詢失敗: ${error.message}`);
+      setSearchError(`${i18n.t('search.queryFailed', '查詢失敗')}: ${error.message}`);
       setAiError({ code: error.code || 'UNKNOWN_ERROR', message: error.message });
       if (error.code === AI_ERROR_CODES.MISSING_API_KEYS) {
         onRequireApiKeys?.();

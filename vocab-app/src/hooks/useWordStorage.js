@@ -25,7 +25,7 @@ const useWordStorage = ({
   const saveWordToFolder = useCallback(async (searchResult, folderId, selectedDefinitions = null, options = {}) => {
     if (!searchResult) return false;
     if (session?.user && !isDataLoaded) {
-      showToast?.('資料載入中，請稍後再試', 'info');
+      showToast?.(i18n.t('toast.loadingData', '資料載入中，請稍後再試'), 'info');
       return false;
     }
     const showToastFlag = options?.showToast !== false;
@@ -93,7 +93,7 @@ const useWordStorage = ({
         }
         if (lastMutationTimeRef) lastMutationTimeRef.current = Date.now();
         if (showToastFlag) {
-          toast.success('已暫存於本機 (訪客模式)');
+          toast.success(i18n.t('toast.guestCached', '已暫存於本機 (訪客模式)'));
         }
         return resultWord;
       }
@@ -155,7 +155,7 @@ const useWordStorage = ({
         }
 
         if (showToastFlag) {
-          toast.success('已加入單字庫！');
+          toast.success(i18n.t('toast.addedToLibrary', '已加入單字庫！'));
         }
         return wordWithTimestamp;
       } catch (error) {
@@ -168,7 +168,7 @@ const useWordStorage = ({
           message = "資料庫尚未更新。請先新增 selected_definitions 欄位。";
         }
         console.error("儲存失敗細節:", message);
-        toast.error('儲存失敗，請再試一次');
+        toast.error(i18n.t('toast.saveFailedRetry', '儲存失敗，請再試一次'));
         return false;
       }
     } finally {
@@ -182,7 +182,7 @@ const useWordStorage = ({
   const updateWordFolders = useCallback(async (word, folderIds) => {
     if (!word) return false;
     if (session?.user && !isDataLoaded) {
-      showToast?.('資料載入中，請稍後再試', 'info');
+      showToast?.(i18n.t('toast.loadingData', '資料載入中，請稍後再試'), 'info');
       return false;
     }
     const normalizedFolderIds = (Array.isArray(folderIds) ? folderIds : [])
@@ -439,7 +439,7 @@ const useWordStorage = ({
       } catch (error) {
         console.error("同步星號狀態失敗:", error);
         setVocabData(prev => prev.map(item => item.id === word.id ? { ...item, isStarred: word.isStarred } : item));
-        toast.error("星號同步失敗，請稍後再試");
+        toast.error(i18n.t('toast.starSyncFailed', '星號同步失敗，請稍後再試'));
         return false;
       } finally {
         if (syncLockRef) {
@@ -447,7 +447,7 @@ const useWordStorage = ({
         }
       }
     } else {
-      toast.success(nextStarred ? "已標註星號 (訪客模式)" : "已取消星號 (訪客模式)");
+      toast.success(nextStarred ? i18n.t('toast.starredGuest', '已標註星號 (訪客模式)') : i18n.t('toast.unstarredGuest', '已取消星號 (訪客模式)'));
     }
     return true;
   }, [session, setVocabData, syncLockRef]);

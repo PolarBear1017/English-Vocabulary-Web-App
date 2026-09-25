@@ -7,11 +7,16 @@ import SearchSimilarList from './SearchSimilarList';
 import SearchMnemonic from './SearchMnemonic';
 import FolderSelectionList from './FolderSelectionList';
 import AddDefinitionModal from './AddDefinitionModal';
+import { normalizeEntries } from '../../utils/data';
 
 const getEntryKey = (item) => {
   if (!item) return '|||';
-  const def = (typeof item === 'string' ? item : item.definition || '').trim();
-  const trans = (typeof item === 'string' ? '' : item.translation || '').trim();
+  const def = (typeof item === 'string' ? item : item.definition || '')
+    .trim()
+    .replace(/\s+/g, ' ');
+  const trans = (typeof item === 'string' ? '' : item.translation || '')
+    .trim()
+    .replace(/\s+/g, ' ');
   return def + '|||' + trans;
 };
 
@@ -75,22 +80,92 @@ const SearchResultCard = ({
     return () => document.removeEventListener('mousedown', handleOutsideClick);
   }, [showDefaultTip]);
 
-  const selectedDefinitionSet = useMemo(() => {
-    const raw = savedWordInSearch?.selectedDefinitions || savedWordInSearch?.selected_definitions;
-    if (!Array.isArray(raw)) return new Set();
-    return new Set(raw.map(getEntryKey).filter(k => k !== '|||'));
+  const { selectedDefinitionSet, selectedDefOnlySet, selectedTransOnlySet } = useMemo(() => {
+    if (!savedWordInSearch) {
+      return {
+        selectedDefinitionSet: new Set(),
+        selectedDefOnlySet: new Set(),
+        selectedTransOnlySet: new Set()
+      };
+    }
+    const raw = savedWordInSearch.selectedDefinitions || savedWordInSearch.selected_definitions;
+    const list = Array.isArray(raw) && raw.length > 0 ? raw : normalizeEntries(savedWordInSearch);
+
+    const defSet = new Set();
+    const defOnly = new Set();
+    const transOnly = new Set();
+
+    list.forEach((item) => {
+      const key = getEntryKey(item);
+      if (key !== '|||') defSet.add(key);
+
+      const def = (typeof item === 'string' ? item : item.definition || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (def) defOnly.add(def);
+
+      const trans = (typeof item === 'string' ? '' : item.translation || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (trans) transOnly.add(trans);
+    });
+
+    return {
+      selectedDefinitionSet: defSet,
+      selectedDefOnlySet: defOnly,
+      selectedTransOnlySet: transOnly
+    };
   }, [savedWordInSearch]);
+
+  const isDefinitionSaved = useCallback((entry) => {
+    if (!savedWordInSearch) return false;
+    const key = getEntryKey(entry);
+    if (key !== '|||' && selectedDefinitionSet.has(key)) return true;
+
+    const def = (typeof entry === 'string' ? entry : entry.definition || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+    if (def && selectedDefOnlySet.has(def)) return true;
+
+    const trans = (typeof entry === 'string' ? '' : entry.translation || '')
+      .trim()
+      .replace(/\s+/g, ' ')
+      .toLowerCase();
+    if (!def && trans && selectedTransOnlySet.has(trans)) return true;
+
+    return false;
+  }, [savedWordInSearch, selectedDefinitionSet, selectedDefOnlySet, selectedTransOnlySet]);
 
   const orderedEntries = useMemo(() => {
     const combined = [];
     const existingKeys = new Set();
+    const existingDefs = new Set();
+    const existingTrans = new Set();
     const isDeleted = (item) => deletedCustomDefs.has(getEntryKey(item));
+
+    const registerKey = (item) => {
+      const key = getEntryKey(item);
+      if (key !== '|||') existingKeys.add(key);
+      const def = (typeof item === 'string' ? item : item.definition || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (def) existingDefs.add(def);
+      const trans = (typeof item === 'string' ? '' : item.translation || '')
+        .trim()
+        .replace(/\s+/g, ' ')
+        .toLowerCase();
+      if (trans) existingTrans.add(trans);
+    };
 
     normalizedEntries.forEach(d => {
        const key = getEntryKey(d);
        if (!existingKeys.has(key)) {
          combined.push(d);
-         existingKeys.add(key);
+         registerKey(d);
        }
     });
 
@@ -98,16 +173,29 @@ const SearchResultCard = ({
        const key = getEntryKey(d);
        if (!existingKeys.has(key) && !isDeleted(d)) {
          combined.push({ ...d, isCustom: true });
-         existingKeys.add(key);
+         registerKey(d);
        }
     });
 
     const processSaved = (savedList) => {
       savedList.forEach(saved => {
         const key = getEntryKey(saved);
-        if (key !== '|||' && !existingKeys.has(key) && !isDeleted(saved)) {
+        const def = (typeof saved === 'string' ? saved : saved.definition || '')
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+        const trans = (typeof saved === 'string' ? '' : saved.translation || '')
+          .trim()
+          .replace(/\s+/g, ' ')
+          .toLowerCase();
+
+        const alreadyExists = existingKeys.has(key)
+          || (def && existingDefs.has(def))
+          || (!def && trans && existingTrans.has(trans));
+
+        if (key !== '|||' && !alreadyExists && !isDeleted(saved)) {
           combined.push({ ...saved, isCustom: true });
-          existingKeys.add(key);
+          registerKey(saved);
         }
       });
     };
@@ -120,21 +208,22 @@ const SearchResultCard = ({
 
     if (combined.length === 0) return [];
 
-    if (selectedDefinitionSet.size === 0) return combined;
-
     const pinned = [];
     const rest = [];
 
     combined.forEach((entry) => {
-      const key = getEntryKey(entry);
-      if (selectedDefinitionSet.has(key) && key !== '|||') {
+      if (isDefinitionSaved(entry)) {
         pinned.push(entry);
       } else {
         rest.push(entry);
       }
     });
-    return [...pinned, ...rest];
-  }, [normalizedEntries, selectedDefinitionSet, customDefinitions, savedWordInSearch, deletedCustomDefs]);
+
+    return [...pinned, ...rest].map(entry => ({
+      ...entry,
+      isSaved: isDefinitionSaved(entry)
+    }));
+  }, [normalizedEntries, isDefinitionSaved, customDefinitions, savedWordInSearch, deletedCustomDefs]);
 
   const selectedEntries = useMemo(() => {
     if (orderedEntries.length === 0) return [];
@@ -145,7 +234,11 @@ const SearchResultCard = ({
   const hasDefinitionChanges = useMemo(() => {
     if (!savedWordInSearch) return false;
     const currentDefs = selectedEntries.map(getEntryKey).filter(k => k !== '|||');
-    const originalDefsRaw = savedWordInSearch.selectedDefinitions || [];
+    const originalDefsRaw = (Array.isArray(savedWordInSearch.selectedDefinitions) && savedWordInSearch.selectedDefinitions.length > 0)
+      ? savedWordInSearch.selectedDefinitions
+      : ((Array.isArray(savedWordInSearch.selected_definitions) && savedWordInSearch.selected_definitions.length > 0)
+        ? savedWordInSearch.selected_definitions
+        : normalizeEntries(savedWordInSearch));
     const originalDefs = originalDefsRaw.map(getEntryKey).filter(k => k !== '|||');
     if (currentDefs.length !== originalDefs.length) return true;
     const originalSet = new Set(originalDefs);
@@ -326,17 +419,12 @@ const SearchResultCard = ({
       setSelectedEntryIndices(new Set());
       return;
     }
-    if (selectedDefinitionSet.size === 0) {
-      // Default to saving only the first definition for new words.
-      setSelectedEntryIndices(new Set([0]));
-      return;
-    }
     const indices = [];
     orderedEntries.forEach((entry, index) => {
-      const key = getEntryKey(entry);
-      if (selectedDefinitionSet.has(key)) indices.push(index);
+      if (entry.isSaved) indices.push(index);
     });
     if (indices.length === 0) {
+      // Default to saving only the first definition for new words.
       setSelectedEntryIndices(new Set([0]));
       return;
     }
@@ -345,7 +433,7 @@ const SearchResultCard = ({
       return;
     }
     setSelectedEntryIndices(new Set(indices));
-  }, [orderedEntries, selectedDefinitionSet]);
+  }, [orderedEntries]);
 
   const handleStartSave = useCallback(() => {
     if (saveStep !== 'idle') return;

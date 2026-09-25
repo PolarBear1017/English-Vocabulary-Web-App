@@ -38,12 +38,15 @@ const SearchResultEntries = ({
             : (selectedEntryIndices === null
               ? true
               : selectedEntryIndices.has(index));
-          const baseClassName = 'rounded-xl border p-4 transition';
+          const isSaved = Boolean(entry.isSaved);
+          const baseClassName = 'rounded-xl p-4 transition';
           const interactiveClassName = readOnly
-            ? 'border-gray-100 bg-white'
+            ? (isSaved
+              ? 'border-2 border-blue-500 bg-blue-50/20 shadow-sm'
+              : 'border border-gray-100 bg-white')
             : (isSelected
-              ? 'border-blue-500 bg-blue-50/50 cursor-pointer'
-              : 'border-gray-200 bg-white opacity-60 cursor-pointer');
+              ? 'border-2 border-blue-500 bg-blue-50/50 cursor-pointer'
+              : 'border border-gray-200 bg-white opacity-60 cursor-pointer');
 
           return (
             <div
@@ -80,7 +83,13 @@ const SearchResultEntries = ({
                   </span>
                 </div>
               )}
-              <div className={readOnly ? '' : 'pr-10'}>
+              {readOnly && isSaved && (
+                <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>已儲存</span>
+                </div>
+              )}
+              <div className={readOnly ? (isSaved ? 'pr-20' : '') : 'pr-10'}>
                 {(entry.translation || entry.definition) && (
                   <p className="text-lg text-gray-800 font-medium flex items-center gap-2">
                     {entry.translation || entry.definition}

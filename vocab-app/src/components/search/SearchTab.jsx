@@ -8,8 +8,10 @@ import { useLibraryContext } from '../../contexts/LibraryContext';
 import { useNavigationContext } from '../../contexts/NavigationContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { usePreferencesContext } from '../../contexts/PreferencesContext';
+import { useTranslation } from 'react-i18next';
 
 const SearchTab = () => {
+  const { t } = useTranslation();
   const search = useSearchContext();
   const library = useLibraryContext();
   const navigation = useNavigationContext();
@@ -64,22 +66,22 @@ const SearchTab = () => {
           className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition font-medium mb-2"
         >
           <ArrowLeft className="w-4 h-4" />
-          返回 {folders.find(folder => folder.id === returnFolderId)?.name || '資料夾'}
+          {t('search.returnToFolder', { name: folders.find(folder => folder.id === returnFolderId)?.name || '' })}
         </button>
       )}
 
       <header>
-        <h1 className="text-2xl font-bold mb-2">單字查詢</h1>
+        <h1 className="text-2xl font-bold mb-2">{t('search.title')}</h1>
         <div className="text-sm text-gray-500 flex items-center gap-2">
           {groqApiKey && (
-            <span className="text-green-600 flex items-center gap-1"><Sparkles className="w-3 h-3" /> AI 功能已啟用</span>
+            <span className="text-green-600 flex items-center gap-1"><Sparkles className="w-3 h-3" /> {t('search.aiEnabled')}</span>
           )}
         </div>
       </header>
 
       <div className="flex justify-end px-2">
         <span className={`text-xs flex items-center gap-1 ${isDataLoaded ? 'text-green-500' : 'text-gray-400'}`}>
-          {isDataLoaded ? '☁️ 雲端同步中' : '⏳ 正在連線資料庫...'}
+          {isDataLoaded ? t('search.cloudSynced') : t('search.connecting')}
         </span>
       </div>
 

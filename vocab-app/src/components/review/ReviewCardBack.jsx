@@ -1,5 +1,6 @@
 import React from 'react';
 import { Volume2, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text';
 
@@ -17,6 +18,8 @@ const ReviewCardBack = ({
     chineseAudioSpeed,
     speak
 }) => {
+    const { t } = useTranslation();
+
     return (
         <div className="space-y-4 animate-in fade-in duration-300 w-full">
             <div className="flex items-center justify-center gap-3">
@@ -90,7 +93,7 @@ const ReviewCardBack = ({
                     </div>
                 ))}
                 {currentReviewEntries.length === 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg text-gray-500 text-sm">查無解釋</div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-gray-500 text-sm">{t('card.noDefinition')}</div>
                 )}
             </div>
             {currentReviewWord.mnemonics && (
@@ -110,19 +113,19 @@ const ReviewCardBack = ({
                     }`}>
                     {lastResult?.feedbackType === 'root_match' ? (
                         <div className="space-y-1">
-                            <div>意思正確！(接受原形)</div>
+                            <div>{t('review.feedbackRootMatch')}</div>
                             {lastResult.correctContextWord && (
                                 <div className="text-sm font-semibold">
-                                    本句實際用法：{lastResult.correctContextWord}
+                                    {t('review.feedbackContextWord', { word: lastResult.correctContextWord })}
                                 </div>
                             )}
                         </div>
                     ) : feedback === 'correct' || feedback === 'exact' ? (
-                        '答對了！'
+                        t('review.feedbackCorrect')
                     ) : feedback === 'typo' ? (
-                        '小錯字！判定為困難 (Hard)。'
+                        t('review.feedbackTypo')
                     ) : (
-                        '答錯了，請再接再厲！'
+                        t('review.feedbackIncorrect')
                     )}
                 </div>
             )}

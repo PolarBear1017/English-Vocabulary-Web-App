@@ -6,9 +6,12 @@ import SettingsApi from './SettingsApi';
 import SettingsReview from './SettingsReview';
 import SettingsDictionary from './SettingsDictionary';
 import SettingsAudio from './SettingsAudio';
+import SettingsLanguage from './SettingsLanguage';
 import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 const SettingsTab = () => {
+  const { t } = useTranslation();
   const settings = useSettingsContext();
   const {
     settingsView,
@@ -17,7 +20,9 @@ const SettingsTab = () => {
     email,
     password,
     authLoading,
-    requestRetention
+    requestRetention,
+    uiLanguage,
+    definitionLanguage
   } = settings.state;
 
   return (
@@ -26,6 +31,8 @@ const SettingsTab = () => {
         <SettingsMain
           session={session}
           groqApiKey={groqApiKey}
+          uiLanguage={uiLanguage}
+          definitionLanguage={definitionLanguage}
           onSelectView={settings.actions.setSettingsView}
         />
       ) : (
@@ -34,7 +41,7 @@ const SettingsTab = () => {
             onClick={() => settings.actions.setSettingsView('main')}
             className="flex items-center gap-2 text-gray-500 hover:text-blue-600 mb-4 transition"
           >
-            <ArrowLeft className="w-4 h-4" /> 返回設定
+            <ArrowLeft className="w-4 h-4" /> {t('settings.backToSettings')}
           </button>
 
           {settingsView === 'account' && (
@@ -72,6 +79,10 @@ const SettingsTab = () => {
 
           {settingsView === 'audio' && (
             <SettingsAudio />
+          )}
+
+          {settingsView === 'language' && (
+            <SettingsLanguage />
           )}
         </div>
       )}

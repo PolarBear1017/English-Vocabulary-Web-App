@@ -21,6 +21,7 @@ const useVocabularyApp = () => {
   const library = useLibrary({
     session: settings.state.session,
     apiKeys,
+    definitionLanguage: settings.state.definitionLanguage,
     showToast: toast.showToast,
     onRequireApiKeys: () => navigation.actions.setActiveTab('settings')
   });
@@ -28,6 +29,7 @@ const useVocabularyApp = () => {
   const search = useSearch({
     apiKeys,
     settings,
+    definitionLanguage: settings.state.definitionLanguage,
     onSearchStart: () => navigation.actions.setReturnFolderId(null),
     onRequireApiKeys: () => navigation.actions.setActiveTab('settings')
   });

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-hot-toast';
 import { Info, Plus } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import SearchResultHeader from './SearchResultHeader';
 import SearchResultEntries from './SearchResultEntries';
 import SearchSimilarList from './SearchSimilarList';
@@ -48,6 +49,7 @@ const SearchResultCard = ({
   relatedContext,
   audioPriority
 }) => {
+  const { t } = useTranslation();
   const [saveStep, setSaveStep] = useState('idle');
   const [selectedEntryIndices, setSelectedEntryIndices] = useState(null);
   const [draftFolderIds, setDraftFolderIds] = useState(null);
@@ -305,7 +307,7 @@ const SearchResultCard = ({
   const handleConfirmFolders = useCallback(async ({ addIds, removeIds, selectedIds }) => {
     if (isProcessingRef.current || isConfirmingFolders) return;
     if (!isDataLoaded) {
-      toast.error('資料載入/同步中，請稍後再試');
+      toast.error(t('card.dataLoadingToast'));
       return;
     }
     isProcessingRef.current = true;
@@ -368,15 +370,15 @@ const SearchResultCard = ({
         const hasAdd = addList.length > 0;
         const hasRemove = removeList.length > 0;
         if (hasAdd && hasRemove) {
-          toast.success('資料夾更新成功');
+          toast.success(t('card.foldersUpdatedToast'));
         } else if (hasAdd) {
-          toast.success('已加入資料夾');
+          toast.success(t('card.folderAddedToast'));
         } else if (hasRemove) {
-          toast.success('已從資料夾移除');
+          toast.success(t('card.folderRemovedToast'));
         }
 
         if (hasDefinitionChanges && isSaved) {
-          toast.success('已更新解釋');
+          toast.success(t('card.definitionsUpdatedToast'));
         }
 
         if (addList.length > 0) {
@@ -385,7 +387,7 @@ const SearchResultCard = ({
       }
     } catch (err) {
       console.error('儲存單字至資料夾失敗:', err);
-      toast.error('儲存失敗，請重試');
+      toast.error(t('card.saveFailedToast'));
       hasError = true;
     } finally {
       if (syncLockRef) {
@@ -563,7 +565,7 @@ const SearchResultCard = ({
             className="w-full py-3 border-2 border-dashed border-gray-200 rounded-xl text-gray-500 font-medium hover:border-blue-400 hover:text-blue-600 hover:bg-blue-50 transition flex items-center justify-center gap-2"
           >
             <Plus className="w-5 h-5" />
-            新增自訂解釋
+            {t('card.addCustomDefinition')}
           </button>
         )}
 

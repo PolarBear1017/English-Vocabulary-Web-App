@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const FolderFormModal = ({
   title,
@@ -8,6 +9,7 @@ const FolderFormModal = ({
   onClose,
   isSaving
 }) => {
+  const { t } = useTranslation();
   const [name, setName] = useState(initialValues?.name || '');
   const [description, setDescription] = useState(initialValues?.description || '');
   const [error, setError] = useState('');
@@ -22,7 +24,7 @@ const FolderFormModal = ({
     event.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      setError('資料夾名稱不能為空');
+      setError(t('library.folderNameNotEmpty'));
       return;
     }
     onSubmit({
@@ -45,11 +47,11 @@ const FolderFormModal = ({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <label className="block text-sm text-gray-600">
-            資料夾名稱
+            {t('library.folderName')}
             <input
               type="text"
               className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="請輸入資料夾名稱"
+              placeholder={t('library.inputFolderNamePlaceholder')}
               value={name}
               onChange={(event) => setName(event.target.value)}
               disabled={isSaving}
@@ -58,10 +60,10 @@ const FolderFormModal = ({
           </label>
 
           <label className="block text-sm text-gray-600">
-            資料夾描述（可留空）
+            {t('library.folderDescriptionOptional')}
             <textarea
               className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm min-h-[96px] focus:outline-none focus:ring-2 focus:ring-blue-200"
-              placeholder="可簡單描述這個資料夾的用途"
+              placeholder={t('library.folderDescriptionPlaceholder')}
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               disabled={isSaving}
@@ -77,14 +79,14 @@ const FolderFormModal = ({
               className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
               disabled={isSaving}
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
               disabled={isSaving}
             >
-              {isSaving ? '儲存中...' : '儲存'}
+              {isSaving ? t('common.saving') : t('common.save')}
             </button>
           </div>
         </form>

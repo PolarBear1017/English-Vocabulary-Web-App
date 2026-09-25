@@ -1,5 +1,6 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { ArrowLeft, ArrowUpDown, Folder, Volume2, Trash2, Book, Pencil, Check, Search, X, Play, Square, Pause } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useVocabularyPlayer } from '../../hooks/useVocabularyPlayer';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { formatDate } from '../../utils/data';
@@ -47,6 +48,7 @@ const FolderDetail = ({
   onGoSearch,
   onSearchWord
 }) => {
+  const { t } = useTranslation();
   const [viewingWord, setViewingWord] = useState(null); // Keep this state for word detail view
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -91,10 +93,10 @@ const FolderDetail = ({
           <button
             onClick={() => setViewingWord(null)}
             className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-blue-600 transition"
-            title="返回單字列表"
+            title={t('library.backToWordList')}
           >
             <ArrowLeft className="w-4 h-4" />
-            返回單字列表
+            {t('library.backToWordList')}
           </button>
         </div>
       ) : (
@@ -104,7 +106,7 @@ const FolderDetail = ({
               <button
                 onClick={onBack}
                 className="p-2 hover:bg-gray-100 rounded-full transition group"
-                title="返回資料夾"
+                title={t('library.backToFolders')}
               >
                 <ArrowLeft className="w-6 h-6 text-gray-600 group-hover:text-blue-600" />
               </button>
@@ -114,7 +116,7 @@ const FolderDetail = ({
                   {activeFolder.name}
                 </h1>
                 <p className="text-gray-500 text-sm">
-                  {searchQuery ? `搜尋到 ${filteredWords.length} 個單字` : `${activeFolderStats?.count ?? sortedActiveFolderWords.length} 個單字`}
+                  {searchQuery ? t('library.foundWordsCount', { count: filteredWords.length }) : t('library.wordsCount', { count: activeFolderStats?.count ?? sortedActiveFolderWords.length })}
                 </p>
                 {activeFolder.description ? (
                   <p className="text-xs text-gray-400 mt-1">{activeFolder.description}</p>
@@ -129,10 +131,10 @@ const FolderDetail = ({
                   ? 'bg-amber-100 text-amber-700 hover:bg-amber-200'
                   : 'bg-blue-600 text-white hover:bg-blue-700 shadow-sm'
                   }`}
-                title={isPlaying ? "停止播放" : "循環播放"}
+                title={isPlaying ? t('library.stopPlayback') : t('library.loopPlayback')}
               >
                 <Play className="w-4 h-4 fill-current" />
-                {isPlaying ? '播放中' : '播放'}
+                {isPlaying ? t('library.playing') : t('library.play')}
               </button>
 
               <button
@@ -140,13 +142,13 @@ const FolderDetail = ({
                 className={`px-3 py-1.5 rounded-lg text-sm transition ${isSelectionMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-white border border-gray-200 text-gray-600 hover:bg-gray-50'
                   }`}
               >
-                {isSelectionMode ? '取消選取' : '選取'}
+                {isSelectionMode ? t('library.cancelSelect') : t('library.select')}
               </button>
               {onEditFolder && !isSelectionMode && (
                 <button
                   onClick={onEditFolder}
                   className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
-                  title="編輯資料夾"
+                  title={t('library.editFolder')}
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
@@ -155,7 +157,7 @@ const FolderDetail = ({
                 <button
                   onClick={onDeleteFolder}
                   className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 transition"
-                  title="刪除資料夾"
+                  title={t('library.deleteFolder')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -170,7 +172,7 @@ const FolderDetail = ({
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="搜尋此資料夾內的單字..."
+                placeholder={t('library.searchWordsInFolder')}
                 autoCapitalize="off"
                 className="w-full pl-9 pr-9 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
               />
@@ -190,10 +192,10 @@ const FolderDetail = ({
                 value={wordSortBy}
                 onChange={(e) => setWordSortBy(e.target.value)}
               >
-                <option value="added_desc">最新加入</option>
-                <option value="alphabetical_asc">A-Z</option>
-                <option value="proficiency_asc">最不熟</option>
-                <option value="next_review_asc">最先到期</option>
+                <option value="added_desc">{t('library.sortAddedDesc')}</option>
+                <option value="alphabetical_asc">{t('library.sortAlphaAsc')}</option>
+                <option value="proficiency_asc">{t('library.sortProficiencyAsc')}</option>
+                <option value="next_review_asc">{t('library.sortNextReviewAsc')}</option>
               </select>
             </div>
           </div>
@@ -211,7 +213,7 @@ const FolderDetail = ({
           hasNextWord={Boolean(nextWord)}
           isPlaying={isPlaying}
           onDeleteWord={() => {
-            if (confirm(`確定要將 "${viewingWord.word}" 從「${activeFolder.name}」移除嗎？`)) {
+            if (confirm(t('library.confirmRemoveWordFromFolder', { word: viewingWord.word, folder: activeFolder.name }))) {
               onRemoveWordFromFolder(viewingWord, activeFolder.id);
               setViewingWord(null);
             }
@@ -244,17 +246,17 @@ const FolderDetail = ({
               {searchQuery ? (
                 <>
                   <Search className="w-12 h-12 mb-3 opacity-20" />
-                  <p>找不到符合「{searchQuery}」的單字</p>
+                  <p>{t('library.noMatchingWordsForQuery', { query: searchQuery })}</p>
                   <button onClick={() => setSearchQuery('')} className="mt-4 text-blue-600 hover:underline text-sm">
-                    清除搜尋
+                    {t('library.clearSearch')}
                   </button>
                 </>
               ) : (
                 <>
                   <Book className="w-12 h-12 mb-3 opacity-20" />
-                  <p>這個資料夾還是空的</p>
+                  <p>{t('library.folderEmpty')}</p>
                   <button onClick={onGoSearch} className="mt-4 text-blue-600 hover:underline text-sm">
-                    去查詢並新增單字
+                    {t('library.goSearchAndAdd')}
                   </button>
                 </>
               )}

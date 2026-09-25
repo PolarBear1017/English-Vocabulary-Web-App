@@ -4,8 +4,10 @@ import LogoIcon from '../common/LogoIcon';
 import { useNavigationContext } from '../../contexts/NavigationContext';
 import { useLibraryContext } from '../../contexts/LibraryContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
+import { useTranslation } from 'react-i18next';
 
 const Navigation = () => {
+  const { t } = useTranslation();
   const navigation = useNavigationContext();
   const library = useLibraryContext();
   const settings = useSettingsContext();
@@ -14,10 +16,10 @@ const Navigation = () => {
   const { setViewingFolderId } = library.actions;
   const { setSettingsView } = settings.actions;
   const items = [
-    { id: 'search', icon: Search, label: '查詢' },
-    { id: 'library', icon: Book, label: '單字庫' },
-    { id: 'review', icon: RefreshCw, label: '複習' },
-    { id: 'settings', icon: Settings, label: '設定' },
+    { id: 'search', icon: Search, label: t('nav.search') },
+    { id: 'library', icon: Book, label: t('nav.library') },
+    { id: 'review', icon: RefreshCw, label: t('nav.review') },
+    { id: 'settings', icon: Settings, label: t('nav.settings') },
   ];
 
   const handleNavigate = (id) => {

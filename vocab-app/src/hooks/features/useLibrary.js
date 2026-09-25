@@ -17,7 +17,7 @@ import useFolderCRUD from '../useFolderCRUD';
 import useWordStorage from '../useWordStorage';
 import useSync from '../useSync';
 
-const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
+const useLibrary = ({ session, apiKeys, definitionLanguage = 'zh-TW', showToast, onRequireApiKeys }) => {
   const [folders, setFolders] = useState(() => loadCachedFolders());
   const [vocabData, setVocabData] = useState(() => {
     const cached = loadCachedVocab();
@@ -149,7 +149,8 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     try {
       const storyText = await fetchStory({
         groqKey: apiKeys.groqKey,
-        words: targetWords
+        words: targetWords,
+        targetLang: definitionLanguage
       });
       setStory(storyText);
     } catch (error) {
@@ -157,7 +158,7 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     } finally {
       setIsGeneratingStory(false);
     }
-  }, [apiKeys, index.entriesByFolderId, onRequireApiKeys]);
+  }, [apiKeys, definitionLanguage, index.entriesByFolderId, onRequireApiKeys]);
 
   const updateLastUsedFolderIds = useCallback((folderIds) => {
     const normalized = (Array.isArray(folderIds) ? folderIds : [])

@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Folder, Trash2, Sparkles, Pencil, Check, MoreVertical, PlayCircle } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLongPress } from 'use-long-press';
 import { isWordMatch } from '../../utils/data';
 import WordRow from './WordRow';
@@ -39,6 +40,7 @@ const FolderCard = ({
   onOpenWordDetail,
   onToggleStar
 }) => {
+  const { t } = useTranslation();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
   const words = folderWords || [];
@@ -138,7 +140,7 @@ const FolderCard = ({
                 </div>
               ) : (
                 <>
-                  <p className="text-sm text-gray-500">{totalCount} 個單字</p>
+                  <p className="text-sm text-gray-500">{t('library.wordsCount', { count: totalCount })}</p>
                   {folder.description ? (
                     <p className="text-xs text-gray-400 mt-1 line-clamp-2">{folder.description}</p>
                   ) : null}
@@ -157,7 +159,7 @@ const FolderCard = ({
               {...dragHandleProps}
               className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
                 } hover:border-blue-400`}
-              title="選取資料夾"
+              title={t('library.selectFolder')}
             >
               <Check className="w-4 h-4" />
             </button>
@@ -184,7 +186,7 @@ const FolderCard = ({
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-blue-50 hover:text-blue-600 flex items-center gap-2"
                   >
                     <PlayCircle className="w-4 h-4" />
-                    複習
+                    {t('nav.review')}
                   </button>
                   <button
                     onClick={(e) => {
@@ -195,7 +197,7 @@ const FolderCard = ({
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-purple-50 hover:text-purple-600 flex items-center gap-2"
                   >
                     <Sparkles className="w-4 h-4" />
-                    生成故事
+                    {t('library.generateStory')}
                   </button>
 
                   {onEdit && (
@@ -208,7 +210,7 @@ const FolderCard = ({
                       className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
                     >
                       <Pencil className="w-4 h-4" />
-                      編輯
+                      {t('common.edit')}
                     </button>
                   )}
 
@@ -221,7 +223,7 @@ const FolderCard = ({
                     className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
                   >
                     <Trash2 className="w-4 h-4" />
-                    刪除
+                    {t('common.delete')}
                   </button>
                 </div>
               )}
@@ -233,25 +235,25 @@ const FolderCard = ({
       {!searchQuery && (
         <div className="mb-4 space-y-3">
           <div className="flex items-center justify-between text-xs text-gray-500 mb-2">
-            <span>複習完成度</span>
+            <span>{t('library.reviewCompletion')}</span>
             <span className="font-semibold text-gray-700">{completionPercent}%</span>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-emerald-500 rounded-full transition-all"
               style={{ width: `${completionPercent}%` }}
-              aria-label={`複習完成度 ${completionPercent}%`}
+              aria-label={`${t('library.reviewCompletion')} ${completionPercent}%`}
             />
           </div>
           <div className="flex items-center justify-between text-xs text-gray-500 mt-3">
-            <span>理解程度</span>
+            <span>{t('library.comprehensionDegree')}</span>
             <span className="font-semibold text-gray-700">{comprehensionPercent}%</span>
           </div>
           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
             <div
               className="h-full bg-sky-500 rounded-full transition-all"
               style={{ width: `${comprehensionPercent}%` }}
-              aria-label={`理解程度 ${comprehensionPercent}%`}
+              aria-label={`${t('library.comprehensionDegree')} ${comprehensionPercent}%`}
             />
           </div>
         </div>
@@ -259,7 +261,7 @@ const FolderCard = ({
 
       {words.length === 0 && (
         <div className="text-center text-xs text-gray-400 py-2">
-          尚無單字，點擊查看詳情
+          {t('library.noWordsClickDetail')}
         </div>
       )}
     </div>

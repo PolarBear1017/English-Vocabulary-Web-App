@@ -12,8 +12,13 @@ import {
   loadAudioSpeed,
   saveAudioSpeed,
   loadChineseAudioSpeed,
-  saveChineseAudioSpeed
+  saveChineseAudioSpeed,
+  loadUiLanguage,
+  saveUiLanguage,
+  loadDefinitionLanguage,
+  saveDefinitionLanguage
 } from '../../services/storageService';
+import i18n from '../../i18n/config';
 import {
   getSession,
   onAuthStateChange,
@@ -32,6 +37,8 @@ const useSettings = () => {
   const [audioSourcePriority, setAudioSourcePriority] = useState(() => loadAudioSourcePriority());
   const [audioSpeed, setAudioSpeed] = useState(() => loadAudioSpeed());
   const [chineseAudioSpeed, setChineseAudioSpeed] = useState(() => loadChineseAudioSpeed());
+  const [uiLanguage, setUiLanguageState] = useState(() => i18n.resolvedLanguage || loadUiLanguage());
+  const [definitionLanguage, setDefinitionLanguage] = useState(() => loadDefinitionLanguage());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -65,6 +72,16 @@ const useSettings = () => {
   useEffect(() => {
     saveChineseAudioSpeed(chineseAudioSpeed);
   }, [chineseAudioSpeed]);
+
+  useEffect(() => {
+    saveDefinitionLanguage(definitionLanguage);
+  }, [definitionLanguage]);
+
+  const setUiLanguage = useCallback((lang) => {
+    setUiLanguageState(lang);
+    saveUiLanguage(lang);
+    i18n.changeLanguage(lang);
+  }, []);
 
   useEffect(() => {
     getSession().then(({ data: { session } }) => {
@@ -125,6 +142,8 @@ const useSettings = () => {
       audioSourcePriority,
       audioSpeed,
       chineseAudioSpeed,
+      uiLanguage,
+      definitionLanguage,
       session,
       email,
       password,
@@ -138,6 +157,8 @@ const useSettings = () => {
       setAudioSourcePriority,
       setAudioSpeed,
       setChineseAudioSpeed,
+      setUiLanguage,
+      setDefinitionLanguage,
       setEmail,
       setPassword,
       handleLogin,

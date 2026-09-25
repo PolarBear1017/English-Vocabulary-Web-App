@@ -1,5 +1,6 @@
 import React, { useRef } from 'react';
 import { Volume2, Trash2, Check, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useLongPress } from 'use-long-press';
 import { speak } from '../../services/speechService';
 import { formatDate } from '../../utils/data';
@@ -37,6 +38,7 @@ const WordRow = ({
     hideMetadata,
     onToggleStar
 }) => {
+    const { t } = useTranslation();
     const { state: { preferredAccent } } = usePreferencesContext();
     const longPressTriggeredRef = useRef(false);
     const bindLongPress = useLongPress(() => {
@@ -102,7 +104,7 @@ const WordRow = ({
                                 ? 'text-amber-500 hover:text-amber-600 hover:scale-110' 
                                 : 'text-gray-300 hover:text-amber-400 hover:scale-110'
                         }`}
-                        title={word.isStarred ? "取消星號" : "標註星號"}
+                        title={word.isStarred ? t('library.unstar') : t('library.star')}
                     >
                         <Star className={`w-4.5 h-4.5 ${word.isStarred ? 'fill-amber-500 text-amber-500' : ''}`} />
                     </button>
@@ -132,7 +134,7 @@ const WordRow = ({
                         {...dragHandleProps}
                         className={`h-7 w-7 rounded-full border flex items-center justify-center transition ${isSelected ? 'bg-blue-600 border-blue-600 text-white' : 'border-gray-300 text-transparent'
                             } hover:border-blue-400`}
-                        title="選取單字"
+                        title={t('library.selectWord')}
                     >
                         <Check className="w-4 h-4" />
                     </button>
@@ -141,11 +143,11 @@ const WordRow = ({
                         {!hideMetadata && (
                             <>
                                 <div className="flex flex-col items-end gap-1">
-                                    <span className="text-xs text-gray-400">理解程度</span>
+                                    <span className="text-xs text-gray-400">{t('library.comprehensionDegree')}</span>
                                     <ProficiencyDots score={word.proficiencyScore} />
                                 </div>
                                 <div className="text-right min-w-[80px]">
-                                    <div className="text-xs text-gray-400">下次複習</div>
+                                    <div className="text-xs text-gray-400">{t('library.nextReview')}</div>
                                     <div className={`text-sm font-medium ${new Date(word.nextReview) <= new Date() ? 'text-red-500' : 'text-green-600'}`}>
                                         {formatDate(word.nextReview)}
                                     </div>
@@ -156,12 +158,12 @@ const WordRow = ({
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-                                    if (confirm(`確定要將 "${word.word}" 從「${activeFolder?.name || '此資料夾'}」移除嗎？`)) {
+                                    if (confirm(t('library.confirmRemoveWordFromFolder', { word: word.word, folder: activeFolder?.name || t('library.thisFolder') }))) {
                                         onRemoveWordFromFolder(word, activeFolder?.id);
                                     }
                                 }}
                                 className="text-gray-400 hover:text-red-500 p-2 rounded-full hover:bg-red-50 transition"
-                                title="移除單字"
+                                title={t('library.removeWord')}
                             >
                                 <Trash2 className="w-4 h-4" />
                             </button>

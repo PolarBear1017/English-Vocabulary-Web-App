@@ -41,7 +41,8 @@ const removeSearchHistory = () => {
   }
 };
 
-const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
+const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearchStart, onRequireApiKeys }) => {
+  const definitionLanguage = propDefLang || settings?.state?.definitionLanguage || 'zh-TW';
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -228,7 +229,8 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           try {
             const { data, source: aiSource } = await fetchDefinition({
               groqKey: apiKeys.groqKey,
-              word: lowerQuery
+              word: lowerQuery,
+              targetLang: definitionLanguage
             });
             updateResult(toSearchResultFromAi(data, aiSource));
             setIsAiLoading(false);
@@ -241,7 +243,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           }
         } else {
           try {
-            const data = await fetchDictionaryEntry(lowerQuery, source);
+            const data = await fetchDictionaryEntry(lowerQuery, source, definitionLanguage);
             if (data) {
               const normalized = normalizeEntries(data);
               const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
@@ -323,7 +325,8 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       const mnemonics = await fetchMnemonic({
         groqKey: apiKeys.groqKey,
         word: searchResult.word,
-        definition: searchResult.definition
+        definition: searchResult.definition,
+        targetLang: definitionLanguage
       });
 
       setSearchResult(prev => ({
@@ -336,7 +339,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
     } finally {
       setAiLoading(false);
     }
-  }, [apiKeys, onRequireApiKeys, searchResult]);
+  }, [apiKeys, definitionLanguage, onRequireApiKeys, searchResult]);
 
   const triggerSaveButtonFeedback = useCallback(() => {
     setSaveButtonFeedback(true);

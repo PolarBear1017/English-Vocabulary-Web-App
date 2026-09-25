@@ -1,5 +1,6 @@
 import React from 'react';
 import { ArrowRight, Folder, Book, RefreshCw, Settings, Mic, Info, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ReviewFoldersSelector from './ReviewFoldersSelector';
 
 const ReviewSetup = ({
@@ -18,6 +19,7 @@ const ReviewSetup = ({
   onlyStarred,
   setOnlyStarred
 }) => {
+  const { t } = useTranslation();
   const [showHint, setShowHint] = React.useState(false);
 
   if (reviewSetupView === 'folders') {
@@ -34,10 +36,17 @@ const ReviewSetup = ({
     );
   }
 
+  const reviewModes = [
+    { id: 'flashcard', name: t('review.modes.flashcard.name'), icon: Book, desc: t('review.modes.flashcard.desc') },
+    { id: 'spelling', name: t('review.modes.spelling.name'), icon: RefreshCw, desc: t('review.modes.spelling.desc') },
+    { id: 'cloze', name: t('review.modes.cloze.name'), icon: Settings, desc: t('review.modes.cloze.desc') },
+    { id: 'dictation', name: t('review.modes.dictation.name'), icon: Mic, desc: t('review.modes.dictation.desc') }
+  ];
+
   return (
     <>
       <div className="flex items-center gap-2 mb-6">
-        <h1 className="text-2xl font-bold">複習中心</h1>
+        <h1 className="text-2xl font-bold">{t('review.title')}</h1>
         <div className="relative">
           <button
             className="text-gray-400 hover:text-blue-500 transition-colors p-1"
@@ -49,7 +58,7 @@ const ReviewSetup = ({
           </button>
           {showHint && (
             <div className="absolute left-full top-1/2 -translate-y-1/2 ml-2 bg-gray-800 text-white text-xs px-2 py-1 rounded shadow-lg whitespace-nowrap z-10 pointer-events-none">
-              可以在設定頁面調整發音來源順序
+              {t('review.audioHint')}
               <div className="absolute right-full top-1/2 -translate-y-1/2 -mr-1 border-4 border-transparent border-r-gray-800"></div>
             </div>
           )}
@@ -58,11 +67,11 @@ const ReviewSetup = ({
       <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-200 mb-8 flex justify-around">
         <div className="text-center">
           <div className="text-3xl font-bold text-pink-600">{dueCount}</div>
-          <div className="text-sm text-gray-600">待複習</div>
+          <div className="text-sm text-gray-600">{t('review.dueCountLabel')}</div>
         </div>
         <div className="text-center">
           <div className="text-3xl font-bold text-blue-600">{totalWords}</div>
-          <div className="text-sm text-gray-600">總單字量</div>
+          <div className="text-sm text-gray-600">{t('review.totalWords')}</div>
         </div>
       </div>
 
@@ -75,7 +84,7 @@ const ReviewSetup = ({
             <Folder className="w-5 h-5" />
           </div>
           <div className="text-left">
-            <div className="font-bold text-gray-800">選擇複習資料夾</div>
+            <div className="font-bold text-gray-800">{t('review.selectFolder')}</div>
             <div className="text-sm text-gray-500">{selectedFolderLabel}</div>
           </div>
         </div>
@@ -89,8 +98,8 @@ const ReviewSetup = ({
             <Star className={`w-5 h-5 ${onlyStarred ? 'fill-amber-500' : ''}`} />
           </div>
           <div className="text-left">
-            <div className="font-bold text-gray-800">只複習星號單字</div>
-            <div className="text-sm text-gray-500">僅篩選標註了星號的單字進行複習</div>
+            <div className="font-bold text-gray-800">{t('review.onlyStarred')}</div>
+            <div className="text-sm text-gray-500">{t('review.onlyStarredDesc')}</div>
           </div>
         </div>
         <button
@@ -109,14 +118,9 @@ const ReviewSetup = ({
         </button>
       </div>
 
-      <h3 className="font-bold text-gray-700 mb-4">選擇複習模式</h3>
+      <h3 className="font-bold text-gray-700 mb-4">{t('review.selectMode')}</h3>
       <div className="grid grid-cols-1 gap-4">
-        {[
-          { id: 'flashcard', name: '單字卡模式 (Flashcards)', icon: Book, desc: '經典翻牌，自我評分' },
-          { id: 'spelling', name: '看義拼字 (Spelling)', icon: RefreshCw, desc: '根據中文解釋拼寫單字' },
-          { id: 'cloze', name: '例句填空 (Cloze)', icon: Settings, desc: '根據例句填入缺失單字' },
-          { id: 'dictation', name: '聽音拼字 (Dictation)', icon: Mic, desc: '聽發音拼寫單字' }
-        ].map(mode => (
+        {reviewModes.map(mode => (
           <button key={mode.id} onClick={() => startReview(selectedReviewFolders, mode.id)} className="flex items-center gap-4 bg-white p-4 rounded-xl border border-gray-200 hover:border-blue-500 hover:shadow-md transition text-left group">
             <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center group-hover:bg-blue-100 group-hover:text-blue-600 transition"><mode.icon className="w-6 h-6" /></div>
             <div>

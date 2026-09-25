@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const MoveWordsModal = ({
   folders,
@@ -8,6 +9,7 @@ const MoveWordsModal = ({
   onClose,
   isSaving
 }) => {
+  const { t } = useTranslation();
   const availableFolders = (folders || []).filter(folder => folder.id !== currentFolderId);
   const [targetId, setTargetId] = useState(availableFolders[0]?.id || '');
 
@@ -25,10 +27,10 @@ const MoveWordsModal = ({
         >
           <X className="w-6 h-6" />
         </button>
-        <h2 className="text-xl font-bold text-blue-700 mb-4">批次移動單字</h2>
+        <h2 className="text-xl font-bold text-blue-700 mb-4">{t('library.batchMoveWords')}</h2>
 
         {availableFolders.length === 0 ? (
-          <p className="text-sm text-gray-500">沒有可移動的目標資料夾。</p>
+          <p className="text-sm text-gray-500">{t('library.noTargetFolders')}</p>
         ) : (
           <form
             onSubmit={(event) => {
@@ -39,7 +41,7 @@ const MoveWordsModal = ({
             className="space-y-4"
           >
             <label className="block text-sm text-gray-600">
-              目標資料夾
+              {t('library.targetFolder')}
               <select
                 className="mt-2 w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-200"
                 value={targetId}
@@ -58,14 +60,14 @@ const MoveWordsModal = ({
                 className="px-4 py-2 rounded-lg bg-gray-100 text-gray-700 text-sm hover:bg-gray-200"
                 disabled={isSaving}
               >
-                取消
+                {t('common.cancel')}
               </button>
               <button
                 type="submit"
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm hover:bg-blue-700"
                 disabled={isSaving || !targetId}
               >
-                {isSaving ? '移動中...' : '移動'}
+                {isSaving ? t('library.moving') : t('library.move')}
               </button>
             </div>
           </form>

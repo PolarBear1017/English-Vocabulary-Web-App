@@ -18,10 +18,13 @@
     "@supabase/supabase-js": "^2.90.1",
     "cheerio": "^1.1.2",
     "compromise": "^14.14.5",
+    "i18next": "^26.4.2",
+    "i18next-browser-languagedetector": "^8.2.1",
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-hot-toast": "^2.6.0",
+    "react-i18next": "^17.0.15",
     "soundtouchjs": "^0.3.0",
     "ts-fsrs": "^4.6.2",
     "use-long-press": "^3.3.0"

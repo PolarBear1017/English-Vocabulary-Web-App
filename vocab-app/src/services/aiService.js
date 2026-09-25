@@ -4,7 +4,7 @@ const AI_ERROR_CODES = {
   MISSING_API_KEYS: 'MISSING_API_KEYS'
 };
 
-const callAi = async ({ groqKey, word, definition, words, promptType }) => {
+const callAi = async ({ groqKey, word, definition, words, promptType, targetLang = 'zh-TW' }) => {
   if (!groqKey) {
     const error = new Error("請在設定頁面輸入 Groq API Key。");
     error.code = AI_ERROR_CODES.MISSING_API_KEYS;
@@ -17,6 +17,7 @@ const callAi = async ({ groqKey, word, definition, words, promptType }) => {
       definition,
       words,
       promptType,
+      targetLang,
       apiKeys: {
         groqKey
       }
@@ -215,8 +216,8 @@ const normalizeMnemonic = (data) => {
   return { method, content: finalContent.trim(), details };
 };
 
-const fetchDefinition = async ({ groqKey, word }) => {
-  const response = await callAi({ groqKey, word, promptType: 'definition' });
+const fetchDefinition = async ({ groqKey, word, targetLang = 'zh-TW' }) => {
+  const response = await callAi({ groqKey, word, promptType: 'definition', targetLang });
   const raw = response?.data;
   const parsed = typeof raw === 'string' ? parseJsonContent(raw) : raw;
   return {
@@ -225,23 +226,25 @@ const fetchDefinition = async ({ groqKey, word }) => {
   };
 };
 
-const fetchMnemonic = async ({ groqKey, word, definition }) => {
+const fetchMnemonic = async ({ groqKey, word, definition, targetLang = 'zh-TW' }) => {
   const response = await callAi({
     groqKey,
     word,
     definition,
-    promptType: 'mnemonic'
+    promptType: 'mnemonic',
+    targetLang
   });
   const raw = response?.data;
   const parsed = typeof raw === 'string' ? parseJsonContent(raw) : raw;
   return normalizeMnemonic(parsed);
 };
 
-const fetchStory = async ({ groqKey, words }) => {
+const fetchStory = async ({ groqKey, words, targetLang = 'zh-TW' }) => {
   const response = await callAi({
     groqKey,
     words,
-    promptType: 'story'
+    promptType: 'story',
+    targetLang
   });
   return response?.data || '';
 };

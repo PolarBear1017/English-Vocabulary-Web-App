@@ -19,6 +19,7 @@ import {
     useSortable,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useTranslation } from 'react-i18next';
 
 const DICTIONARY_NAMES = {
     'Cambridge': 'Cambridge Dictionary',
@@ -28,6 +29,7 @@ const DICTIONARY_NAMES = {
 };
 
 const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
+    const { t } = useTranslation();
     const {
         attributes,
         listeners,
@@ -72,7 +74,7 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
                     onClick={() => moveUp(index)}
                     disabled={index === 0}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="上移"
+                    title={t('settings.moveUp')}
                 >
                     <ArrowUp className="w-4 h-4" />
                 </button>
@@ -80,16 +82,17 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
                     onClick={() => moveDown(index)}
                     disabled={index === totalCount - 1}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="下移"
+                    title={t('settings.moveDown')}
                 >
                     <ArrowDown className="w-4 h-4" />
                 </button>
             </div>
         </div>
     );
-}
+};
 
 const SettingsDictionary = () => {
+    const { t } = useTranslation();
     const { state, actions } = useSettingsContext();
     const [priority, setPriority] = useState(state.dictionaryPriority || []);
     const [hasChanges, setHasChanges] = useState(false);
@@ -139,7 +142,7 @@ const SettingsDictionary = () => {
     const handleSave = () => {
         actions.setDictionaryPriority(priority);
         setHasChanges(false);
-        alert('設定已儲存');
+        alert(t('settings.saved'));
     };
 
     return (
@@ -147,11 +150,8 @@ const SettingsDictionary = () => {
             <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex items-start gap-3">
                 <Info className="w-5 h-5 text-blue-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-blue-800">
-                    <p className="font-medium mb-1">字典優先順序</p>
-                    <p>
-                        當搜尋單字時，系統會依照此順序自動查詢。
-                        <span className="font-bold">您可以不按住拖曳把手</span> 或使用箭頭來調整順序。
-                    </p>
+                    <p className="font-medium mb-1">{t('settings.dictPriorityTitle')}</p>
+                    <p>{t('settings.dictPriorityDesc')}</p>
                 </div>
             </div>
 
@@ -186,7 +186,7 @@ const SettingsDictionary = () => {
                     disabled={!hasChanges}
                     className="px-6 py-2 bg-blue-600 text-white rounded-xl font-medium shadow-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
-                    儲存變更
+                    {t('settings.saveChanges')}
                 </button>
             </div>
         </div>

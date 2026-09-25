@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { CheckCircle, Circle, FileText, Info, Plus, Search, ArrowUpDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const FolderSelectionList = ({
   folders,
@@ -15,6 +16,7 @@ const FolderSelectionList = ({
   hasDefinitionChanges,
   onCreateFolder
 }) => {
+  const { t } = useTranslation();
   const [query, setQuery] = useState('');
   const [folderSortBy, setFolderSortBy] = useState('created_desc');
   const [isCreating, setIsCreating] = useState(false);
@@ -250,13 +252,13 @@ const FolderSelectionList = ({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <h4 className="text-sm font-bold text-gray-500">儲存至...</h4>
+          <h4 className="text-sm font-bold text-gray-500">{t('card.saveTo')}</h4>
           <button
             type="button"
             onClick={() => setShowShortcutTip((prev) => !prev)}
             className="relative group"
             ref={shortcutTipRef}
-            aria-label="快捷鍵提示"
+            aria-label={t('card.shortcutTips')}
           >
             <Info className="w-4 h-4 text-gray-400 cursor-help" />
             <div
@@ -264,20 +266,20 @@ const FolderSelectionList = ({
                 } group-hover:opacity-100 group-hover:visible`}
             >
               <div className="font-bold text-gray-800 flex items-center gap-1.5">
-                <span>⌨️ 快捷鍵小技巧</span>
+                <span>{t('card.shortcutTitle')}</span>
               </div>
               <div className="space-y-1.5 text-gray-600">
                 <div className="flex items-center justify-between gap-2">
-                  <span>確認儲存</span>
+                  <span>{t('card.confirmSave')}</span>
                   <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-700 shadow-sm">Enter</kbd>
                 </div>
                 <div className="flex items-center justify-between gap-2">
-                  <span>關閉 / 取消</span>
+                  <span>{t('card.closeOrCancel')}</span>
                   <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded text-[11px] font-mono text-gray-700 shadow-sm">ESC</kbd>
                 </div>
               </div>
               <p className="text-[11px] text-gray-400 pt-1 border-t border-gray-100">
-                * 系統已預設勾選您上次使用的資料夾，查詢後連按兩次 Enter 即可極速存入！
+                {t('card.shortcutNote')}
               </p>
               <div className="absolute left-3 bottom-full w-0 h-0 border-4 border-transparent border-b-white" />
             </div>
@@ -293,11 +295,11 @@ const FolderSelectionList = ({
               } group-hover:opacity-100 group-hover:visible`}>
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-3 h-3 text-green-400" />
-                <span>綠色勾勾：原本已存的資料夾</span>
+                <span>{t('card.greenCheckTip')}</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-3 h-3 text-blue-400" />
-                <span>藍色勾勾：本次新增的資料夾</span>
+                <span>{t('card.blueCheckTip')}</span>
               </div>
               <div className="absolute left-2 top-full w-0 h-0 border-4 border-transparent border-t-gray-800" />
             </div>
@@ -308,7 +310,7 @@ const FolderSelectionList = ({
             <button
               type="button"
               onClick={onEditDefinitions}
-              title="修改儲存的解釋"
+              title={t('card.editSavedDefinitions')}
               className="w-8 h-8 rounded-full flex items-center justify-center text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition"
             >
               <FileText className="w-4 h-4" />
@@ -334,7 +336,7 @@ const FolderSelectionList = ({
             type="text"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="搜尋或建立..."
+            placeholder={t('card.searchOrCreateFolder')}
             className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
         </div>
@@ -345,8 +347,8 @@ const FolderSelectionList = ({
             value={folderSortBy}
             onChange={(e) => setFolderSortBy(e.target.value)}
           >
-            <option value="created_desc">最新</option>
-            <option value="name_asc">名稱 A-Z</option>
+            <option value="created_desc">{t('card.sortLatest')}</option>
+            <option value="name_asc">{t('card.sortNameAsc')}</option>
           </select>
         </div>
       </div>
@@ -357,7 +359,7 @@ const FolderSelectionList = ({
             type="text"
             value={createValue}
             onChange={(event) => setCreateValue(event.target.value)}
-            placeholder="輸入資料夾名稱..."
+            placeholder={t('card.inputFolderName')}
             className="flex-1 px-3 py-2 text-sm rounded-xl border border-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-200"
           />
           <button
@@ -366,7 +368,7 @@ const FolderSelectionList = ({
             disabled={isSubmitting || !normalizedCreateValue}
             className="px-3 py-2 text-sm rounded-xl bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            建立
+            {t('common.create')}
           </button>
         </div>
       )}
@@ -380,13 +382,13 @@ const FolderSelectionList = ({
             className="w-full flex items-center gap-2 px-4 py-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 text-sm hover:bg-blue-100 transition"
           >
             <Plus className="w-4 h-4" />
-            建立 "{normalizedQuery}" 資料夾
+            {t('card.createNamedFolder', { name: normalizedQuery })}
           </button>
         )}
 
         {filteredFolders.length === 0 && !showCreateFromQuery && (
           <div className="px-4 py-3 text-sm text-gray-400 text-center">
-            沒有符合的資料夾
+            {t('card.noMatchingFolders')}
           </div>
         )}
 
@@ -435,7 +437,7 @@ const FolderSelectionList = ({
             onClick={onCancel}
             className="px-4 py-2 text-sm rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
           >
-            取消
+            {t('common.cancel')}
           </button>
         )}
         <button
@@ -444,7 +446,7 @@ const FolderSelectionList = ({
           disabled={!isDataLoaded || !(hasChanges || hasDefinitionChanges) || isConfirming || (selectedIds.size === 0 && savedIdSet.size === 0)}
           className="px-4 py-2 text-sm rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {isConfirming ? '儲存中...' : !isDataLoaded ? '資料載入中...' : '確認'}
+          {isConfirming ? t('common.saving') : !isDataLoaded ? t('common.loadingData') : t('common.confirm')}
         </button>
       </div>
     </div>

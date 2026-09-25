@@ -12,6 +12,7 @@ import {
 import { getClozeValidAnswers } from '../../utils/text.jsx';
 import { updateUserLibraryProgress } from '../../services/libraryService';
 import { speak, getAudioUrl } from '../../services/speechService';
+import i18n from '../../i18n/config';
 
 const useReview = ({
   vocabData,
@@ -110,11 +111,11 @@ const useReview = ({
     || (allFolderIds.length > 0 && allFolderIds.every(id => selectedReviewFolders.includes(id)));
 
   const selectedFolderLabel = allFoldersSelected
-    ? '全部資料夾'
+    ? i18n.t('library.allFolders', '全部資料夾')
     : folders
       .filter(folder => selectedReviewFolders.includes(folder.id))
       .map(folder => folder.name)
-      .join('、') || '尚未選擇';
+      .join(', ') || i18n.t('review.noneSelected', '尚未選擇');
 
   const toggleReviewFolder = useCallback((folderId) => {
     setSelectedReviewFolders(prev => {
@@ -205,7 +206,7 @@ const useReview = ({
       return word.folderIds && word.folderIds.some(id => selectedIds.includes(id));
     });
     if (filteredWords.length === 0) {
-      alert("目前沒有可複習的單字！");
+      alert(i18n.t('review.noWordsDueAlert', '目前沒有可複習的單字！'));
       return;
     }
 
@@ -238,7 +239,7 @@ const useReview = ({
       setAnswerHint('');
       setHasMistake(false);
     } else {
-      alert("複習完成！");
+      alert(i18n.t('review.finish', '恭喜！本次複習已完成'));
       setActiveTab('review');
     }
   }, [currentCardIndex, pendingAutoGrade, reviewQueue.length, setActiveTab]);

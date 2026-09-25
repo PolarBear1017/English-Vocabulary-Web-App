@@ -1,5 +1,6 @@
 import React from 'react';
 import { RefreshCw, ArrowUpDown, Plus, Search, X } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import FolderCard from './FolderCard';
 import LibraryWordDetail from './LibraryWordDetail';
 import { isWordMatch } from '../../utils/data';
@@ -31,6 +32,7 @@ const LibraryOverview = ({
   onToggleStar,
   onSearchWord
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = React.useState('');
   const [viewingWord, setViewingWord] = React.useState(null);
 
@@ -53,13 +55,13 @@ const LibraryOverview = ({
       <header className="flex flex-col gap-4 mb-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">我的單字庫</h1>
-            <button onClick={handleManualSync} className="p-2 text-gray-400 hover:text-blue-600 transition rounded-full hover:bg-blue-50" title="手動同步資料">
+            <h1 className="text-2xl font-bold">{t('library.title')}</h1>
+            <button onClick={handleManualSync} className="p-2 text-gray-400 hover:text-blue-600 transition rounded-full hover:bg-blue-50" title={t('library.manualSync')}>
               <RefreshCw className={`w-5 h-5 ${!isDataLoaded ? 'animate-spin text-blue-600' : ''}`} />
             </button>
             {searchQuery && (
               <span className="text-gray-500 text-sm">
-                搜尋到 {filteredFolders.length} 個資料夾
+                {t('library.foundFoldersCount', { count: filteredFolders.length })}
               </span>
             )}
           </div>
@@ -69,10 +71,10 @@ const LibraryOverview = ({
               className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${isSelectionMode ? 'bg-gray-100 text-gray-700 hover:bg-gray-200' : 'bg-white text-gray-600 border border-gray-200 hover:bg-gray-50'
                 }`}
             >
-              {isSelectionMode ? '取消選取' : '選取'}
+              {isSelectionMode ? t('library.cancelSelect') : t('library.select')}
             </button>
             <button onClick={onOpenCreateFolder} className="flex items-center gap-2 text-blue-600 bg-blue-50 px-4 py-2 rounded-lg hover:bg-blue-100 transition">
-              <Plus className="w-4 h-4" /> 新增資料夾
+              <Plus className="w-4 h-4" /> {t('library.newFolder')}
             </button>
           </div>
         </div>
@@ -84,7 +86,7 @@ const LibraryOverview = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋資料夾..."
+              placeholder={t('library.searchFolders')}
               autoCapitalize="off"
               className="w-full pl-9 pr-9 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
             />
@@ -104,9 +106,9 @@ const LibraryOverview = ({
               value={folderSortBy}
               onChange={(e) => setFolderSortBy(e.target.value)}
             >
-              <option value="created_desc">最新</option>
-              <option value="name_asc">名稱 A-Z</option>
-              <option value="count_desc">單字數多</option>
+              <option value="created_desc">{t('card.sortLatest')}</option>
+              <option value="name_asc">{t('card.sortNameAsc')}</option>
+              <option value="count_desc">{t('library.sortWordCount')}</option>
             </select>
           </div>
         </div>
@@ -145,13 +147,13 @@ const LibraryOverview = ({
           {searchQuery ? (
             <>
               <Search className="w-12 h-12 mb-3 opacity-20" />
-              <p>找不到符合「{searchQuery}」的資料夾</p>
+              <p>{t('library.noMatchingFoldersForQuery', { query: searchQuery })}</p>
               <button onClick={() => setSearchQuery('')} className="mt-4 text-blue-600 hover:underline text-sm">
-                清除搜尋
+                {t('library.clearSearch')}
               </button>
             </>
           ) : (
-            <p>目前沒有資料夾</p>
+            <p>{t('library.noFolders')}</p>
           )}
         </div>
       )}
@@ -172,7 +174,7 @@ const LibraryOverview = ({
                   const folderId = Object.keys(entriesByFolderId).find(fid =>
                     entriesByFolderId[fid].some(w => w.id === viewingWord.id)
                   );
-                  if (confirm(`確定要將 "${viewingWord.word}" 從資料庫移除嗎？`)) {
+                  if (confirm(t('library.confirmRemoveWordFromDb', { word: viewingWord.word }))) {
                     if (folderId && onRemoveWordFromFolder) {
                       onRemoveWordFromFolder(viewingWord, folderId);
                     }

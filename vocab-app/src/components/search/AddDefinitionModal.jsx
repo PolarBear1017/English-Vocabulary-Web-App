@@ -107,7 +107,7 @@ const AddDefinitionModal = ({ isOpen, onClose, onConfirm }) => {
                                 setTranslation(e.target.value);
                                 if (error) setError('');
                             }}
-                            placeholder="Ex: 蘋果"
+                            placeholder={t('card.translationPlaceholder')}
                             className={`w-full rounded-lg shadow-sm focus:ring-blue-500 py-2.5 ${error ? 'border-red-300 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
                                 }`}
                         />

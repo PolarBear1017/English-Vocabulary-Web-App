@@ -95,6 +95,7 @@
     "partOfSpeech": "Part of Speech",
     "definitionEn": "Definition (English)",
     "translationZh": "Translation",
+    "translationPlaceholder": "e.g. apple",
     "exampleSentence": "Example Sentence",
     "aiMnemonicAssistant": "AI Memory Assistant",
     "regenerate": "Regenerate",

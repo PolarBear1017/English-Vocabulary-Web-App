@@ -94,6 +94,7 @@
     "partOfSpeech": "詞性 (Part of Speech)",
     "definitionEn": "英文解釋 (Definition)",
     "translationZh": "中文翻譯 (Translation)",
+    "translationPlaceholder": "例：蘋果",
     "exampleSentence": "例句 (Example Sentence)",
     "aiMnemonicAssistant": "AI 記憶助手",
     "regenerate": "重新生成",

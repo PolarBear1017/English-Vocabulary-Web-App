@@ -30,7 +30,21 @@ const callAi = async ({ groqKey, word, definition, words, promptType, targetLang
   });
 
   if (error) {
-    const err = new Error(error.message || 'AI Edge Function failed');
+    let serverMessage = error.message;
+    if (error.context) {
+      try {
+        const errorJson = await error.context.json();
+        if (errorJson?.error) {
+          serverMessage = errorJson.error;
+        }
+      } catch (_) {
+        try {
+          const text = await error.context.text();
+          if (text) serverMessage = text;
+        } catch (_) {}
+      }
+    }
+    const err = new Error(serverMessage || 'AI Edge Function failed');
     err.code = error.code;
     throw err;
   }

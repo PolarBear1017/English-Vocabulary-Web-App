@@ -8,7 +8,10 @@ const corsHeaders = {
 };
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODEL = 'llama-3.1-8b-instant';
+const GROQ_MODELS = [
+  'llama-3.3-70b-versatile',
+  'llama-3.1-8b-instant'
+];
 
 const AI_ERROR_CODES = {
   MISSING_API_KEYS: 'MISSING_API_KEYS'
@@ -205,25 +208,39 @@ const parseJsonContent = (text: string) => {
 };
 
 const callGroq = async (apiKey: string, prompt: string) => {
-  const response = await fetch(GROQ_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
-      messages: [{ role: 'user', content: prompt }]
-    })
-  });
+  let lastError: Error | null = null;
+  for (const model of GROQ_MODELS) {
+    try {
+      const response = await fetch(GROQ_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }]
+        })
+      });
 
-  if (!response.ok) {
-    const errorData = await response.json();
-    throw new Error(`Groq API 呼叫失敗: ${errorData.error?.message}`);
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const msg = errorData.error?.message || `HTTP ${response.status}`;
+        throw new Error(msg);
+      }
+
+      const data = await response.json();
+      return { text: data.choices[0].message.content, source: 'Groq AI', model };
+    } catch (err) {
+      console.warn(`Model ${model} failed:`, err);
+      lastError = err as Error;
+      if (lastError.message?.includes('does not exist') || lastError.message?.includes('access')) {
+        continue;
+      }
+      throw new Error(`Groq API 呼叫失敗: ${lastError.message}`);
+    }
   }
-
-  const data = await response.json();
-  return { text: data.choices[0].message.content, source: 'Groq AI', model: GROQ_MODEL };
+  throw new Error(`Groq API 呼叫失敗: ${lastError?.message || 'No available Groq models'}`);
 };
 
 const callAi = async (groqKey: string | undefined, prompt: string) => {

@@ -8,11 +8,70 @@ const corsHeaders = {
 };
 
 const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
-const GROQ_MODELS = [
-  'openai/gpt-oss-20b',
-  'openai/gpt-oss-120b',
-  'qwen/qwen3.8-27b'
-];
+const GROQ_MODELS_URL = 'https://api.groq.com/openai/v1/models';
+
+let cachedModels: string[] = [];
+let cacheExpiry = 0;
+
+const getAvailableGroqModels = async (apiKey: string): Promise<string[]> => {
+  const now = Date.now();
+  if (cachedModels.length > 0 && now < cacheExpiry) {
+    return cachedModels;
+  }
+
+  try {
+    const res = await fetch(GROQ_MODELS_URL, {
+      headers: {
+        'Authorization': `Bearer ${apiKey}`
+      }
+    });
+
+    if (res.ok) {
+      const json = await res.json();
+      const data = Array.isArray(json?.data) ? json.data : [];
+
+      const unusableKeywords = [
+        'whisper', 'tts', 'guard', 'safeguard', 'orpheus', 'distil', 'vision', 'compound', 'tool-use-preview'
+      ];
+
+      const validModels = data
+        .map((m: any) => String(m.id || '').trim())
+        .filter((id: string) => {
+          if (!id) return false;
+          const lower = id.toLowerCase();
+          return !unusableKeywords.some(keyword => lower.includes(keyword));
+        });
+
+      if (validModels.length > 0) {
+        const score = (name: string) => {
+          const n = name.toLowerCase();
+          if (n.includes('gpt-oss-120b')) return 100;
+          if (n.includes('gpt-oss-20b')) return 95;
+          if (n.includes('qwen3.8')) return 90;
+          if (n.includes('qwen3')) return 85;
+          if (n.includes('qwen')) return 80;
+          if (n.includes('120b') || n.includes('70b')) return 70;
+          if (n.includes('instruct') || n.includes('chat') || n.includes('versatile')) return 60;
+          return 10;
+        };
+
+        const sorted = validModels.sort((a, b) => score(b) - score(a));
+        cachedModels = sorted;
+        cacheExpiry = now + 1000 * 60 * 30; // Cache for 30 minutes
+        console.log('Dynamically discovered Groq models:', cachedModels);
+        return cachedModels;
+      }
+    }
+  } catch (err) {
+    console.warn('Failed to dynamically query Groq models:', err);
+  }
+
+  return [
+    'openai/gpt-oss-20b',
+    'openai/gpt-oss-120b',
+    'qwen/qwen3.8-27b'
+  ];
+};
 
 const AI_ERROR_CODES = {
   MISSING_API_KEYS: 'MISSING_API_KEYS'
@@ -209,8 +268,10 @@ const parseJsonContent = (text: string) => {
 };
 
 const callGroq = async (apiKey: string, prompt: string) => {
+  const modelsToTry = await getAvailableGroqModels(apiKey);
   let lastError: Error | null = null;
-  for (const model of GROQ_MODELS) {
+
+  for (const model of modelsToTry) {
     try {
       const response = await fetch(GROQ_API_URL, {
         method: 'POST',
@@ -235,13 +296,19 @@ const callGroq = async (apiKey: string, prompt: string) => {
     } catch (err) {
       console.warn(`Model ${model} failed:`, err);
       lastError = err as Error;
-      if (lastError.message?.includes('does not exist') || lastError.message?.includes('access')) {
+      if (
+        lastError.message?.includes('does not exist') ||
+        lastError.message?.includes('access') ||
+        lastError.message?.includes('decommissioned') ||
+        lastError.message?.includes('deprecated')
+      ) {
+        cachedModels = cachedModels.filter(m => m !== model);
         continue;
       }
       throw new Error(`Groq API 呼叫失敗: ${lastError.message}`);
     }
   }
-  throw new Error(`Groq API 呼叫失敗: ${lastError?.message || 'No available Groq models'}`);
+  throw new Error(`Groq API 呼叫失敗: ${lastError?.message || '無可用的 Groq 模型'}`);
 };
 
 const callAi = async (groqKey: string | undefined, prompt: string) => {

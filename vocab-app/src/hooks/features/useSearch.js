@@ -9,6 +9,7 @@ import {
 import { createSearchResult } from '../../domain/models';
 import { normalizeEntries } from '../../utils/data';
 import i18n from '../../i18n/config';
+import { toast } from 'react-hot-toast';
 
 const SEARCH_HISTORY_KEY = 'vocab_search_history';
 const HISTORY_LIMIT = 50;
@@ -58,6 +59,12 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
 
   const ignoreNextQueryUpdate = useRef(false);
   const searchInputRef = useRef(null);
+  const activeSearchWordRef = useRef('');
+  const searchResultRef = useRef(searchResult);
+
+  useEffect(() => {
+    searchResultRef.current = searchResult;
+  }, [searchResult]);
 
   useEffect(() => {
     setSaveButtonFeedback(false);
@@ -165,7 +172,37 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
     });
   }, []);
 
+  const triggerAutoMnemonic = useCallback(async (word, definition) => {
+    if (!apiKeys?.groqKey || !word) return;
+
+    setAiLoading(true);
+    try {
+      const mnemonics = await fetchMnemonic({
+        groqKey: apiKeys.groqKey,
+        word,
+        definition: definition || '',
+        targetLang: definitionLanguage
+      });
+
+      if (activeSearchWordRef.current.trim().toLowerCase() === word.trim().toLowerCase()) {
+        setSearchResult((prev) => {
+          if (!prev || prev.word.trim().toLowerCase() !== word.trim().toLowerCase()) return prev;
+          return {
+            ...prev,
+            mnemonics,
+            isAiGenerated: true
+          };
+        });
+      }
+    } catch (error) {
+      console.warn(`[AutoMnemonic] Failed to fetch mnemonic for ${word}:`, error);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [apiKeys?.groqKey, definitionLanguage]);
+
   const runSearch = useCallback(async ({ searchTerm, forceSource }) => {
+    activeSearchWordRef.current = searchTerm;
     updateSearchHistory(searchTerm);
     setSuggestions([]);
     if (onSearchStart) onSearchStart();
@@ -205,8 +242,12 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       if (MOCK_DICTIONARY_DB[lowerQuery]) {
         setTimeout(() => {
           const mock = MOCK_DICTIONARY_DB[lowerQuery];
-          updateResult({ ...mock, entries: normalizeEntries(mock), isAiGenerated: false });
+          const res = { ...mock, entries: normalizeEntries(mock), isAiGenerated: false };
+          updateResult(res);
           setIsSearching(false);
+          if (apiKeys?.groqKey && !res.mnemonics) {
+            triggerAutoMnemonic(res.word, res.definition || '');
+          }
         }, 500);
         return;
       }
@@ -233,8 +274,12 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
               word: lowerQuery,
               targetLang: definitionLanguage
             });
-            updateResult(toSearchResultFromAi(data, aiSource));
+            const res = toSearchResultFromAi(data, aiSource);
+            updateResult(res);
             setIsAiLoading(false);
+            if (apiKeys?.groqKey && !res.mnemonics) {
+              triggerAutoMnemonic(res.word, res.definition || '');
+            }
             return;
           } catch (error) {
             setIsAiLoading(false);
@@ -250,7 +295,17 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
               const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
 
               if (isValid) {
-                updateResult(toSearchResultFromDictionary(data));
+                const res = toSearchResultFromDictionary(data);
+                if (
+                  searchResultRef.current?.word?.trim().toLowerCase() === res.word.trim().toLowerCase() &&
+                  searchResultRef.current?.mnemonics
+                ) {
+                  res.mnemonics = searchResultRef.current.mnemonics;
+                }
+                updateResult(res);
+                if (apiKeys?.groqKey && !res.mnemonics) {
+                  triggerAutoMnemonic(res.word, res.definition || '');
+                }
                 return;
               }
             }
@@ -290,7 +345,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext]);
+  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext, definitionLanguage, triggerAutoMnemonic]);
 
   const handleSearch = useCallback(async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -319,7 +374,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       error.code = AI_ERROR_CODES.MISSING_API_KEYS;
       setAiError({ code: error.code, message: error.message });
       onRequireApiKeys?.();
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setAiLoading(true);
@@ -327,7 +382,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       const mnemonics = await fetchMnemonic({
         groqKey: apiKeys.groqKey,
         word: searchResult.word,
-        definition: searchResult.definition,
+        definition: searchResult.definition || '',
         targetLang: definitionLanguage
       });
 
@@ -337,7 +392,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
         isAiGenerated: true
       }));
     } catch (error) {
-      alert(`${i18n.t('search.generationFailed', '生成失敗')}: ${error.message}`);
+      toast.error(`${i18n.t('search.generationFailed', '生成失敗')}: ${error.message}`);
     } finally {
       setAiLoading(false);
     }

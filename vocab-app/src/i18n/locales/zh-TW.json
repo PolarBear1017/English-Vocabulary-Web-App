@@ -100,6 +100,7 @@
     "aiMnemonicAssistant": "AI 記憶助手",
     "regenerate": "重新生成",
     "generating": "生成中...",
+    "generatingMnemonic": "AI 正在為你提煉字根與聯想記憶...",
     "generateMnemonic": "生成字根/諧音記憶法",
     "setApiKeyForMnemonic": "請設定 API Key 以啟用記憶法生成",
     "similarWords": "相似字",

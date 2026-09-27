@@ -59,6 +59,7 @@ const SearchResultCard = ({
   const [customDefinitions, setCustomDefinitions] = useState([]);
   const [deletedCustomDefs, setDeletedCustomDefs] = useState(new Set());
   const [isAddingDefinition, setIsAddingDefinition] = useState(false);
+  const [isMnemonicOpen, setIsMnemonicOpen] = useState(true);
   const isProcessingRef = useRef(false);
   const defaultTipRef = useRef(null);
 
@@ -68,6 +69,7 @@ const SearchResultCard = ({
     setIsSwitchingSource(false);
     setCustomDefinitions([]);
     setDeletedCustomDefs(new Set());
+    setIsMnemonicOpen(true);
   }, [searchResult?.word]);
 
   useEffect(() => {
@@ -537,6 +539,17 @@ const SearchResultCard = ({
       />
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>
+        {saveStep === 'idle' && (
+          <SearchMnemonic
+            mnemonics={searchResult.mnemonics}
+            groqApiKey={groqApiKey}
+            aiLoading={aiLoading}
+            onGenerate={onGenerateMnemonic}
+            isOpen={isMnemonicOpen}
+            onToggleOpen={() => setIsMnemonicOpen(prev => !prev)}
+          />
+        )}
+
         <SearchResultEntries
           normalizedEntries={orderedEntries}
           searchWord={searchResult.word}
@@ -557,8 +570,6 @@ const SearchResultCard = ({
           }}
         />
 
-
-
         {isSelectingView && (
           <button
             onClick={() => setIsAddingDefinition(true)}
@@ -570,22 +581,13 @@ const SearchResultCard = ({
         )}
 
         {saveStep === 'idle' && (
-          <>
-            <SearchSimilarList
-              similarWords={searchResult.similar}
-              onSelect={(word) => {
-                setQuery(word);
-                onSearch({ preventDefault: () => { } });
-              }}
-            />
-
-            <SearchMnemonic
-              mnemonics={searchResult.mnemonics}
-              groqApiKey={groqApiKey}
-              aiLoading={aiLoading}
-              onGenerate={onGenerateMnemonic}
-            />
-          </>
+          <SearchSimilarList
+            similarWords={searchResult.similar}
+            onSelect={(word) => {
+              setQuery(word);
+              onSearch({ preventDefault: () => { } });
+            }}
+          />
         )}
 
         {saveStep === 'folder' && (

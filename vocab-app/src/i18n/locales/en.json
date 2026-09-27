@@ -102,6 +102,7 @@
     "aiMnemonicAssistant": "AI Memory Assistant",
     "regenerate": "Regenerate",
     "generating": "Generating...",
+    "generatingMnemonic": "AI is extracting roots and mnemonics...",
     "generateMnemonic": "Generate etymology / mnemonic",
     "setApiKeyForMnemonic": "Please set API Key in settings to enable mnemonic generation",
     "similarWords": "Similar Words",

@@ -1,4 +1,4 @@
-# 📚 Spaced — 智慧英語單字學習工作站 / Intelligent Vocabulary App
+# 📚 Spaced — Intelligent Vocabulary App
 
 > **Spaced** 是一套專為深度學習者打造的現代化智慧英語學習工作站，整合多源權威字典、FSRS 間隔重複演算法、AI 字根拆解與語境情境故事。
 >

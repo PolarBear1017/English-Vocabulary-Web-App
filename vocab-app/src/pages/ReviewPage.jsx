@@ -1,5 +1,6 @@
 
 import React, { useContext, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { ReviewContext } from '../contexts/ReviewContext';
 import { LibraryContext } from '../contexts/LibraryContext';
 import { NavigationContext } from '../contexts/NavigationContext';
@@ -23,10 +24,11 @@ class ErrorBoundary extends React.Component {
 
     render() {
         if (this.state.hasError) {
+            const t = this.props.t || ((key, fallback) => fallback || key);
             return (
                 <div className="p-8 text-center">
-                    <h2 className="text-2xl font-bold text-red-600 mb-4">發生錯誤</h2>
-                    <p className="text-gray-600 mb-4">無法載入複習模式</p>
+                    <h2 className="text-2xl font-bold text-red-600 mb-4">{t('review.errorTitle', '發生錯誤')}</h2>
+                    <p className="text-gray-600 mb-4">{t('review.errorDesc', '無法載入複習模式')}</p>
                     <pre className="text-left bg-gray-100 p-4 rounded overflow-auto text-xs mb-4">
                         {this.state.error?.toString()}
                     </pre>
@@ -34,7 +36,7 @@ class ErrorBoundary extends React.Component {
                         onClick={() => window.location.reload()}
                         className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     >
-                        重新整理
+                        {t('common.refresh', '重新整理')}
                     </button>
                 </div>
             );
@@ -44,6 +46,7 @@ class ErrorBoundary extends React.Component {
 }
 
 const ReviewPage = () => {
+    const { t } = useTranslation();
     const { state: reviewState, derived: reviewDerived, actions: reviewActions } = useContext(ReviewContext);
     const { state: libraryState, derived: libraryDerived } = useContext(LibraryContext);
     const { state: navState, actions: navActions } = useContext(NavigationContext);
@@ -87,7 +90,7 @@ const ReviewPage = () => {
 
     if (activeTab === 'review_session') {
         return (
-            <ErrorBoundary>
+            <ErrorBoundary t={t}>
                 <ReviewSession
                     {...reviewState}
                     {...reviewDerived}

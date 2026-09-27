@@ -8,18 +8,28 @@ try {
     // Ignore in environments where not supported
 }
 
-const fetchHttpsText = (url) => {
+const fetchHttpsText = (url, depth = 0) => {
+    if (depth > 5) {
+        return Promise.resolve({ ok: false, status: 508, text: '' });
+    }
     return new Promise((resolve) => {
         const req = https.get(url, {
+            family: 4,
             headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
+                'User-Agent': 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
                 'Accept-Language': 'zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7',
                 'Cache-Control': 'no-cache',
                 'Pragma': 'no-cache'
             },
-            timeout: 8000
+            timeout: 10000
         }, (res) => {
+            if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+                const nextUrl = res.headers.location.startsWith('http')
+                    ? res.headers.location
+                    : new URL(res.headers.location, url).toString();
+                return resolve(fetchHttpsText(nextUrl, depth + 1));
+            }
             let data = '';
             res.on('data', chunk => data += chunk);
             res.on('end', () => resolve({ ok: res.statusCode === 200, status: res.statusCode, text: data }));
@@ -32,18 +42,16 @@ const fetchHttpsText = (url) => {
     });
 };
 
-export const scrapeCambridge = async (word) => {
-    const targetUrl = `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
-    const response = await fetch(targetUrl, {
-        headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-            'Accept-Language': 'en-US,en;q=0.9,zh-TW;q=0.8,zh;q=0.7'
-        }
-    });
+export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
+    const isEn = targetLang === 'en';
+    const targetUrl = isEn
+        ? `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`
+        : `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
 
-    if (!response.ok) return null;
+    const response = await fetchHttpsText(targetUrl);
+    if (!response.ok || !response.text) return null;
 
-    const html = await response.text();
+    const html = response.text;
     const $ = cheerio.load(html);
 
     const isFound = $('.di-title').length > 0 || $('.def-block').length > 0;

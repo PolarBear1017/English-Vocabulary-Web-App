@@ -1,6 +1,7 @@
 import React from 'react';
 import { Combobox } from '@headlessui/react';
 import { Search, X, Loader2, Clock } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 
 const SearchForm = ({
   query,
@@ -12,6 +13,7 @@ const SearchForm = ({
   isSearching,
   inputRef
 }) => {
+  const { t } = useTranslation();
   const suggestionOptions = suggestions.map((s) => (
     typeof s === 'string'
       ? { word: s, isHistory: false, matchType: null }
@@ -101,7 +103,7 @@ const SearchForm = ({
               }}
               onKeyDown={handleKeyDown}
               autoCapitalize="none"
-              placeholder="輸入單字"
+              placeholder={t('search.inputPlaceholder')}
               className={`w-full p-4 pl-12 pr-32 shadow-sm border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition outline-none ${open && hasSuggestions ? 'rounded-t-xl rounded-b-none' : 'rounded-xl'}`}
             />
             <Search className="absolute left-4 top-4 text-gray-400" />
@@ -130,7 +132,7 @@ const SearchForm = ({
               }}
               className="absolute right-3 top-2.5 bg-blue-600 text-white px-4 py-1.5 rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
             >
-              {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : '查詢'}
+              {isSearching ? <Loader2 className="w-5 h-5 animate-spin" /> : t('search.searchBtn')}
             </button>
 
             {open && hasSuggestions && (
@@ -147,12 +149,12 @@ const SearchForm = ({
                     </span>
                     <span className="ml-auto flex items-center gap-2">
                       {item.matchType === 'fuzzy' && (
-                        <span className="text-xs text-gray-400">(拼字修正)</span>
+                        <span className="text-xs text-gray-400">{t('search.fuzzyCorrection')}</span>
                       )}
                       {item.isHistory && (
                         <span className="text-xs text-gray-600 bg-gray-100 px-2 py-0.5 rounded-full flex items-center gap-1">
                           <Clock className="w-3 h-3" />
-                          歷史
+                          {t('search.history')}
                         </span>
                       )}
                     </span>
@@ -169,7 +171,7 @@ const SearchForm = ({
                       }}
                       className="text-xs text-gray-400 hover:text-red-500 transition"
                     >
-                      清除歷史
+                      {t('search.clearHistory')}
                     </button>
                   </div>
                 )}

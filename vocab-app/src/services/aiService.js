@@ -1,12 +1,13 @@
 import { supabase, supabaseAnonKey } from '../supabase';
+import i18n from '../i18n/config';
 
 const AI_ERROR_CODES = {
   MISSING_API_KEYS: 'MISSING_API_KEYS'
 };
 
-const callAi = async ({ groqKey, word, definition, words, promptType }) => {
+const callAi = async ({ groqKey, word, definition, words, promptType, targetLang = 'zh-TW' }) => {
   if (!groqKey) {
-    const error = new Error("請在設定頁面輸入 Groq API Key。");
+    const error = new Error(i18n.t('search.requireGroqKey', '請在設定頁面輸入 Groq API Key。'));
     error.code = AI_ERROR_CODES.MISSING_API_KEYS;
     throw error;
   }
@@ -17,6 +18,7 @@ const callAi = async ({ groqKey, word, definition, words, promptType }) => {
       definition,
       words,
       promptType,
+      targetLang,
       apiKeys: {
         groqKey
       }
@@ -28,7 +30,21 @@ const callAi = async ({ groqKey, word, definition, words, promptType }) => {
   });
 
   if (error) {
-    const err = new Error(error.message || 'AI Edge Function failed');
+    let serverMessage = error.message;
+    if (error.context) {
+      try {
+        const errorJson = await error.context.json();
+        if (errorJson?.error) {
+          serverMessage = errorJson.error;
+        }
+      } catch (_) {
+        try {
+          const text = await error.context.text();
+          if (text) serverMessage = text;
+        } catch (_) {}
+      }
+    }
+    const err = new Error(serverMessage || 'AI Edge Function failed');
     err.code = error.code;
     throw err;
   }
@@ -215,8 +231,8 @@ const normalizeMnemonic = (data) => {
   return { method, content: finalContent.trim(), details };
 };
 
-const fetchDefinition = async ({ groqKey, word }) => {
-  const response = await callAi({ groqKey, word, promptType: 'definition' });
+const fetchDefinition = async ({ groqKey, word, targetLang = 'zh-TW' }) => {
+  const response = await callAi({ groqKey, word, promptType: 'definition', targetLang });
   const raw = response?.data;
   const parsed = typeof raw === 'string' ? parseJsonContent(raw) : raw;
   return {
@@ -225,23 +241,25 @@ const fetchDefinition = async ({ groqKey, word }) => {
   };
 };
 
-const fetchMnemonic = async ({ groqKey, word, definition }) => {
+const fetchMnemonic = async ({ groqKey, word, definition, targetLang = 'zh-TW' }) => {
   const response = await callAi({
     groqKey,
     word,
     definition,
-    promptType: 'mnemonic'
+    promptType: 'mnemonic',
+    targetLang
   });
   const raw = response?.data;
   const parsed = typeof raw === 'string' ? parseJsonContent(raw) : raw;
   return normalizeMnemonic(parsed);
 };
 
-const fetchStory = async ({ groqKey, words }) => {
+const fetchStory = async ({ groqKey, words, targetLang = 'zh-TW' }) => {
   const response = await callAi({
     groqKey,
     words,
-    promptType: 'story'
+    promptType: 'story',
+    targetLang
   });
   return response?.data || '';
 };

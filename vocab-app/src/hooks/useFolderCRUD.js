@@ -6,6 +6,7 @@ import {
   updateFolder as updateFolderRecord,
   deleteUserLibraryEntry
 } from '../services/libraryService';
+import i18n from '../i18n/config';
 
 const useFolderCRUD = ({
   session,
@@ -20,7 +21,7 @@ const useFolderCRUD = ({
   const createFolder = useCallback(async ({ name, description }) => {
     const nextName = (name || '').trim();
     if (!nextName) {
-      alert('資料夾名稱不能為空');
+      alert(i18n.t('library.folderNameNotEmpty', '資料夾名稱不能為空'));
       return null;
     }
     const nextDescription = (description || '').trim();
@@ -37,7 +38,7 @@ const useFolderCRUD = ({
         if (message.includes('column "description" of relation "folders" does not exist')) {
           message = '資料庫尚未更新。請新增 folders.description 欄位後再試。';
         }
-        alert("建立資料夾失敗: " + message);
+        alert(`${i18n.t('library.createFolderFailed', '建立資料夾失敗')}: ${message}`);
         return null;
       }
       const created = { ...data, id: data.id?.toString() };
@@ -58,7 +59,7 @@ const useFolderCRUD = ({
   }, [session, setFolders, lastMutationTimeRef]);
 
   const handleDeleteFolder = useCallback(async (folderId) => {
-    if (!confirm('確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)')) return;
+    if (!confirm(i18n.t('library.confirmDeleteFolderSingle', '確定刪除此資料夾？(資料夾內的單字若不屬於其他資料夾，將會同步被刪除)'))) return;
 
     if (session?.user) {
       // Find orphaned words
@@ -69,7 +70,7 @@ const useFolderCRUD = ({
       );
 
       const { error } = await deleteFolderRecord(folderId);
-      if (error) return alert("刪除失敗: " + error.message);
+      if (error) return alert(`${i18n.t('library.deleteFolderFailed', '刪除失敗')}: ${error.message}`);
 
       // Clean up orphaned words in DB
       if (orphanedWords.length > 0) {
@@ -123,7 +124,7 @@ const useFolderCRUD = ({
         userId: session.user.id
       });
       if (error) {
-        alert(`刪除失敗: ${error.message}`);
+        alert(`${i18n.t('library.deleteFolderFailed', '刪除失敗')}: ${error.message}`);
         return false;
       }
 
@@ -170,7 +171,7 @@ const useFolderCRUD = ({
     const nextDescription = (updates?.description || '').trim();
 
     if (!nextName) {
-      alert('資料夾名稱不能為空');
+      alert(i18n.t('library.folderNameNotEmpty', '資料夾名稱不能為空'));
       return false;
     }
 
@@ -190,7 +191,7 @@ const useFolderCRUD = ({
         if (message.includes('column "description" of relation "folders" does not exist')) {
           message = '資料庫尚未更新。請新增 folders.description 欄位後再試。';
         }
-        alert('更新失敗: ' + message);
+        alert(`${i18n.t('library.updateFolderFailed', '更新失敗')}: ${message}`);
         return false;
       }
 

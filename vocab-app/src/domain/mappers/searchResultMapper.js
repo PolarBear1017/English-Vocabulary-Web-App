@@ -1,5 +1,6 @@
 import { createSearchResult } from '../models';
 import { normalizeEntries } from '../../utils/data';
+import i18n from '../../i18n/config';
 
 const toSearchResultFromDictionary = (data) => {
   const entries = normalizeEntries(data);
@@ -58,8 +59,8 @@ const toSearchResultFallback = (word) => {
     word,
     pos: 'unknown',
     phonetic: '/?/',
-    definition: '查無此字 (請檢查拼字，或在設定頁面輸入 API Key 以啟用 AI 救援)',
-    translation: '未知',
+    definition: i18n.t('search.notFoundDef', '查無此字 (請檢查拼字，或在設定頁面輸入 API Key 以啟用 AI 救援)'),
+    translation: i18n.t('search.unknown', '未知'),
     example: 'Please enter your Groq API Key to unlock infinite dictionary.',
     similar: [],
     audioUrl: null,

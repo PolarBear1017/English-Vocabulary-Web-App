@@ -8,6 +8,8 @@ import {
 } from '../../domain/mappers/searchResultMapper';
 import { createSearchResult } from '../../domain/models';
 import { normalizeEntries } from '../../utils/data';
+import i18n from '../../i18n/config';
+import { toast } from 'react-hot-toast';
 
 const SEARCH_HISTORY_KEY = 'vocab_search_history';
 const HISTORY_LIMIT = 50;
@@ -41,7 +43,8 @@ const removeSearchHistory = () => {
   }
 };
 
-const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
+const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearchStart, onRequireApiKeys }) => {
+  const definitionLanguage = propDefLang || settings?.state?.definitionLanguage || 'zh-TW';
   const [query, setQuery] = useState('');
   const [searchResult, setSearchResult] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -56,6 +59,12 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
 
   const ignoreNextQueryUpdate = useRef(false);
   const searchInputRef = useRef(null);
+  const activeSearchWordRef = useRef('');
+  const searchResultRef = useRef(searchResult);
+
+  useEffect(() => {
+    searchResultRef.current = searchResult;
+  }, [searchResult]);
 
   useEffect(() => {
     setSaveButtonFeedback(false);
@@ -163,7 +172,37 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
     });
   }, []);
 
+  const triggerAutoMnemonic = useCallback(async (word, definition) => {
+    if (!apiKeys?.groqKey || !word) return;
+
+    setAiLoading(true);
+    try {
+      const mnemonics = await fetchMnemonic({
+        groqKey: apiKeys.groqKey,
+        word,
+        definition: definition || '',
+        targetLang: definitionLanguage
+      });
+
+      if (activeSearchWordRef.current.trim().toLowerCase() === word.trim().toLowerCase()) {
+        setSearchResult((prev) => {
+          if (!prev || prev.word.trim().toLowerCase() !== word.trim().toLowerCase()) return prev;
+          return {
+            ...prev,
+            mnemonics,
+            isAiGenerated: true
+          };
+        });
+      }
+    } catch (error) {
+      console.warn(`[AutoMnemonic] Failed to fetch mnemonic for ${word}:`, error);
+    } finally {
+      setAiLoading(false);
+    }
+  }, [apiKeys?.groqKey, definitionLanguage]);
+
   const runSearch = useCallback(async ({ searchTerm, forceSource }) => {
+    activeSearchWordRef.current = searchTerm;
     updateSearchHistory(searchTerm);
     setSuggestions([]);
     if (onSearchStart) onSearchStart();
@@ -203,8 +242,12 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       if (MOCK_DICTIONARY_DB[lowerQuery]) {
         setTimeout(() => {
           const mock = MOCK_DICTIONARY_DB[lowerQuery];
-          updateResult({ ...mock, entries: normalizeEntries(mock), isAiGenerated: false });
+          const res = { ...mock, entries: normalizeEntries(mock), isAiGenerated: false };
+          updateResult(res);
           setIsSearching(false);
+          if (apiKeys?.groqKey && !res.mnemonics) {
+            triggerAutoMnemonic(res.word, res.definition || '');
+          }
         }, 500);
         return;
       }
@@ -218,7 +261,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           if (!apiKeys?.groqKey) {
             console.warn("Skipping Groq AI: Missing API Key");
             if (forceSource === 'Groq AI') {
-              const error = new Error("請在設定頁面輸入 Groq API Key。");
+              const error = new Error(i18n.t('search.requireGroqKey', '請先在設定頁面輸入 Groq API Key'));
               error.code = AI_ERROR_CODES.MISSING_API_KEYS;
               throw error;
             }
@@ -228,10 +271,15 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           try {
             const { data, source: aiSource } = await fetchDefinition({
               groqKey: apiKeys.groqKey,
-              word: lowerQuery
+              word: lowerQuery,
+              targetLang: definitionLanguage
             });
-            updateResult(toSearchResultFromAi(data, aiSource));
+            const res = toSearchResultFromAi(data, aiSource);
+            updateResult(res);
             setIsAiLoading(false);
+            if (apiKeys?.groqKey && !res.mnemonics) {
+              triggerAutoMnemonic(res.word, res.definition || '');
+            }
             return;
           } catch (error) {
             setIsAiLoading(false);
@@ -241,13 +289,23 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           }
         } else {
           try {
-            const data = await fetchDictionaryEntry(lowerQuery, source);
+            const data = await fetchDictionaryEntry(lowerQuery, source, definitionLanguage);
             if (data) {
               const normalized = normalizeEntries(data);
               const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
 
               if (isValid) {
-                updateResult(toSearchResultFromDictionary(data));
+                const res = toSearchResultFromDictionary(data);
+                if (
+                  searchResultRef.current?.word?.trim().toLowerCase() === res.word.trim().toLowerCase() &&
+                  searchResultRef.current?.mnemonics
+                ) {
+                  res.mnemonics = searchResultRef.current.mnemonics;
+                }
+                updateResult(res);
+                if (apiKeys?.groqKey && !res.mnemonics) {
+                  triggerAutoMnemonic(res.word, res.definition || '');
+                }
                 return;
               }
             }
@@ -262,7 +320,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       if (forceSource) {
         const msg = lastError?.code === AI_ERROR_CODES.MISSING_API_KEYS
           ? lastError.message
-          : `${forceSource} 查無此字，請嘗試切換來源。`;
+          : i18n.t('search.sourceNotFound', { source: forceSource, defaultValue: `${forceSource} 查無此字，請嘗試切換來源。` });
         setSearchError(msg);
         if (forceSource !== 'Groq AI') {
           updateResult(createSourceFallback(searchTerm, forceSource, msg));
@@ -270,13 +328,14 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
           onRequireApiKeys?.();
         }
       } else {
-        setSearchError("所有來源皆查無此字。");
-        updateResult(createSourceFallback(searchTerm, 'system', "所有來源皆查無此字。"));
+        const notFoundMsg = i18n.t('search.allSourcesNotFound', '所有來源皆查無此字。');
+        setSearchError(notFoundMsg);
+        updateResult(createSourceFallback(searchTerm, 'system', notFoundMsg));
       }
 
     } catch (error) {
       console.error(error);
-      setSearchError(`查詢失敗: ${error.message}`);
+      setSearchError(`${i18n.t('search.queryFailed', '查詢失敗')}: ${error.message}`);
       setAiError({ code: error.code || 'UNKNOWN_ERROR', message: error.message });
       if (error.code === AI_ERROR_CODES.MISSING_API_KEYS) {
         onRequireApiKeys?.();
@@ -286,7 +345,7 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       setIsSearching(false);
       setIsAiLoading(false);
     }
-  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext]);
+  }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext, definitionLanguage, triggerAutoMnemonic]);
 
   const handleSearch = useCallback(async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -311,11 +370,11 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
   const generateAiMnemonic = useCallback(async () => {
     if (!searchResult) return;
     if (!apiKeys?.groqKey) {
-      const error = new Error("請先在設定頁面輸入 Groq API Key");
+      const error = new Error(i18n.t('search.requireGroqKey', '請先在設定頁面輸入 Groq API Key'));
       error.code = AI_ERROR_CODES.MISSING_API_KEYS;
       setAiError({ code: error.code, message: error.message });
       onRequireApiKeys?.();
-      alert(error.message);
+      toast.error(error.message);
       return;
     }
     setAiLoading(true);
@@ -323,7 +382,8 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
       const mnemonics = await fetchMnemonic({
         groqKey: apiKeys.groqKey,
         word: searchResult.word,
-        definition: searchResult.definition
+        definition: searchResult.definition || '',
+        targetLang: definitionLanguage
       });
 
       setSearchResult(prev => ({
@@ -332,11 +392,11 @@ const useSearch = ({ apiKeys, settings, onSearchStart, onRequireApiKeys }) => {
         isAiGenerated: true
       }));
     } catch (error) {
-      alert("生成失敗: " + error.message);
+      toast.error(`${i18n.t('search.generationFailed', '生成失敗')}: ${error.message}`);
     } finally {
       setAiLoading(false);
     }
-  }, [apiKeys, onRequireApiKeys, searchResult]);
+  }, [apiKeys, definitionLanguage, onRequireApiKeys, searchResult]);
 
   const triggerSaveButtonFeedback = useCallback(() => {
     setSaveButtonFeedback(true);

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, Info, Pencil, Search, Sparkles, Trash2, Volume2, Play, X, Star } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
@@ -18,6 +19,7 @@ const LibraryWordDetail = ({
   onClose,
   onToggleStar
 }) => {
+  const { t } = useTranslation();
   const [preferredAccent, setPreferredAccent] = useState('us');
   const [tipOpen, setTipOpen] = useState(false);
   const tipRef = useRef(null);
@@ -91,7 +93,7 @@ const LibraryWordDetail = ({
                 type="button"
                 onClick={() => onSpeak?.(entry.word, preferredAudio)}
                 className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition"
-                aria-label="播放發音"
+                aria-label={t('library.playAudio')}
               >
                 <Volume2 className="w-5 h-5 text-blue-600" />
               </button>
@@ -103,8 +105,8 @@ const LibraryWordDetail = ({
                     ? 'text-amber-500 hover:text-amber-600 hover:scale-110' 
                     : 'text-gray-300 hover:text-amber-400 hover:scale-110'
                 }`}
-                title={entry.isStarred ? "取消星號" : "標註星號"}
-                aria-label={entry.isStarred ? "取消星號" : "標註星號"}
+                title={entry.isStarred ? t('library.unstar') : t('library.star')}
+                aria-label={entry.isStarred ? t('library.unstar') : t('library.star')}
               >
                 <Star className={`w-5 h-5 ${entry.isStarred ? 'fill-amber-500 text-amber-500' : ''}`} />
               </button>
@@ -129,14 +131,14 @@ const LibraryWordDetail = ({
                 </div>
               )}
               <div className="ml-1 flex flex-col items-start">
-                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Mastery</span>
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{t('card.mastery')}</span>
                 <ProficiencyDots score={masteryLevel} />
               </div>
             </h2>
             {isPlaying && (
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full animate-pulse my-1">
                 <Play className="w-3 h-3 fill-current" />
-                <span>自動播放中...</span>
+                <span>{t('library.autoPlaying')}</span>
               </div>
             )}
             <div className="flex items-center gap-3 mt-2 text-sm text-gray-600">
@@ -167,7 +169,7 @@ const LibraryWordDetail = ({
               className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition"
             >
               <Search className="w-3.5 h-3.5" />
-              查看完整解釋
+              {t('card.viewFullDefinition')}
             </button>
           </div>
           {(onPrevWord || onNextWord || onEditWord || onDeleteWord || onClose) && (
@@ -183,7 +185,7 @@ const LibraryWordDetail = ({
                       onFocus={() => setTipOpen(true)}
                       onBlur={() => setTipOpen(false)}
                       className="w-6 h-6 inline-flex items-center justify-center rounded-full text-gray-500 bg-white hover:bg-gray-50 transition"
-                      aria-label="顯示小技巧"
+                      aria-label={t('library.showTip')}
                     >
                       <Info className="w-3.5 h-3.5" />
                     </button>
@@ -192,7 +194,7 @@ const LibraryWordDetail = ({
                         role="tooltip"
                         className="absolute right-0 top-full z-10 mt-2 w-64 rounded-lg bg-white px-3 py-2 text-xs text-gray-900 shadow-lg"
                       >
-                        可以用鍵盤左右方向鍵切換上一張、下一張單字卡。
+                        {t('library.keyboardNavTip')}
                       </div>
                     )}
                   </div>
@@ -201,7 +203,7 @@ const LibraryWordDetail = ({
                     onClick={onPrevWord || undefined}
                     className={`p-2 rounded-full transition ${hasPrevWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
                       }`}
-                    title="上一張"
+                    title={t('common.prev')}
                     disabled={!hasPrevWord}
                   >
                     <ChevronLeft className="w-4 h-4" />
@@ -211,7 +213,7 @@ const LibraryWordDetail = ({
                     onClick={onNextWord || undefined}
                     className={`p-2 rounded-full transition ${hasNextWord ? 'text-gray-500 hover:text-blue-600 hover:bg-blue-50' : 'text-gray-300 cursor-not-allowed'
                       }`}
-                    title="下一張"
+                    title={t('common.next')}
                     disabled={!hasNextWord}
                   >
                     <ChevronRight className="w-4 h-4" />
@@ -223,7 +225,7 @@ const LibraryWordDetail = ({
                   type="button"
                   onClick={onEditWord}
                   className="p-2 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
-                  title="編輯單字"
+                  title={t('library.editWord')}
                 >
                   <Pencil className="w-4 h-4" />
                 </button>
@@ -233,7 +235,7 @@ const LibraryWordDetail = ({
                   type="button"
                   onClick={onDeleteWord}
                   className="p-2 text-gray-400 hover:text-red-500 rounded-full hover:bg-red-50 transition"
-                  title="刪除單字"
+                  title={t('library.deleteWord')}
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>
@@ -243,7 +245,7 @@ const LibraryWordDetail = ({
                   type="button"
                   onClick={onClose}
                   className="p-2 text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition"
-                  title="關閉視窗"
+                  title={t('common.close')}
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -260,13 +262,13 @@ const LibraryWordDetail = ({
           <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 text-sm text-gray-700 space-y-2">
             {entry.mnemonics && (
               <div>
-                <div className="text-xs font-bold text-amber-700 uppercase mb-1">助記</div>
+                <div className="text-xs font-bold text-amber-700 uppercase mb-1">{t('library.mnemonics')}</div>
                 <p>{entry.mnemonics}</p>
               </div>
             )}
             {entry.notes && (
               <div>
-                <div className="text-xs font-bold text-amber-700 uppercase mb-1">筆記</div>
+                <div className="text-xs font-bold text-amber-700 uppercase mb-1">{t('library.notes')}</div>
                 <p>{entry.notes}</p>
               </div>
             )}

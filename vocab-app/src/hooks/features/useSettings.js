@@ -12,8 +12,13 @@ import {
   loadAudioSpeed,
   saveAudioSpeed,
   loadChineseAudioSpeed,
-  saveChineseAudioSpeed
+  saveChineseAudioSpeed,
+  loadUiLanguage,
+  saveUiLanguage,
+  loadDefinitionLanguage,
+  saveDefinitionLanguage
 } from '../../services/storageService';
+import i18n from '../../i18n/config';
 import {
   getSession,
   onAuthStateChange,
@@ -32,6 +37,8 @@ const useSettings = () => {
   const [audioSourcePriority, setAudioSourcePriority] = useState(() => loadAudioSourcePriority());
   const [audioSpeed, setAudioSpeed] = useState(() => loadAudioSpeed());
   const [chineseAudioSpeed, setChineseAudioSpeed] = useState(() => loadChineseAudioSpeed());
+  const [uiLanguage, setUiLanguageState] = useState(() => i18n.resolvedLanguage || loadUiLanguage());
+  const [definitionLanguage, setDefinitionLanguage] = useState(() => loadDefinitionLanguage());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -67,6 +74,16 @@ const useSettings = () => {
   }, [chineseAudioSpeed]);
 
   useEffect(() => {
+    saveDefinitionLanguage(definitionLanguage);
+  }, [definitionLanguage]);
+
+  const setUiLanguage = useCallback((lang) => {
+    setUiLanguageState(lang);
+    saveUiLanguage(lang);
+    i18n.changeLanguage(lang);
+  }, []);
+
+  useEffect(() => {
     getSession().then(({ data: { session } }) => {
       setSession(session);
       if (!session) {
@@ -83,33 +100,33 @@ const useSettings = () => {
 
   const handleLogin = useCallback(async () => {
     const { error } = await signInWithGoogle();
-    if (error) alert("登入失敗: " + error.message);
+    if (error) alert(`${i18n.t('settings.loginFailed', '登入失敗')}: ${error.message}`);
   }, []);
 
   const handleLogout = useCallback(async () => {
     const { error } = await signOut();
-    if (error) alert("登出失敗: " + error.message);
+    if (error) alert(`${i18n.t('settings.logoutFailed', '登出失敗')}: ${error.message}`);
   }, []);
 
   const handleEmailSignUp = useCallback(async () => {
-    if (!email || !password) return alert("請輸入 Email 和密碼");
+    if (!email || !password) return alert(i18n.t('settings.enterEmailAndPassword', '請輸入 Email 和密碼'));
     setAuthLoading(true);
     const { error } = await signUpWithEmail({ email, password });
     setAuthLoading(false);
     if (error) {
-      alert('註冊失敗: ' + error.message);
+      alert(`${i18n.t('settings.signUpFailed', '註冊失敗')}: ${error.message}`);
     } else {
-      alert('註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。');
+      alert(i18n.t('settings.signUpSuccess', '註冊成功！請檢查您的信箱以驗證帳號 (若 Supabase 未關閉驗證信功能)。'));
     }
   }, [email, password]);
 
   const handleEmailSignIn = useCallback(async () => {
-    if (!email || !password) return alert("請輸入 Email 和密碼");
+    if (!email || !password) return alert(i18n.t('settings.enterEmailAndPassword', '請輸入 Email 和密碼'));
     setAuthLoading(true);
     const { error } = await signInWithPassword({ email, password });
     setAuthLoading(false);
     if (error) {
-      alert('登入失敗: ' + error.message);
+      alert(`${i18n.t('settings.loginFailed', '登入失敗')}: ${error.message}`);
     } else {
       setEmail('');
       setPassword('');
@@ -125,6 +142,8 @@ const useSettings = () => {
       audioSourcePriority,
       audioSpeed,
       chineseAudioSpeed,
+      uiLanguage,
+      definitionLanguage,
       session,
       email,
       password,
@@ -138,6 +157,8 @@ const useSettings = () => {
       setAudioSourcePriority,
       setAudioSpeed,
       setChineseAudioSpeed,
+      setUiLanguage,
+      setDefinitionLanguage,
       setEmail,
       setPassword,
       handleLogin,

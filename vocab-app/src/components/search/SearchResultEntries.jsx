@@ -1,5 +1,6 @@
 import React from 'react';
 import { Check, Volume2, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text.jsx';
 import { speak } from '../../services/speechService';
@@ -15,19 +16,20 @@ const SearchResultEntries = ({
   readOnly = false,
   onDeleteEntry
 }) => {
+  const { t } = useTranslation();
   const { state: { audioSpeed } } = useSettingsContext();
 
   return (
     <div>
       <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-bold text-gray-400 uppercase">解釋 & 例句</h3>
+        <h3 className="text-sm font-bold text-gray-400 uppercase">{t('card.definitionsAndExamples')}</h3>
         {normalizedEntries.length > 0 && !readOnly && (
           <button
             type="button"
             onClick={onToggleAll}
             className="text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
           >
-            {allSelected ? '清除' : '全選'}
+            {allSelected ? t('common.clear') : t('common.selectAll')}
           </button>
         )}
       </div>
@@ -38,12 +40,15 @@ const SearchResultEntries = ({
             : (selectedEntryIndices === null
               ? true
               : selectedEntryIndices.has(index));
-          const baseClassName = 'rounded-xl border p-4 transition';
+          const isSaved = Boolean(entry.isSaved);
+          const baseClassName = 'rounded-xl p-4 transition';
           const interactiveClassName = readOnly
-            ? 'border-gray-100 bg-white'
+            ? (isSaved
+              ? 'border-2 border-blue-500 bg-blue-50/20 shadow-sm'
+              : 'border border-gray-100 bg-white')
             : (isSelected
-              ? 'border-blue-500 bg-blue-50/50 cursor-pointer'
-              : 'border-gray-200 bg-white opacity-60 cursor-pointer');
+              ? 'border-2 border-blue-500 bg-blue-50/50 cursor-pointer'
+              : 'border border-gray-200 bg-white opacity-60 cursor-pointer');
 
           return (
             <div
@@ -69,7 +74,7 @@ const SearchResultEntries = ({
                         onDeleteEntry(entry);
                       }}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-full transition z-10"
-                      title="刪除此自訂解釋"
+                      title={t('card.deleteCustomDefinition')}
                     >
                       <Trash2 className="w-4 h-4" />
                     </button>
@@ -80,7 +85,13 @@ const SearchResultEntries = ({
                   </span>
                 </div>
               )}
-              <div className={readOnly ? '' : 'pr-10'}>
+              {readOnly && isSaved && (
+                <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-blue-100 text-blue-700 text-xs font-medium">
+                  <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                  <span>{t('common.saved')}</span>
+                </div>
+              )}
+              <div className={readOnly ? (isSaved ? 'pr-20' : '') : 'pr-10'}>
                 {(entry.translation || entry.definition) && (
                   <p className="text-lg text-gray-800 font-medium flex items-center gap-2">
                     {entry.translation || entry.definition}
@@ -106,7 +117,7 @@ const SearchResultEntries = ({
                             speak(textToSpeak, null, { rate: audioSpeed || 1.0 });
                           }}
                           className="mt-0.5 p-1 text-gray-300 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors focus:opacity-100"
-                          title="朗讀例句"
+                          title={t('card.playExampleAudio')}
                         >
                           <Volume2 className="w-4 h-4" />
                         </button>
@@ -127,7 +138,7 @@ const SearchResultEntries = ({
           );
         })}
         {normalizedEntries.length === 0 && (
-          <p className="text-gray-500">查無解釋</p>
+          <p className="text-gray-500">{t('card.noDefinitions')}</p>
         )}
       </div>
     </div>

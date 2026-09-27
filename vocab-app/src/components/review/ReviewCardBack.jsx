@@ -1,5 +1,6 @@
 import React from 'react';
 import { Volume2, Sparkles } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { splitExampleLines } from '../../utils/data';
 import { highlightWord } from '../../utils/text';
 
@@ -17,6 +18,8 @@ const ReviewCardBack = ({
     chineseAudioSpeed,
     speak
 }) => {
+    const { t } = useTranslation();
+
     return (
         <div className="space-y-4 animate-in fade-in duration-300 w-full">
             <div className="flex items-center justify-center gap-3">
@@ -55,7 +58,11 @@ const ReviewCardBack = ({
                                 <button
                                     onClick={(e) => {
                                         e.stopPropagation();
-                                        speak(entry.translation, null, { lang: 'zh-TW', rate: chineseAudioSpeed || 1.0 });
+                                        const isZh = /[\u4e00-\u9fa5]/.test(entry.translation);
+                                        speak(entry.translation, null, {
+                                            lang: isZh ? 'zh-TW' : 'en-US',
+                                            rate: isZh ? (chineseAudioSpeed || 1.0) : (audioSpeed || 1.0)
+                                        });
                                     }}
                                     className="p-1 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
                                 >
@@ -63,7 +70,22 @@ const ReviewCardBack = ({
                                 </button>
                             </p>
                         )}
-                        {entry.definition && <p className="text-gray-600 text-sm mt-1">{entry.definition}</p>}
+                        {entry.definition && (
+                            <p className="text-gray-600 text-sm mt-1 flex items-center gap-2">
+                                {entry.definition}
+                                {!entry.translation && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            speak(entry.definition, null, { lang: 'en-US', rate: audioSpeed || 1.0 });
+                                        }}
+                                        className="p-1 text-gray-400 hover:text-blue-600 rounded-full hover:bg-blue-50 transition"
+                                    >
+                                        <Volume2 className="w-3.5 h-3.5" />
+                                    </button>
+                                )}
+                            </p>
+                        )}
                         {entry.examples && entry.examples.length > 0 && (
                             <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">
                                 {entry.examples.map((example, exampleIndex) => {
@@ -90,7 +112,7 @@ const ReviewCardBack = ({
                     </div>
                 ))}
                 {currentReviewEntries.length === 0 && (
-                    <div className="bg-gray-50 p-4 rounded-lg text-gray-500 text-sm">查無解釋</div>
+                    <div className="bg-gray-50 p-4 rounded-lg text-gray-500 text-sm">{t('card.noDefinition')}</div>
                 )}
             </div>
             {currentReviewWord.mnemonics && (
@@ -110,19 +132,19 @@ const ReviewCardBack = ({
                     }`}>
                     {lastResult?.feedbackType === 'root_match' ? (
                         <div className="space-y-1">
-                            <div>意思正確！(接受原形)</div>
+                            <div>{t('review.feedbackRootMatch')}</div>
                             {lastResult.correctContextWord && (
                                 <div className="text-sm font-semibold">
-                                    本句實際用法：{lastResult.correctContextWord}
+                                    {t('review.feedbackContextWord', { word: lastResult.correctContextWord })}
                                 </div>
                             )}
                         </div>
                     ) : feedback === 'correct' || feedback === 'exact' ? (
-                        '答對了！'
+                        t('review.feedbackCorrect')
                     ) : feedback === 'typo' ? (
-                        '小錯字！判定為困難 (Hard)。'
+                        t('review.feedbackTypo')
                     ) : (
-                        '答錯了，請再接再厲！'
+                        t('review.feedbackIncorrect')
                     )}
                 </div>
             )}

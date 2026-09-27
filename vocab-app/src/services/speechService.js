@@ -1,3 +1,5 @@
+import i18n from '../i18n/config';
+
 let audioContext = null;
 let currentSource = null; // Track the currently playing source
 let currentAudioElement = null; // Track HTML5 Audio fallback
@@ -16,8 +18,12 @@ const notifyListeners = (event, data) => {
   listeners.forEach(callback => callback(event, data));
 };
 const getAudioContext = () => {
+  if (typeof window === 'undefined') return null;
   if (!audioContext || audioContext.state === 'closed') {
-    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (AudioCtx) {
+      audioContext = new AudioCtx();
+    }
   }
   return audioContext;
 };
@@ -73,7 +79,7 @@ const stopAudio = () => {
   }
 
   // Cancel speech synthesis
-  if ('speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     window.speechSynthesis.cancel();
   }
 
@@ -291,10 +297,36 @@ const playAudioWithContext = async (url, options = {}) => {
 };
 
 const speak = (text, audioUrl = null, options = {}) => {
-  const { lang = 'en-US', rate = 1.0, onEnd, source } = options;
+  if (!text && !audioUrl) return;
+
+  const rawText = (text || '').trim();
+  const containsChinese = /[\u4e00-\u9fa5]/.test(rawText);
+
+  // Smart language resolution: auto-detect language based on script content
+  let resolvedLang = options.lang;
+  if (!resolvedLang) {
+    resolvedLang = containsChinese ? 'zh-TW' : 'en-US';
+  } else if (resolvedLang.startsWith('zh') && !containsChinese) {
+    resolvedLang = 'en-US';
+  }
+
+  const lang = resolvedLang;
+  const { rate = 1.0, onEnd, source } = options;
 
   if (audioUrl) {
-    playAudioWithContext(audioUrl, { onEnd, source, rate });
+    playAudioWithContext(audioUrl, {
+      onEnd,
+      source,
+      rate,
+      onPlaybackFailed: () => {
+        if (options.onPlaybackFailed) {
+          options.onPlaybackFailed();
+        } else if (text) {
+          console.warn("Audio URL playback failed, falling back to TTS for:", text);
+          speak(text, null, options);
+        }
+      }
+    });
     return;
   }
 
@@ -337,7 +369,7 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
   // Notify that playback is starting
   notifyListeners('play', { source });
 
-  if ('speechSynthesis' in window) {
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = lang;
     utterance.rate = rate;
@@ -390,8 +422,10 @@ const speakWithBrowser = (text, lang, rate, onEnd, source) => {
       if (onEnd) onEnd();
     }
   } else {
-    console.error("Browser does not support speech synthesis");
-    alert("瀏覽器不支援語音功能");
+    console.warn("Browser does not support speech synthesis");
+    if (typeof window !== 'undefined' && typeof window.alert === 'function') {
+      alert(i18n.t('settings.speechNotSupported', '瀏覽器不支援語音功能'));
+    }
     if (onEnd) onEnd();
   }
 };

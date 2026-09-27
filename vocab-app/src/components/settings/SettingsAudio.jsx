@@ -20,15 +20,10 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-const AUDIO_SOURCE_NAMES = {
-    'us': '美式發音 (US)',
-    'uk': '英式發音 (UK)',
-    'google': 'Google Translate',
-    'yahoo': 'Yahoo Dictionary',
-    'general': '一般/其他 (General)'
-};
+import { useTranslation } from 'react-i18next';
 
 const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
+    const { t } = useTranslation();
     const {
         attributes,
         listeners,
@@ -65,7 +60,7 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
                     {index + 1}
                 </span>
                 <span className="font-medium text-gray-700">
-                    {AUDIO_SOURCE_NAMES[source] || source}
+                    {t(`settings.audioSources.${source}`, { defaultValue: source })}
                 </span>
             </div>
             <div className="flex items-center gap-1 opacity-50 hover:opacity-100 transition-opacity">
@@ -73,7 +68,7 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
                     onClick={() => moveUp(index)}
                     disabled={index === 0}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="上移"
+                    title={t('settings.moveUp')}
                 >
                     <ArrowUp className="w-4 h-4" />
                 </button>
@@ -81,16 +76,17 @@ const SortableItem = ({ id, index, source, moveUp, moveDown, totalCount }) => {
                     onClick={() => moveDown(index)}
                     disabled={index === totalCount - 1}
                     className="p-1.5 rounded-lg text-gray-400 hover:text-amber-600 hover:bg-amber-50 disabled:opacity-30 disabled:cursor-not-allowed"
-                    title="下移"
+                    title={t('settings.moveDown')}
                 >
                     <ArrowDown className="w-4 h-4" />
                 </button>
             </div>
         </div>
     );
-}
+};
 
 const SettingsAudio = () => {
+    const { t } = useTranslation();
     const context = useSettingsContext();
     const state = context?.state || {};
     const actions = context?.actions || {};
@@ -155,14 +151,14 @@ const SettingsAudio = () => {
             actions.setAudioSpeed(audioSpeed);
             actions.setChineseAudioSpeed(chineseAudioSpeed);
             setHasChanges(false);
-            alert('設定已儲存');
+            alert(t('settings.saved'));
         } else {
             console.error("setAudioSourcePriority action missing");
         }
     };
 
     const handleReset = () => {
-        const defaultSources = Object.keys(AUDIO_SOURCE_NAMES);
+        const defaultSources = ['us', 'uk', 'google', 'yahoo', 'general'];
         setPriority(defaultSources);
         setAudioSpeed(1.0);
         setChineseAudioSpeed(1.0);
@@ -174,11 +170,8 @@ const SettingsAudio = () => {
             <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
                 <Volume2 className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                 <div className="text-sm text-amber-900">
-                    <p className="font-medium mb-1">發音來源優先順序</p>
-                    <p>
-                        當播放單字時，系統會依照此順序尋找可用的發音來源。
-                        <span className="font-bold">您可以按住拖曳把手</span> 或使用箭頭來調整順序。
-                    </p>
+                    <p className="font-medium mb-1">{t('settings.audioPriorityTitle')}</p>
+                    <p>{t('settings.audioPriorityDesc')}</p>
                 </div>
             </div>
 
@@ -211,15 +204,15 @@ const SettingsAudio = () => {
                 <div className="bg-amber-50 border border-amber-100 rounded-xl p-4 flex items-start gap-3">
                     <Gauge className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
                     <div className="text-sm text-amber-900">
-                        <p className="font-medium mb-1">語音速度設定</p>
-                        <p>調整英文和中文的朗讀速度 (0.5x ~ 2.0x)。</p>
+                        <p className="font-medium mb-1">{t('settings.speechSpeedTitle')}</p>
+                        <p>{t('settings.speechSpeedDesc')}</p>
                     </div>
                 </div>
 
                 <div className="bg-white rounded-xl border border-gray-200 p-6 space-y-6">
                     <div>
                         <div className="flex justify-between items-center mb-2">
-                            <label className="text-sm font-medium text-gray-700">英文語音速度</label>
+                            <label className="text-sm font-medium text-gray-700">{t('settings.enSpeed')}</label>
                             <span className="text-sm font-bold text-amber-600">{audioSpeed.toFixed(1)}x</span>
                         </div>
                         <input
@@ -235,15 +228,15 @@ const SettingsAudio = () => {
                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
                         />
                         <div className="relative w-full h-4 text-xs text-gray-400 mt-2">
-                            <span className="absolute left-0">0.5x (慢)</span>
-                            <span className="absolute left-1/3 -translate-x-1/2">1.0x (正常)</span>
-                            <span className="absolute right-0">2.0x (快)</span>
+                            <span className="absolute left-0">0.5x ({t('settings.speedSlow')})</span>
+                            <span className="absolute left-1/3 -translate-x-1/2">1.0x ({t('settings.speedNormal')})</span>
+                            <span className="absolute right-0">2.0x ({t('settings.speedFast')})</span>
                         </div>
                     </div>
 
                     <div className="pt-4 border-t border-gray-100">
                         <div className="flex justify-between items-center mb-2">
-                            <label className="text-sm font-medium text-gray-700">中文語音速度</label>
+                            <label className="text-sm font-medium text-gray-700">{t('settings.zhSpeed')}</label>
                             <span className="text-sm font-bold text-amber-600">{chineseAudioSpeed.toFixed(1)}x</span>
                         </div>
                         <input
@@ -259,9 +252,9 @@ const SettingsAudio = () => {
                             className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-amber-500"
                         />
                         <div className="relative w-full h-4 text-xs text-gray-400 mt-2">
-                            <span className="absolute left-0">0.5x (慢)</span>
-                            <span className="absolute left-1/3 -translate-x-1/2">1.0x (正常)</span>
-                            <span className="absolute right-0">2.0x (快)</span>
+                            <span className="absolute left-0">0.5x ({t('settings.speedSlow')})</span>
+                            <span className="absolute left-1/3 -translate-x-1/2">1.0x ({t('settings.speedNormal')})</span>
+                            <span className="absolute right-0">2.0x ({t('settings.speedFast')})</span>
                         </div>
                     </div>
                 </div>
@@ -271,17 +264,17 @@ const SettingsAudio = () => {
                 <button
                     onClick={handleReset}
                     className="px-4 py-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-xl font-medium transition flex items-center gap-2"
-                    title="重置為預設建議順序"
+                    title={t('settings.resetDefaultTitle')}
                 >
                     <RotateCcw className="w-4 h-4" />
-                    重置預設
+                    {t('settings.resetDefault')}
                 </button>
                 <button
                     onClick={handleSave}
                     disabled={!hasChanges}
                     className="px-6 py-2 bg-amber-500 text-white rounded-xl font-medium shadow-sm hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed transition"
                 >
-                    儲存變更
+                    {t('settings.saveChanges')}
                 </button>
             </div>
         </div>

@@ -83,7 +83,7 @@ export default async function handler(req, res) {
     Default: Cambridge
     Options: Cambridge, Yahoo
   */
-  const { word, source = 'Cambridge' } = req.query;
+  const { word, source = 'Cambridge', targetLang = 'zh-TW' } = req.query;
 
   if (!word) {
     return res.status(400).json({ error: 'Word parameter is required' });
@@ -112,7 +112,7 @@ export default async function handler(req, res) {
       result = await scrapeGoogleTranslate(searchWord);
     } else {
       // Default to Cambridge
-      result = await scrapeCambridge(searchWord);
+      result = await scrapeCambridge(searchWord, targetLang);
     }
 
     if (!result) {

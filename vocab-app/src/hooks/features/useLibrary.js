@@ -16,8 +16,9 @@ import useLibraryIndex from './useLibraryIndex';
 import useFolderCRUD from '../useFolderCRUD';
 import useWordStorage from '../useWordStorage';
 import useSync from '../useSync';
+import i18n from '../../i18n/config';
 
-const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
+const useLibrary = ({ session, apiKeys, definitionLanguage = 'zh-TW', showToast, onRequireApiKeys }) => {
   const [folders, setFolders] = useState(() => loadCachedFolders());
   const [vocabData, setVocabData] = useState(() => {
     const cached = loadCachedVocab();
@@ -131,13 +132,13 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
   const generateFolderStory = useCallback(async (folder) => {
     if (!apiKeys?.groqKey) {
       if (onRequireApiKeys) onRequireApiKeys();
-      alert("請先設定 Groq API Key 才能使用故事生成功能！");
+      alert(i18n.t('library.storyRequireGroq', '請先設定 Groq API Key 才能使用故事生成功能！'));
       return;
     }
 
     const wordsInFolder = (index.entriesByFolderId[folder.id] || []).map(word => word.word);
     if (wordsInFolder.length < 3) {
-      alert("資料夾內至少需要 3 個單字才能生成故事喔！");
+      alert(i18n.t('library.storyMinWords', '資料夾內至少需要 3 個單字才能生成故事喔！'));
       return;
     }
 
@@ -149,15 +150,16 @@ const useLibrary = ({ session, apiKeys, showToast, onRequireApiKeys }) => {
     try {
       const storyText = await fetchStory({
         groqKey: apiKeys.groqKey,
-        words: targetWords
+        words: targetWords,
+        targetLang: definitionLanguage
       });
       setStory(storyText);
     } catch (error) {
-      alert("故事生成失敗: " + error.message);
+      alert(`${i18n.t('library.storyGenerationFailed', '故事生成失敗')}: ${error.message}`);
     } finally {
       setIsGeneratingStory(false);
     }
-  }, [apiKeys, index.entriesByFolderId, onRequireApiKeys]);
+  }, [apiKeys, definitionLanguage, index.entriesByFolderId, onRequireApiKeys]);
 
   const updateLastUsedFolderIds = useCallback((folderIds) => {
     const normalized = (Array.isArray(folderIds) ? folderIds : [])

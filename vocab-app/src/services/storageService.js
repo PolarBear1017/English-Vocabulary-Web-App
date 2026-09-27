@@ -11,7 +11,9 @@ const STORAGE_KEYS = {
   dictionaryPriority: 'dictionary_priority',
   audioSourcePriority: 'audio_source_priority',
   audioSpeed: 'audio_speed',
-  chineseAudioSpeed: 'chinese_audio_speed'
+  chineseAudioSpeed: 'chinese_audio_speed',
+  uiLanguage: 'ui_language',
+  definitionLanguage: 'definition_language'
 };
 
 const ensureStorageVersion = () => {
@@ -99,6 +101,12 @@ const loadChineseAudioSpeed = () => {
 };
 const saveChineseAudioSpeed = (value) => writeString(STORAGE_KEYS.chineseAudioSpeed, String(value));
 
+const loadUiLanguage = () => readString(STORAGE_KEYS.uiLanguage, 'zh-TW');
+const saveUiLanguage = (value) => writeString(STORAGE_KEYS.uiLanguage, value);
+
+const loadDefinitionLanguage = () => readString(STORAGE_KEYS.definitionLanguage, 'zh-TW');
+const saveDefinitionLanguage = (value) => writeString(STORAGE_KEYS.definitionLanguage, value);
+
 export {
   STORAGE_VERSION,
   STORAGE_KEYS,
@@ -128,5 +136,9 @@ export {
   loadAudioSpeed,
   saveAudioSpeed,
   loadChineseAudioSpeed,
-  saveChineseAudioSpeed
+  saveChineseAudioSpeed,
+  loadUiLanguage,
+  saveUiLanguage,
+  loadDefinitionLanguage,
+  saveDefinitionLanguage
 };

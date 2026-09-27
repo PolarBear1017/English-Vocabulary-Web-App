@@ -8,6 +8,10 @@
     "react-dom": "^19.2.3",
     "ts-fsrs": "^5.2.3"
   },
+  "scripts": {
+    "dev": "npm --prefix vocab-app run dev",
+    "build": "npm --prefix vocab-app run build"
+  },
   "devDependencies": {
     "vite": "^7.3.1"
   }

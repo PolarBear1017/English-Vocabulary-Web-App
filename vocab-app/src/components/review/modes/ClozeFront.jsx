@@ -1,5 +1,6 @@
 import React from 'react';
 import { Lightbulb } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { formatClozeSentence } from '../../../utils/text';
 
 const ClozeFront = ({
@@ -13,6 +14,8 @@ const ClozeFront = ({
     giveHint,
     feedback
 }) => {
+    const { t } = useTranslation();
+
     return (
         <div className="space-y-6 w-full">
             <div className="text-xl text-gray-700 leading-relaxed">
@@ -38,13 +41,13 @@ const ClozeFront = ({
                 <button
                     onClick={giveHint}
                     className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-amber-500 transition-colors p-2"
-                    title="顯示提示 (首字母)"
+                    title={t('review.showHint')}
                 >
                     <Lightbulb className="w-5 h-5" />
                 </button>
             </div>
             {feedback === 'incorrect' && (
-                <p className="text-sm text-red-500">拼錯了，提示答案已顯示，請再輸入一次。</p>
+                <p className="text-sm text-red-500">{t('review.spellingRetryHint')}</p>
             )}
         </div>
     );

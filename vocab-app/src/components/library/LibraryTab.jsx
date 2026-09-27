@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import LibraryOverview from './LibraryOverview';
 import FolderDetail from './FolderDetail';
 import StoryModal from './StoryModal';
@@ -13,6 +14,7 @@ import useSelection from '../../hooks/useSelection';
 import useDragSelect from '../../hooks/useDragSelect';
 
 const LibraryTab = () => {
+  const { t } = useTranslation();
   const library = useLibraryContext();
   const review = useReviewContext();
   const navigation = useNavigationContext();
@@ -122,10 +124,10 @@ const LibraryTab = () => {
   const deleteSelectedFolders = async () => {
     const deletableIds = selectedFolderIds;
     if (deletableIds.length === 0) {
-      alert('請先選取可刪除的資料夾');
+      alert(t('library.selectFoldersToDelete'));
       return;
     }
-    if (!confirm(`確定刪除選取的 ${deletableIds.length} 個資料夾？(資料夾內的單字會同步斷開關聯，若不屬於其他資料夾則會被完全刪除)`)) {
+    if (!confirm(t('library.confirmDeleteFolders', { count: deletableIds.length }))) {
       return;
     }
     const success = await library.actions.handleDeleteFolders(deletableIds);
@@ -160,10 +162,10 @@ const LibraryTab = () => {
     if (!activeFolder) return;
     const selectedWords = sortedActiveFolderWords.filter(word => selectedWordIds.includes(word.id));
     if (selectedWords.length === 0) {
-      alert('請先選取要移除的單字');
+      alert(t('library.selectWordsToRemove'));
       return;
     }
-    if (!confirm(`確定移除選取的 ${selectedWords.length} 個單字？`)) {
+    if (!confirm(t('library.confirmRemoveWords', { count: selectedWords.length }))) {
       return;
     }
     const success = await library.actions.handleRemoveWordsFromFolder(selectedWords, activeFolder.id);
@@ -173,12 +175,12 @@ const LibraryTab = () => {
   const openMoveModal = () => {
     if (!activeFolder) return;
     if (selectedWordIds.length === 0) {
-      alert('請先選取要移動的單字');
+      alert(t('library.selectWordsToMove'));
       return;
     }
     const availableTargets = folders.filter(folder => folder.id !== activeFolder.id);
     if (availableTargets.length === 0) {
-      alert('目前沒有可移動的目標資料夾');
+      alert(t('library.noTargetFolders'));
       return;
     }
     setIsMoveModalOpen(true);
@@ -284,7 +286,7 @@ const LibraryTab = () => {
 
       {isFolderFormOpen && (
         <FolderFormModal
-          title={editingFolder ? '編輯資料夾' : '新增資料夾'}
+          title={editingFolder ? t('library.editFolder') : t('library.newFolder')}
           initialValues={editingFolder || { name: '', description: '' }}
           onSubmit={handleSubmitFolder}
           onClose={() => {
@@ -313,10 +315,10 @@ const LibraryTab = () => {
         <SelectionActionBar
           count={selectedFolderCount}
           onSelectAll={selectAllFolders}
-          selectAllLabel={selectedFolderIds.length === sortedFolders.length ? '取消全選' : '全選'}
+          selectAllLabel={selectedFolderIds.length === sortedFolders.length ? t('common.deselectAll') : t('common.selectAll')}
           onClear={exitFolderSelectionMode}
           actions={[
-            { key: 'delete', label: '刪除', variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete', disabled: selectedFolderCount === 0 }
+            { key: 'delete', label: t('common.delete'), variant: 'danger', onClick: deleteSelectedFolders, icon: 'delete', disabled: selectedFolderCount === 0 }
           ]}
         />
       )}
@@ -325,11 +327,11 @@ const LibraryTab = () => {
         <SelectionActionBar
           count={selectedWordCount}
           onSelectAll={selectAllWords}
-          selectAllLabel={selectedWordIds.length === sortedActiveFolderWords.length ? '取消全選' : '全選'}
+          selectAllLabel={selectedWordIds.length === sortedActiveFolderWords.length ? t('common.deselectAll') : t('common.selectAll')}
           onClear={exitWordSelectionMode}
           actions={[
-            { key: 'move', label: '移動', variant: 'primary', onClick: openMoveModal, icon: 'move', disabled: selectedWordCount === 0 },
-            { key: 'remove', label: '移除', variant: 'danger', onClick: removeSelectedWords, icon: 'delete', disabled: selectedWordCount === 0 }
+            { key: 'move', label: t('library.move'), variant: 'primary', onClick: openMoveModal, icon: 'move', disabled: selectedWordCount === 0 },
+            { key: 'remove', label: t('library.remove'), variant: 'danger', onClick: removeSelectedWords, icon: 'delete', disabled: selectedWordCount === 0 }
           ]}
         />
       )}

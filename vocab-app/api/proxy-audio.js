@@ -20,12 +20,21 @@ export default async function handler(req, res) {
     }
 
     try {
-        const response = await fetch(url, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'Accept': 'audio/*',
-            }
-        });
+        const isCambridge = url.includes('cambridge.org');
+        const userAgent = isCambridge
+            ? 'Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)'
+            : 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36';
+
+        const headers = {
+            'User-Agent': userAgent,
+            'Accept': '*/*',
+        };
+
+        if (isCambridge) {
+            headers['Referer'] = 'https://dictionary.cambridge.org/';
+        }
+
+        const response = await fetch(url, { headers });
         if (!response.ok) {
             return res.status(response.status).json({ error: 'Failed to fetch audio' });
         }

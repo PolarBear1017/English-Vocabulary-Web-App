@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Volume2, Sparkles, ChevronDown } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { getAudioUrl } from '../../services/speechService';
+import { useTranslation } from 'react-i18next';
 
 const SOURCE_OPTIONS = [
   { value: 'Cambridge', label: 'Cambridge', icon: '🛡️' },
@@ -38,6 +39,7 @@ const SearchResultHeader = ({
   relatedContext,
   audioPriority
 }) => {
+  const { t } = useTranslation();
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [isExternalLinksOpen, setIsExternalLinksOpen] = useState(false);
   const [isRelatedOpen, setIsRelatedOpen] = useState(false);
@@ -66,7 +68,7 @@ const SearchResultHeader = ({
         }}
         disabled={isSwitchingSource || !canSwitchSource}
         className={`text-xs px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${badgeClassName} ${canSwitchSource ? 'hover:opacity-90 cursor-pointer' : ''} disabled:opacity-60`}
-        aria-label="切換來源"
+        aria-label={t('card.switchSource')}
       >
         {content}
         {canSwitchSource && (
@@ -88,7 +90,7 @@ const SearchResultHeader = ({
             >
               <span className="text-base">{option.icon}</span>
               {option.label}
-              {searchResult.source === option.value && <span className="ml-auto text-[10px] text-blue-600">目前</span>}
+              {searchResult.source === option.value && <span className="ml-auto text-[10px] text-blue-600">{t('card.current')}</span>}
             </button>
           ))}
         </div>
@@ -139,7 +141,7 @@ const SearchResultHeader = ({
             )}
             {savedWordInSearch && (
               <div className="ml-4 flex flex-col items-start">
-                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Mastery</span>
+                <span className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{t('card.mastery')}</span>
                 <ProficiencyDots score={savedWordInSearch.proficiencyScore} />
               </div>
             )}
@@ -171,8 +173,8 @@ const SearchResultHeader = ({
                 className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-700 transition w-full group py-1"
               >
                 <Sparkles className="w-3 h-3 text-blue-500" />
-                <span className="font-medium">相關單字</span>
-                {relatedContext && <span className="text-gray-400 font-normal">({relatedContext.originalWord} 的相關字)</span>}
+                <span className="font-medium">{t('card.relatedWords')}</span>
+                {relatedContext && <span className="text-gray-400 font-normal">({t('card.relatedTo', { word: relatedContext.originalWord })})</span>}
                 <ChevronDown className={`w-3 h-3 text-gray-400 transition-transform duration-200 ml-auto ${isRelatedOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -205,7 +207,7 @@ const SearchResultHeader = ({
               className="mt-2 inline-flex items-center gap-1 text-xs text-gray-500 hover:text-blue-600 transition"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              查看完整解釋
+              {t('card.viewFullDefinition')}
             </button>
           )}
 
@@ -216,7 +218,7 @@ const SearchResultHeader = ({
               className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-gray-600 transition group"
             >
               <ExternalLink className="w-3 h-3" />
-              <span>外部連結</span>
+              <span>{t('card.externalLinks')}</span>
               <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isExternalLinksOpen ? 'rotate-180' : ''}`} />
             </button>
 
@@ -242,7 +244,7 @@ const SearchResultHeader = ({
             onClick={onStartSave}
             className="flex-shrink-0 whitespace-nowrap flex w-auto sm:w-auto items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg hover:bg-green-700 transition shadow-sm"
           >
-            {saveButtonFeedback ? '已加入' : (saveButtonLabel || '儲存')}
+            {saveButtonFeedback ? t('card.added') : (saveButtonLabel || t('common.save'))}
           </button>
         )}
         {saveStep === 'selecting' && (
@@ -251,13 +253,13 @@ const SearchResultHeader = ({
               onClick={onCancelSave}
               className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
-              取消
+              {t('common.cancel')}
             </button>
             <button
               onClick={onNextSave}
               className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition"
             >
-              下一步
+              {t('common.next')}
             </button>
           </div>
         )}
@@ -267,13 +269,13 @@ const SearchResultHeader = ({
               onClick={onBackSave}
               className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
-              上一步
+              {t('common.prev')}
             </button>
             <button
               onClick={onCancelSave}
               className="whitespace-nowrap px-3 py-1.5 text-sm sm:px-4 sm:py-2 sm:text-base rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition"
             >
-              取消
+              {t('common.cancel')}
             </button>
           </div>
         )}

@@ -1,6 +1,6 @@
-/* eslint-disable react/prop-types */
 import React, { useEffect, useRef, useState, useMemo } from 'react';
 import { ArrowLeft, Check, Folder, Search, X, ArrowUpDown } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import useSelection from '../../hooks/useSelection';
 import useDragSelect from '../../hooks/useDragSelect';
 
@@ -11,6 +11,7 @@ const ReviewFoldersSelector = ({
   setSelectedReviewFolders,
   onBack
 }) => {
+  const { t } = useTranslation();
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState('created_desc'); // Default sort
 
@@ -135,7 +136,7 @@ const ReviewFoldersSelector = ({
             className="flex items-center gap-2 text-gray-500 hover:text-blue-600 transition"
           >
             <ArrowLeft className="w-5 h-5" />
-            <span>返回複習中心</span>
+            <span>{t('review.backToSetup')}</span>
           </button>
         </div>
 
@@ -147,7 +148,7 @@ const ReviewFoldersSelector = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="搜尋資料夾..."
+              placeholder={t('review.searchFolders')}
               className="w-full pl-9 pr-9 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
             />
             {searchQuery && (
@@ -166,9 +167,9 @@ const ReviewFoldersSelector = ({
               value={sortBy}
               onChange={(e) => setSortBy(e.target.value)}
             >
-              <option value="created_desc">最新</option>
-              <option value="name_asc">名稱 A-Z</option>
-              <option value="count_desc">單字數多</option>
+              <option value="created_desc">{t('review.sortLatest')}</option>
+              <option value="name_asc">{t('review.sortName')}</option>
+              <option value="count_desc">{t('review.sortCount')}</option>
             </select>
           </div>
         </div>
@@ -178,14 +179,14 @@ const ReviewFoldersSelector = ({
         {/* Header Actions */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50/50 sticky top-0 z-10">
           <div className="text-sm font-medium text-gray-700">
-            {selectedIds.length > 0 ? `已選擇 ${selectedIds.length} 個資料夾` : '請選擇資料夾'}
-            {searchQuery && <span className="text-gray-400 font-normal ml-2">(搜尋結果 {processedFolders.length} 個)</span>}
+            {selectedIds.length > 0 ? t('review.selectedFoldersCount', { count: selectedIds.length }) : t('review.pleaseSelectFolder')}
+            {searchQuery && <span className="text-gray-400 font-normal ml-2">{t('review.searchResultsCount', { count: processedFolders.length })}</span>}
           </div>
           <button
             onClick={toggleSelectAll}
             className="text-sm font-medium text-blue-600 hover:text-blue-700 px-3 py-1.5 rounded-lg hover:bg-blue-50 transition"
           >
-            {isAllVisibleSelected ? '取消全選' : '全選'}
+            {isAllVisibleSelected ? t('common.deselectAll') : t('common.selectAll')}
           </button>
         </div>
 
@@ -242,7 +243,7 @@ const ReviewFoldersSelector = ({
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-gray-900 truncate text-base">{folder.name}</div>
                     {folder.wordCount !== undefined && (
-                      <div className="text-sm text-gray-500">{folder.wordCount} 個單字</div>
+                      <div className="text-sm text-gray-500">{t('common.wordCount', { count: folder.wordCount })}</div>
                     )}
                   </div>
                 </div>
@@ -250,7 +251,7 @@ const ReviewFoldersSelector = ({
             ))}
             {processedFolders.length === 0 && (
               <div className="p-8 text-center text-gray-500">
-                {searchQuery ? `找不到符合「${searchQuery}」的資料夾` : '沒有可用的資料夾'}
+                {searchQuery ? t('review.noMatchingFolders', { query: searchQuery }) : t('review.noAvailableFolders')}
               </div>
             )}
           </div>

@@ -252,7 +252,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
         return;
       }
 
-      const priorityList = settings?.state?.dictionaryPriority || ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI'];
+      const priorityList = settings?.state?.dictionaryPriority || ['Cambridge', 'Cambridge Learner', 'Yahoo', 'Google Translate', 'Groq AI'];
       const sourcesToTry = forceSource ? [forceSource] : priorityList;
       let lastError = null;
 

@@ -23,6 +23,7 @@ import { useTranslation } from 'react-i18next';
 
 const DICTIONARY_NAMES = {
     'Cambridge': 'Cambridge Dictionary',
+    'Cambridge Learner': "Cambridge Learner's Dictionary",
     'Yahoo': 'Yahoo Dictionary',
     'Google Translate': 'Google Translate',
     'Groq AI': 'Groq AI'

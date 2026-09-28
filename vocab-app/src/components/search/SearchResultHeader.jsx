@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 const SOURCE_OPTIONS = [
   { value: 'Cambridge', label: 'Cambridge', icon: '🛡️' },
+  { value: 'Cambridge Learner', label: "Cambridge Learner's", icon: '📖' },
   { value: 'Yahoo', label: 'Yahoo Dictionary', icon: 'Y!' },
   { value: 'Google Translate', label: 'Google Translate', icon: 'G' },
   { value: 'Groq AI', label: 'Groq AI', icon: '✨' }
@@ -13,6 +14,7 @@ const SOURCE_OPTIONS = [
 
 const EXTERNAL_LINKS = [
   { label: 'Cambridge', url: (word) => `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word.toLowerCase().trim())}` },
+  { label: "Cambridge Learner's", url: (word) => `https://dictionary.cambridge.org/dictionary/learner-english/${encodeURIComponent(word.toLowerCase().trim())}` },
   { label: 'Oxford Learner\'s', url: (word) => `https://www.oxfordlearnersdictionaries.com/definition/english/${encodeURIComponent(word.toLowerCase().trim())}` },
   { label: 'Longman', url: (word) => `https://www.ldoceonline.com/dictionary/${encodeURIComponent(word.toLowerCase().trim())}` },
   { label: 'Merriam-Webster', url: (word) => `https://www.merriam-webster.com/dictionary/${encodeURIComponent(word.toLowerCase().trim())}` },
@@ -150,6 +152,7 @@ const SearchResultHeader = ({
             <span className="italic font-serif bg-white px-2 py-0.5 rounded border border-gray-200">{searchResult.pos}</span>
             <span>{searchResult.phonetic}</span>
             {searchResult.source === 'Cambridge' && renderSourceBadge('bg-blue-100 text-blue-700', '🛡️ Cambridge')}
+            {searchResult.source === 'Cambridge Learner' && renderSourceBadge('bg-indigo-100 text-indigo-700', "📖 Cambridge Learner's")}
             {searchResult.source === 'Yahoo' && renderSourceBadge('bg-purple-100 text-purple-700', 'Y! Yahoo')}
             {searchResult.source === 'Groq AI' && renderSourceBadge('bg-teal-100 text-teal-700', (
               <>

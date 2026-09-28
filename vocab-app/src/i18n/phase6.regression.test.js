@@ -143,6 +143,16 @@ describe('Phase 6: End-to-End Regression & Edge Cases', () => {
         'https://dictionary.cambridge.org/dictionary/english/apple'
       );
     });
+
+    it('constructs learner-english URL correctly for Cambridge Learner', () => {
+      const getCambridgeLearnerUrl = (word) => {
+        return `https://dictionary.cambridge.org/dictionary/learner-english/${encodeURIComponent(word.toLowerCase().trim())}`;
+      };
+
+      expect(getCambridgeLearnerUrl('apple')).toBe(
+        'https://dictionary.cambridge.org/dictionary/learner-english/apple'
+      );
+    });
   });
 
   describe('5. Speech Service Fallback & Language Detection', () => {

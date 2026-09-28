@@ -81,7 +81,22 @@ const saveFolderSortBy = (value) => writeString(STORAGE_KEYS.folderSortBy, value
 const loadWordSortBy = () => readString(STORAGE_KEYS.wordSortBy, 'added_desc');
 const saveWordSortBy = (value) => writeString(STORAGE_KEYS.wordSortBy, value);
 
-const loadDictionaryPriority = () => readJSON(STORAGE_KEYS.dictionaryPriority, ['Cambridge', 'Yahoo', 'Google Translate', 'Groq AI']);
+const DEFAULT_DICTIONARY_PRIORITY = ['Cambridge', 'Cambridge Learner', 'Yahoo', 'Google Translate', 'Groq AI'];
+const loadDictionaryPriority = () => {
+  const loaded = readJSON(STORAGE_KEYS.dictionaryPriority, DEFAULT_DICTIONARY_PRIORITY);
+  if (Array.isArray(loaded)) {
+    if (!loaded.includes('Cambridge Learner')) {
+      const cambridgeIdx = loaded.indexOf('Cambridge');
+      if (cambridgeIdx !== -1) {
+        loaded.splice(cambridgeIdx + 1, 0, 'Cambridge Learner');
+      } else {
+        loaded.unshift('Cambridge Learner');
+      }
+    }
+    return loaded;
+  }
+  return DEFAULT_DICTIONARY_PRIORITY;
+};
 const saveDictionaryPriority = (value) => writeJSON(STORAGE_KEYS.dictionaryPriority, value);
 
 const loadAudioSourcePriority = () => readJSON(STORAGE_KEYS.audioSourcePriority, ['us', 'uk', 'google', 'yahoo', 'general']);

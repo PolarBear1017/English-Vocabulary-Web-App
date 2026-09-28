@@ -1,3 +1,5 @@
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -23,7 +25,8 @@ function apiDevServerPlugin() {
             res.send = (data) => {
               res.end(data);
             };
-            const { default: handler } = await import('./api/dictionary.js');
+            const dictFile = pathToFileURL(path.resolve(process.cwd(), 'api/dictionary.js')).href;
+            const { default: handler } = await import(/* @vite-ignore */ dictFile);
             await handler(req, res);
             return;
           } catch (err) {
@@ -54,7 +57,8 @@ function apiDevServerPlugin() {
             res.send = (data) => {
               res.end(data);
             };
-            const { default: handler } = await import('./api/proxy-audio.js');
+            const audioFile = pathToFileURL(path.resolve(process.cwd(), 'api/proxy-audio.js')).href;
+            const { default: handler } = await import(/* @vite-ignore */ audioFile);
             await handler(req, res);
             return;
           } catch (err) {

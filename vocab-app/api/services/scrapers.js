@@ -42,16 +42,7 @@ const fetchHttpsText = (url, depth = 0) => {
     });
 };
 
-export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
-    const isEn = targetLang === 'en';
-    const targetUrl = isEn
-        ? `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`
-        : `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
-
-    const response = await fetchHttpsText(targetUrl);
-    if (!response.ok || !response.text) return null;
-
-    const html = response.text;
+const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
     const $ = cheerio.load(html);
 
     const isFound = $('.di-title').length > 0 || $('.def-block').length > 0;
@@ -132,8 +123,29 @@ export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
         audioUrl: usAudioUrl || ukAudioUrl,
         usAudioUrl,
         ukAudioUrl,
-        source: 'Cambridge'
+        source
     };
+};
+
+export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
+    const isEn = targetLang === 'en';
+    const targetUrl = isEn
+        ? `https://dictionary.cambridge.org/dictionary/english/${encodeURIComponent(word)}`
+        : `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
+
+    const response = await fetchHttpsText(targetUrl);
+    if (!response.ok || !response.text) return null;
+
+    return parseCambridgeHtml(response.text, word, 'Cambridge');
+};
+
+export const scrapeCambridgeLearner = async (word) => {
+    const targetUrl = `https://dictionary.cambridge.org/dictionary/learner-english/${encodeURIComponent(word)}`;
+
+    const response = await fetchHttpsText(targetUrl);
+    if (!response.ok || !response.text) return null;
+
+    return parseCambridgeHtml(response.text, word, 'Cambridge Learner');
 };
 
 export const scrapeYahoo = async (word) => {

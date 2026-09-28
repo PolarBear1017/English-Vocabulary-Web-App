@@ -1,5 +1,5 @@
 
-import { scrapeCambridge, scrapeYahoo, scrapeGoogleTranslate } from './services/scrapers.js';
+import { scrapeCambridge, scrapeCambridgeLearner, scrapeYahoo, scrapeGoogleTranslate } from './services/scrapers.js';
 
 // Helper to detect Chinese characters
 const isChinese = (text) => /[\u4e00-\u9fa5]/.test(text);
@@ -110,6 +110,8 @@ export default async function handler(req, res) {
       result = await scrapeYahoo(searchWord);
     } else if (source === 'Google Translate') {
       result = await scrapeGoogleTranslate(searchWord);
+    } else if (source === 'Cambridge Learner' || source === "Cambridge Learner's") {
+      result = await scrapeCambridgeLearner(searchWord);
     } else {
       // Default to Cambridge
       result = await scrapeCambridge(searchWord, targetLang);

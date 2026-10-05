@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Spaced — Classic Growing S (solid)</title>
+  <desc id="desc">Rounded S ribbon with separated upper-right and lower-left growth nodes. Vector reconstruction of the approved brand reference.</desc>
+
+  <path fill="#1F5EFF" d="M 150 43 C 115 51 78 66 65 89 C 47 119 78 134 116 150 C 142 161 160 169 155 180 C 147 194 122 201 94 207 C 102 219 104 230 97 238 C 134 230 178 215 188 185 C 200 150 172 132 140 119 L 108 105 C 95 100 94 96 104 89 C 117 80 136 73 159 69 C 151 61 148 53 150 43 Z"/>
+
+  <circle transform="translate(190 46)" r="24" fill="#1F5EFF"/>
+  <circle transform="translate(61 218)" r="24" fill="#1F5EFF"/>
+</svg>

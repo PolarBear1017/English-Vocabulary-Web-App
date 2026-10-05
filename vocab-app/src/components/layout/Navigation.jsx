@@ -6,7 +6,7 @@ import { useLibraryContext } from '../../contexts/LibraryContext';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTranslation } from 'react-i18next';
 
-const Navigation = () => {
+const Navigation = ({ isCollapsed = false }) => {
   const { t } = useTranslation();
   const navigation = useNavigationContext();
   const library = useLibraryContext();
@@ -30,9 +30,15 @@ const Navigation = () => {
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex justify-around p-3 z-50 shadow-lg md:relative md:border-t-0 md:flex-col md:w-64 md:h-screen md:border-r md:justify-start md:gap-4 md:p-6">
-      <div className="hidden md:block text-2xl font-bold text-blue-600 mb-6 flex items-center gap-2">
-        <LogoIcon className="w-8 h-8" />
-        Spaced
+      <div className={`hidden md:flex items-center mb-6 px-1 ${isCollapsed ? 'justify-center' : 'justify-start'}`}>
+        <button
+          type="button"
+          onClick={() => handleNavigate('search')}
+          className="group block text-left focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-lg p-1 -m-1 transition-opacity hover:opacity-90 cursor-pointer"
+          aria-label="Spaced"
+        >
+          <LogoIcon isCollapsed={isCollapsed} className={isCollapsed ? 'w-8 h-8' : 'h-8 w-auto max-w-[170px]'} />
+        </button>
       </div>
       {items.map(item => (
         <button

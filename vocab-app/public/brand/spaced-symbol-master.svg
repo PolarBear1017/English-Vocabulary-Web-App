@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256" fill="none" role="img" aria-labelledby="title desc">
+  <title id="title">Spaced — Classic Growing S</title>
+  <desc id="desc">Rounded S ribbon with separated upper-right and lower-left growth nodes. Vector reconstruction of the approved brand reference.</desc>
+  <defs>
+    <linearGradient id="spaced-blue" x1="70" y1="70" x2="180" y2="207" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#77A9FF"/>
+      <stop offset="0.38" stop-color="#1F8EFF"/>
+      <stop offset="0.72" stop-color="#1F5EFF"/>
+      <stop offset="1" stop-color="#77A9FF"/>
+    </linearGradient>
+    <linearGradient id="spaced-nodes" x1="0" y1="-24" x2="0" y2="24" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#35B5FF"/>
+      <stop offset="0.65" stop-color="#1F5EFF"/>
+      <stop offset="1" stop-color="#1F5EFF"/>
+    </linearGradient>
+    <linearGradient id="spaced-tip-top" x1="112" y1="78" x2="157" y2="58" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8EEF7" stop-opacity="0"/>
+      <stop offset="1" stop-color="#E8EEF7" stop-opacity="0.9"/>
+    </linearGradient>
+    <linearGradient id="spaced-tip-bottom" x1="138" y1="215" x2="97" y2="225" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#E8EEF7" stop-opacity="0"/>
+      <stop offset="1" stop-color="#E8EEF7" stop-opacity="0.95"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#spaced-blue)" d="M 150 43 C 115 51 78 66 65 89 C 47 119 78 134 116 150 C 142 161 160 169 155 180 C 147 194 122 201 94 207 C 102 219 104 230 97 238 C 134 230 178 215 188 185 C 200 150 172 132 140 119 L 108 105 C 95 100 94 96 104 89 C 117 80 136 73 159 69 C 151 61 148 53 150 43 Z"/>
+  <path fill="url(#spaced-tip-top)" d="M150 43 C135 46 121 51 108 57 L120 81 C132 76 146 72 159 69 C151 61 148 53 150 43Z"/>
+  <path fill="url(#spaced-tip-bottom)" d="M94 207 C102 219 104 230 97 238 C113 234 128 229 141 223 L132 195 C121 200 107 204 94 207Z"/>
+  <circle transform="translate(190 46)" r="24" fill="url(#spaced-nodes)"/>
+  <circle transform="translate(61 218)" r="24" fill="url(#spaced-nodes)"/>
+</svg>

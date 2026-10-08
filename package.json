@@ -14,7 +14,7 @@
     "supabase": "supabase",
     "supabase:login": "supabase login --agent no --output-format text",
     "supabase:link": "supabase link --project-ref qucyaothykoxwluaezwh",
-    "db:pull": "supabase db pull --linked",
+    "db:pull": "supabase db pull --linked --agent no --output-format text",
     "db:migrations": "supabase migration list --linked",
     "db:new": "supabase migration new",
     "db:plan": "node scripts/supabase-db.mjs plan",

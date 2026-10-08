@@ -36,5 +36,5 @@ const run = (args) => {
 };
 
 // Always show pending changes before applying migrations to the linked project.
-run(['db', 'push', '--linked', '--dry-run']);
-if (action === 'push') run(['db', 'push', '--linked']);
+run(['db', 'push', '--linked', '--dry-run', '--agent', 'no', '--output-format', 'text']);
+if (action === 'push') run(['db', 'push', '--linked', '--yes', '--agent', 'no', '--output-format', 'text']);

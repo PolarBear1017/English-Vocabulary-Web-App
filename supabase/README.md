@@ -7,9 +7,9 @@ Run commands from the repository root. The CLI version is pinned in package.json
 
 - CLI and project commands are installed.
 - Cloud account login and project linking are complete on this Windows user account.
-- Remote migration history was inspected on 2026-10-08: it has no existing migrations.
-- Docker Desktop 4.94.0 is installed for this Windows user. The Docker CLI is available, but the container engine is not running because WSL setup is incomplete.
-- Capturing the schema baseline is pending WSL setup and a working Docker engine. The WSL administrator installation was cancelled at the Windows authorization step on 2026-10-08.
+- WSL 3.0.1 and Docker Desktop 4.94.0 are installed and the Docker engine was verified running.
+- Baseline `20261008155340_initial_schema.sql` was captured and replayed successfully in a local shadow database on 2026-10-08. It includes 5 public tables, 4 SQL functions and 11 RLS policies.
+- The baseline is recorded as applied in the cloud migration history. Local and remote histories match, and `npm run db:plan` reports that the remote database is up to date.
 - Existing SQL files are historical references, not pending migrations.
 
 The Publishable key in `vocab-app/.env.local` is for the frontend. It cannot deploy functions or manage the database schema. Do not put account access tokens, database passwords or service-role/secret keys in frontend files or Git.
@@ -25,24 +25,28 @@ npm run db:migrations
 
 Finish login in the official Supabase browser flow. Let the CLI store credentials in its native credential storage. If the CLI asks for a database password, enter it interactively in the local terminal, not in chat or command arguments.
 
-Before the first database push, inspect the remote migration history. If it already has migrations, fetch and review them with `npm run supabase -- migration fetch --linked`. Capture the remaining current schema with `npm run db:pull -- initial_schema` and review the generated SQL and history update. Standard `db pull` needs a working Docker daemon.
+The baseline has already been established for this project. On this machine, use `npm run db:migrations` and `npm run db:plan` to verify it before future changes. Do not create another initial baseline or mark it unapplied.
 
-### Windows setup still pending
+On a new clone, install dependencies, log in and link the same cloud project; the baseline is already in Git once these changes are committed. If someone modifies cloud schema directly later, capture and review the difference with `npm run db:pull -- describe_remote_change`. Standard `db pull` needs a working Docker daemon.
 
-Docker Desktop is installed under `%LOCALAPPDATA%\Programs\DockerDesktop`. WSL installation needs Windows administrator authorization. Finish the official WSL installation from an administrator terminal:
+### Windows runtime
+
+Docker Desktop is installed under `%LOCALAPPDATA%\Programs\DockerDesktop`. WSL installation and Docker engine startup have been verified on this machine. These commands can check the runtime:
 
 ```powershell
-wsl --install --no-distribution
 wsl --version
+docker info
 ```
 
-Restart Windows if the installer asks for it, then start Docker Desktop. Reopen the development app/terminal so the new Docker PATH is inherited. Verify `docker info` reports a working server before running the baseline import. If it still reports a WSL or virtualization problem, inspect the actual Docker error before changing Windows features or BIOS settings.
+Reopen the development app/terminal if it does not see the new Docker PATH. If Docker reports a WSL or virtualization problem later, inspect the actual error before changing Windows features or BIOS settings.
 
-The failed baseline attempt left an empty SQL file; that file was removed. No baseline SQL has been applied and no cloud tables or existing data have been changed by this setup.
+Docker does not need to stay running for normal frontend development, `db:plan`, `db:push` or `functions:deploy` (which uses API bundling). Start it for local Supabase/database tests and schema pulls/diffs. The WSL welcome window can be closed. For mobile-assigned work, keep the host awake, online and the desktop app running; Docker can be started when the task needs it.
+
+Baseline setup only replayed SQL in a local shadow database and recorded cloud migration metadata. Existing cloud application tables and data were not recreated or modified.
 
 Do not reapply the files in `supabase/sql/` or the old `vocab-app/migration_*.sql` files to initialize migrations. Do not use remote `db reset` to establish a baseline.
 
-Confirm the baseline reflects existing tables, SQL functions, policies and relevant customizations to managed schemas. When the baseline is recorded as applied, `npm run db:plan` should show no pending baseline changes. Only then start new changes. Update the setup status above after verification.
+The initial pull also completed its schema diff against the local shadow database. Keep the baseline migration as the existing schema snapshot and put all future changes in new migration files.
 
 ## Database changes
 

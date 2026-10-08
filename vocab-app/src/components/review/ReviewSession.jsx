@@ -38,7 +38,7 @@ const ReviewSession = ({
   giveHint
 }) => {
   const {
-    state: { audioSpeed, chineseAudioSpeed }
+    state: { audioSpeed, chineseAudioSpeed, playAudioShortcut }
   } = useSettingsContext();
 
   // Auto-speak word when entering dictation mode
@@ -92,6 +92,7 @@ const ReviewSession = ({
             preferredReviewAudio={preferredReviewAudio}
             audioSpeed={audioSpeed}
             speak={speak}
+            playAudioShortcut={playAudioShortcut}
           />
         );
       default:
@@ -126,6 +127,7 @@ const ReviewSession = ({
               audioSpeed={audioSpeed}
               chineseAudioSpeed={chineseAudioSpeed}
               speak={speak}
+              playAudioShortcut={playAudioShortcut}
             />
           )}
         </div>

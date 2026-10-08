@@ -9,6 +9,8 @@ import SearchMnemonic from './SearchMnemonic';
 import FolderSelectionList from './FolderSelectionList';
 import AddDefinitionModal from './AddDefinitionModal';
 import { normalizeEntries } from '../../utils/data';
+import { getAudioUrl } from '../../services/speechService';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 const getEntryKey = (item) => {
   if (!item) return '|||';
@@ -446,9 +448,21 @@ const SearchResultCard = ({
     setSaveStep('folder');
   }, [applySavedSelection, saveStep]);
 
+  const { state: settingsState } = useSettingsContext();
+  const playAudioShortcut = settingsState?.playAudioShortcut || 'Tab';
+
   useEffect(() => {
-    if (saveStep !== 'idle') return;
     const handleKeyDown = (event) => {
+      if (event.key.toLowerCase() === playAudioShortcut.toLowerCase()) {
+        if (searchResult?.word && onSpeak) {
+          event.preventDefault();
+          const effectivePriority = [preferredAccent, ...audioPriority.filter(p => p !== preferredAccent)];
+          onSpeak(searchResult.word, getAudioUrl(searchResult, effectivePriority));
+          return;
+        }
+      }
+
+      if (saveStep !== 'idle') return;
       if (event.key !== 'Enter') return;
       if (event.defaultPrevented) return;
       const target = event.target;
@@ -462,7 +476,7 @@ const SearchResultCard = ({
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleStartSave, saveStep]);
+  }, [handleStartSave, saveStep, searchResult, onSpeak, preferredAccent, audioPriority, playAudioShortcut]);
 
   const handleCancelSave = useCallback(() => {
     resetSaveFlow();
@@ -536,6 +550,7 @@ const SearchResultCard = ({
         isSwitchingSource={isSwitchingSource}
         relatedContext={relatedContext}
         audioPriority={audioPriority}
+        playAudioShortcut={playAudioShortcut}
       />
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>

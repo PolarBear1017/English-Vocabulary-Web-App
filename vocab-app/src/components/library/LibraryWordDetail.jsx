@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import ProficiencyDots from '../common/ProficiencyDots';
 import SearchResultEntries from '../search/SearchResultEntries';
 import { normalizeEntries } from '../../utils/data';
+import { useSettingsContext } from '../../contexts/SettingsContext';
 
 const LibraryWordDetail = ({
   entry,
@@ -36,6 +37,9 @@ const LibraryWordDetail = ({
     return normalizeEntries(entry || {});
   }, [entry, selectedDefs]);
 
+  const { state: settingsState } = useSettingsContext();
+  const playAudioShortcut = settingsState?.playAudioShortcut || 'Tab';
+
   const masteryLevel = Number.isFinite(entry?.proficiencyScore) ? entry.proficiencyScore : 0;
   const hasAccentToggle = true;
   const generalSource = entry?.audioUrl || entry?.audio_url || null;
@@ -52,11 +56,15 @@ const LibraryWordDetail = ({
 
   useEffect(() => {
     const handleKeyDown = (event) => {
+      if (event.key.toLowerCase() === playAudioShortcut.toLowerCase()) {
+        event.preventDefault();
+        onSpeak?.(entry.word, preferredAudio);
+        return;
+      }
       if (event.defaultPrevented) return;
       const target = event.target;
-      if (target?.isContentEditable) return;
       const tagName = target?.tagName?.toLowerCase();
-      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select') return;
+      if (tagName === 'input' || tagName === 'textarea' || tagName === 'select' || target?.isContentEditable) return;
       if (event.key === 'ArrowLeft' && hasPrevWord) {
         event.preventDefault();
         onPrevWord?.();
@@ -69,7 +77,7 @@ const LibraryWordDetail = ({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [hasNextWord, hasPrevWord, onNextWord, onPrevWord]);
+  }, [hasNextWord, hasPrevWord, onNextWord, onPrevWord, entry?.word, preferredAudio, onSpeak]);
 
   useEffect(() => {
     if (!tipOpen) return;
@@ -93,7 +101,8 @@ const LibraryWordDetail = ({
                 type="button"
                 onClick={() => onSpeak?.(entry.word, preferredAudio)}
                 className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition"
-                aria-label={t('library.playAudio')}
+                title={`${t('library.playAudio')} (${playAudioShortcut})`}
+                aria-label={`${t('library.playAudio')} (${playAudioShortcut})`}
               >
                 <Volume2 className="w-5 h-5 text-blue-600" />
               </button>

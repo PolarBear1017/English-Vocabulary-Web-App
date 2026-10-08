@@ -39,9 +39,11 @@ const SearchResultHeader = ({
   onChangeSource,
   isSwitchingSource,
   relatedContext,
-  audioPriority
+  audioPriority,
+  playAudioShortcut = 'Tab'
 }) => {
   const { t } = useTranslation();
+  const shortcutLabel = playAudioShortcut || 'Tab';
   const [isSourceMenuOpen, setIsSourceMenuOpen] = useState(false);
   const [isExternalLinksOpen, setIsExternalLinksOpen] = useState(false);
   const [isRelatedOpen, setIsRelatedOpen] = useState(false);
@@ -107,10 +109,13 @@ const SearchResultHeader = ({
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">
             {searchResult.word}
             <button
+              type="button"
               onClick={() => {
                 const effectivePriority = [preferredAccent, ...audioPriority.filter(p => p !== preferredAccent)];
                 onSpeak(searchResult.word, getAudioUrl(searchResult, effectivePriority));
               }}
+              title={`${t('library.playAudio')} (${shortcutLabel})`}
+              aria-label={`${t('library.playAudio')} (${shortcutLabel})`}
               className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition"
             >
               <Volume2 className="w-5 h-5 text-blue-600" />

@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, User, Key, Brain, BookOpen, Volume2, Globe } from 'lucide-react';
+import { ArrowRight, User, Key, Brain, BookOpen, Volume2, Globe, Keyboard } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 
 const SettingsMain = ({
@@ -118,6 +118,22 @@ const SettingsMain = ({
             <div className="text-left">
               <div className="font-bold text-gray-800">{t('settings.review')}</div>
               <div className="text-sm text-gray-500">{t('settings.reviewDesc')}</div>
+            </div>
+          </div>
+          <ArrowRight className="w-5 h-5 text-gray-300" />
+        </button>
+
+        <button
+          onClick={() => onSelectView('shortcuts')}
+          className="w-full bg-white p-4 rounded-xl shadow-sm border border-gray-200 flex items-center justify-between hover:bg-gray-50 transition"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-600">
+              <Keyboard className="w-5 h-5" />
+            </div>
+            <div className="text-left">
+              <div className="font-bold text-gray-800">{t('settings.shortcuts', '快捷鍵設定')}</div>
+              <div className="text-sm text-gray-500">{t('settings.shortcutsDesc', '自訂單字發音與全站快捷鍵')}</div>
             </div>
           </div>
           <ArrowRight className="w-5 h-5 text-gray-300" />

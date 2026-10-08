@@ -94,6 +94,8 @@ const SearchTab = () => {
         clearSearchHistory={search.actions.clearSearchHistory}
         isSearching={isSearching}
         inputRef={search.refs.searchInputRef}
+        onTabAudio={searchResult ? () => speak(searchResult.word, preferredSearchAudio) : null}
+        playAudioShortcut={settings.state.playAudioShortcut}
       />
 
       {searchError && <div className="text-red-500 text-center p-4 bg-red-50 rounded-lg">{searchError}</div>}

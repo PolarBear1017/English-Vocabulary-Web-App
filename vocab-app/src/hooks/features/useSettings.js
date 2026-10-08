@@ -16,7 +16,9 @@ import {
   loadUiLanguage,
   saveUiLanguage,
   loadDefinitionLanguage,
-  saveDefinitionLanguage
+  saveDefinitionLanguage,
+  loadPlayAudioShortcut,
+  savePlayAudioShortcut
 } from '../../services/storageService';
 import i18n from '../../i18n/config';
 import {
@@ -39,6 +41,7 @@ const useSettings = () => {
   const [chineseAudioSpeed, setChineseAudioSpeed] = useState(() => loadChineseAudioSpeed());
   const [uiLanguage, setUiLanguageState] = useState(() => i18n.resolvedLanguage || loadUiLanguage());
   const [definitionLanguage, setDefinitionLanguage] = useState(() => loadDefinitionLanguage());
+  const [playAudioShortcut, setPlayAudioShortcut] = useState(() => loadPlayAudioShortcut());
 
   const [session, setSession] = useState(null);
   const [email, setEmail] = useState('');
@@ -48,6 +51,10 @@ const useSettings = () => {
   useEffect(() => {
     ensureStorageVersion();
   }, []);
+
+  useEffect(() => {
+    savePlayAudioShortcut(playAudioShortcut);
+  }, [playAudioShortcut]);
 
   useEffect(() => {
     saveGroqKey(groqApiKey);
@@ -144,6 +151,7 @@ const useSettings = () => {
       chineseAudioSpeed,
       uiLanguage,
       definitionLanguage,
+      playAudioShortcut,
       session,
       email,
       password,
@@ -159,6 +167,7 @@ const useSettings = () => {
       setChineseAudioSpeed,
       setUiLanguage,
       setDefinitionLanguage,
+      setPlayAudioShortcut,
       setEmail,
       setPassword,
       handleLogin,

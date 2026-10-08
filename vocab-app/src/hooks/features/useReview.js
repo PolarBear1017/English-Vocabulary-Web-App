@@ -24,7 +24,8 @@ const useReview = ({
   setActiveTab,
   activeTab,
   preferredAccent,
-  audioPriority
+  audioPriority,
+  playAudioShortcut = 'Tab'
 }) => {
   const [reviewQueue, setReviewQueue] = useState([]);
   const [currentCardIndex, setCurrentCardIndex] = useState(0);
@@ -427,6 +428,16 @@ const useReview = ({
   const handleReviewKeyDown = useCallback((event) => {
     if (event.repeat) return;
     const key = event.key;
+    const targetShortcut = playAudioShortcut || 'Tab';
+    const isAudioShortcut = key.toLowerCase() === targetShortcut.toLowerCase();
+
+    if (isAudioShortcut) {
+      if (currentReviewWord?.word) {
+        event.preventDefault();
+        speak(currentReviewWord.word, preferredReviewAudio);
+        return;
+      }
+    }
 
     if (['1', '2', '3', '4'].includes(key) && isFlipped && reviewMode === 'flashcard') {
       event.preventDefault();
@@ -449,7 +460,7 @@ const useReview = ({
         event.preventDefault();
       }
     }
-  }, [checkAnswer, isAwaitingNext, isFlipped, processRating, reviewMode]);
+  }, [checkAnswer, currentReviewWord?.word, isAwaitingNext, isFlipped, preferredReviewAudio, processRating, reviewMode]);
 
   useEffect(() => {
     if (activeTab !== 'review_session' || reviewQueue.length === 0) return;

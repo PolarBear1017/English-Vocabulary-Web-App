@@ -16,15 +16,23 @@ const ReviewCardBack = ({
     setPreferredAccent,
     audioSpeed,
     chineseAudioSpeed,
-    speak
+    speak,
+    playAudioShortcut = 'Tab'
 }) => {
     const { t } = useTranslation();
+    const shortcutLabel = playAudioShortcut || 'Tab';
 
     return (
         <div className="space-y-4 animate-in fade-in duration-300 w-full">
             <div className="flex items-center justify-center gap-3">
                 <h2 className="text-3xl font-bold text-gray-800">{currentReviewWord.word}</h2>
-                <button onClick={() => speak(currentReviewWord.word, preferredReviewAudio, { rate: audioSpeed || 1.0 })}>
+                <button
+                    type="button"
+                    onClick={() => speak(currentReviewWord.word, preferredReviewAudio, { rate: audioSpeed || 1.0 })}
+                    title={`${t('library.playAudio')} (${shortcutLabel})`}
+                    aria-label={`${t('library.playAudio')} (${shortcutLabel})`}
+                    className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-100 active:scale-95 transition text-gray-700"
+                >
                     <Volume2 className="w-6 h-6 text-blue-600" />
                 </button>
                 {(currentReviewWord.usAudioUrl || currentReviewWord.ukAudioUrl) && (

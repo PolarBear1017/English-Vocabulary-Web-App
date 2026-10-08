@@ -7,6 +7,7 @@ import SettingsReview from './SettingsReview';
 import SettingsDictionary from './SettingsDictionary';
 import SettingsAudio from './SettingsAudio';
 import SettingsLanguage from './SettingsLanguage';
+import SettingsShortcuts from './SettingsShortcuts';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 import { useTranslation } from 'react-i18next';
 
@@ -83,6 +84,10 @@ const SettingsTab = () => {
 
           {settingsView === 'language' && (
             <SettingsLanguage />
+          )}
+
+          {settingsView === 'shortcuts' && (
+            <SettingsShortcuts />
           )}
         </div>
       )}

@@ -13,7 +13,8 @@ const STORAGE_KEYS = {
   audioSpeed: 'audio_speed',
   chineseAudioSpeed: 'chinese_audio_speed',
   uiLanguage: 'ui_language',
-  definitionLanguage: 'definition_language'
+  definitionLanguage: 'definition_language',
+  playAudioShortcut: 'vocab_shortcut_play_audio'
 };
 
 const ensureStorageVersion = () => {
@@ -122,6 +123,9 @@ const saveUiLanguage = (value) => writeString(STORAGE_KEYS.uiLanguage, value);
 const loadDefinitionLanguage = () => readString(STORAGE_KEYS.definitionLanguage, 'zh-TW');
 const saveDefinitionLanguage = (value) => writeString(STORAGE_KEYS.definitionLanguage, value);
 
+const loadPlayAudioShortcut = () => readString(STORAGE_KEYS.playAudioShortcut, 'Tab');
+const savePlayAudioShortcut = (value) => writeString(STORAGE_KEYS.playAudioShortcut, value);
+
 export {
   STORAGE_VERSION,
   STORAGE_KEYS,
@@ -155,5 +159,7 @@ export {
   loadUiLanguage,
   saveUiLanguage,
   loadDefinitionLanguage,
-  saveDefinitionLanguage
+  saveDefinitionLanguage,
+  loadPlayAudioShortcut,
+  savePlayAudioShortcut
 };

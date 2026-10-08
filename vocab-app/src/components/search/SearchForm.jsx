@@ -11,7 +11,9 @@ const SearchForm = ({
   setSuggestions,
   clearSearchHistory,
   isSearching,
-  inputRef
+  inputRef,
+  onTabAudio,
+  playAudioShortcut = 'Tab'
 }) => {
   const { t } = useTranslation();
   const suggestionOptions = suggestions.map((s) => (
@@ -63,6 +65,13 @@ const SearchForm = ({
         }, [open, suggestions]);
 
         const handleKeyDown = (e) => {
+          const targetKey = (playAudioShortcut || 'Tab').toLowerCase();
+          if (e.key.toLowerCase() === targetKey && onTabAudio) {
+            e.preventDefault();
+            onTabAudio();
+            return;
+          }
+
           if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
             userNavigatedRef.current = true;
             return;

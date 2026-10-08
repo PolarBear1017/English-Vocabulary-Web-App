@@ -1,0 +1,6 @@
+project_id = "English-Vocabulary-Web-App"
+
+[functions.ai-dictionary]
+# The handler verifies session JWTs with Supabase Auth before cache or AI access.
+# Avoid the legacy gateway JWT check so modern signing keys work too.
+verify_jwt = false

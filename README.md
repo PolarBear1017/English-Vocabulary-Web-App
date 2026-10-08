@@ -170,12 +170,29 @@ npm run build
 ```
 
 ### 3. 環境變數 / Environment Variables
-於專案目錄建立 `.env.local`：
+於 `vocab-app/` 目錄建立 `.env.local`（Vite 從此目錄載入環境設定）：
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-supabase-anon-key
 ```
+
+### 4. AI 登入驗證與部署 / AI Authentication & Deployment
+
+資料庫 migration、CLI 設定及手機指派工作的操作流程，請參閱 [Supabase 開發流程](supabase/README.md)。專案已提供 `npm run db:new -- 變更名稱`、`npm run db:plan`、`npm run db:push` 與 `npm run functions:deploy` 指令。首次資料庫部署前需完成現有結構的基準匯入與 migration 歷史核對。
+
+`VITE_SUPABASE_ANON_KEY` 可填入 Supabase 的前端 Publishable key；此變數名稱保留以相容現有設定。AI 請求以 `apikey` 傳送專案金鑰，以 `Authorization: Bearer` 傳送當前使用者的 session JWT。正式登入與 Supabase 匿名登入都支援；匿名登入需在 Supabase Auth 啟用。使用者仍需在 App 設定頁面填入自己的 Groq API Key。
+
+`ai-dictionary` 函式在存取快取或呼叫 Groq 前，會透過 `auth.getUser(token)` 驗證使用者。`supabase/config.toml` 停用舊版 gateway JWT 檢查，由函式內的登入驗證處理新舊簽章金鑰；這不是允許未登入呼叫。
+
+修改後端原始碼不會自動更新雲端函式。請在專案根目錄、登入擁有該專案部署權限的 Supabase 帳號後部署（Publishable key 不具備部署權限）：
+
+```bash
+npx supabase login
+npx supabase functions deploy ai-dictionary --project-ref qucyaothykoxwluaezwh
+```
+
+部署後，重新整理本機網頁，待匿名登入完成或登入帳號，再測試 AI 字根與故事功能。若要讓正式網站使用此修正，也需要部署修改後的前端。
 
 </details>
 

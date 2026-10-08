@@ -2,13 +2,23 @@ import { supabase, supabaseAnonKey } from '../supabase';
 import i18n from '../i18n/config';
 
 const AI_ERROR_CODES = {
-  MISSING_API_KEYS: 'MISSING_API_KEYS'
+  MISSING_API_KEYS: 'MISSING_API_KEYS',
+  AUTH_REQUIRED: 'AUTH_REQUIRED'
 };
 
 const callAi = async ({ groqKey, word, definition, words, promptType, targetLang = 'zh-TW' }) => {
   if (!groqKey) {
     const error = new Error(i18n.t('search.requireGroqKey', '請在設定頁面輸入 Groq API Key。'));
     error.code = AI_ERROR_CODES.MISSING_API_KEYS;
+    throw error;
+  }
+
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  const accessToken = sessionData?.session?.access_token;
+  if (!accessToken) {
+    const error = new Error(i18n.t('search.aiAuthRequired'));
+    error.code = AI_ERROR_CODES.AUTH_REQUIRED;
     throw error;
   }
 
@@ -24,7 +34,7 @@ const callAi = async ({ groqKey, word, definition, words, promptType, targetLang
       }
     },
     headers: {
-      Authorization: `Bearer ${supabaseAnonKey}`,
+      Authorization: `Bearer ${accessToken}`,
       apikey: supabaseAnonKey
     }
   });

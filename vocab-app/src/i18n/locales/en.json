@@ -44,6 +44,7 @@
     "other": "Other"
   },
   "search": {
+    "aiAuthRequired": "Your sign-in connection is not ready or has expired. Try again shortly or sign in from Settings.",
     "title": "Dictionary Search",
     "placeholder": "Enter an English or Chinese word...",
     "inputPlaceholder": "Enter word",

@@ -42,6 +42,7 @@
     "other": "其他 (other)"
   },
   "search": {
+    "aiAuthRequired": "登入連線尚未完成或已失效，請稍後再試，或到設定頁面登入。",
     "title": "單字查詢",
     "placeholder": "輸入英文單字或中文...",
     "inputPlaceholder": "輸入單字",

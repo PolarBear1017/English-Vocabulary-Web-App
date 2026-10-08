@@ -10,9 +10,19 @@
   },
   "scripts": {
     "dev": "npm --prefix vocab-app run dev",
-    "build": "npm --prefix vocab-app run build"
+    "build": "npm --prefix vocab-app run build",
+    "supabase": "supabase",
+    "supabase:login": "supabase login --agent no --output-format text",
+    "supabase:link": "supabase link --project-ref qucyaothykoxwluaezwh",
+    "db:pull": "supabase db pull --linked",
+    "db:migrations": "supabase migration list --linked",
+    "db:new": "supabase migration new",
+    "db:plan": "node scripts/supabase-db.mjs plan",
+    "db:push": "node scripts/supabase-db.mjs push",
+    "functions:deploy": "supabase functions deploy ai-dictionary --project-ref qucyaothykoxwluaezwh --use-api"
   },
   "devDependencies": {
+    "supabase": "2.120.0",
     "vite": "^7.3.1"
   }
 }

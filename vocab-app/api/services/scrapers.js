@@ -127,6 +127,28 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
     };
 };
 
+const fallbackToProduction = async (word, source, targetLang) => {
+    const isLocal = process.env.NODE_ENV === 'development' ||
+                    process.env.VERCEL_ENV === 'development' ||
+                    !process.env.VERCEL ||
+                    process.env.VERCEL_URL?.includes('localhost');
+    if (!isLocal) return null;
+
+    try {
+        const prodApiUrl = process.env.PROD_API_URL || 'https://spaced-vocabulary.vercel.app';
+        const targetUrl = `${prodApiUrl}/api/dictionary?word=${encodeURIComponent(word)}&source=${encodeURIComponent(source)}&targetLang=${encodeURIComponent(targetLang || 'zh-TW')}`;
+        const res = await fetch(targetUrl, {
+            headers: { 'Accept': 'application/json' }
+        });
+        if (res.ok) {
+            return await res.json();
+        }
+    } catch (e) {
+        console.warn('Fallback to production Cambridge API failed:', e.message);
+    }
+    return null;
+};
+
 export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
     const isEn = targetLang === 'en';
     const targetUrl = isEn
@@ -134,7 +156,13 @@ export const scrapeCambridge = async (word, targetLang = 'zh-TW') => {
         : `https://dictionary.cambridge.org/dictionary/english-chinese-traditional/${encodeURIComponent(word)}`;
 
     const response = await fetchHttpsText(targetUrl);
-    if (!response.ok || !response.text) return null;
+    if (!response.ok || !response.text) {
+        if (response.status === 403) {
+            const fallbackResult = await fallbackToProduction(word, 'Cambridge', targetLang);
+            if (fallbackResult) return fallbackResult;
+        }
+        return null;
+    }
 
     return parseCambridgeHtml(response.text, word, 'Cambridge');
 };
@@ -143,7 +171,13 @@ export const scrapeCambridgeLearner = async (word) => {
     const targetUrl = `https://dictionary.cambridge.org/dictionary/learner-english/${encodeURIComponent(word)}`;
 
     const response = await fetchHttpsText(targetUrl);
-    if (!response.ok || !response.text) return null;
+    if (!response.ok || !response.text) {
+        if (response.status === 403) {
+            const fallbackResult = await fallbackToProduction(word, 'Cambridge Learner', 'en');
+            if (fallbackResult) return fallbackResult;
+        }
+        return null;
+    }
 
     return parseCambridgeHtml(response.text, word, 'Cambridge Learner');
 };

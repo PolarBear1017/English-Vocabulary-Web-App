@@ -36,6 +36,27 @@ export default async function handler(req, res) {
 
         const response = await fetch(url, { headers });
         if (!response.ok) {
+            if (isCambridge && response.status === 403) {
+                const isLocal = process.env.NODE_ENV === 'development' ||
+                                process.env.VERCEL_ENV === 'development' ||
+                                !process.env.VERCEL ||
+                                process.env.VERCEL_URL?.includes('localhost');
+                if (isLocal) {
+                    try {
+                        const prodApiUrl = process.env.PROD_API_URL || 'https://spaced-vocabulary.vercel.app';
+                        const fallbackRes = await fetch(`${prodApiUrl}/api/proxy-audio?url=${encodeURIComponent(url)}`);
+                        if (fallbackRes.ok) {
+                            const arrayBuffer = await fallbackRes.arrayBuffer();
+                            const buffer = Buffer.from(arrayBuffer);
+                            const contentType = fallbackRes.headers.get('content-type') || 'audio/mpeg';
+                            res.setHeader('Content-Type', contentType);
+                            return res.send(buffer);
+                        }
+                    } catch (err) {
+                        console.warn('Fallback audio proxy failed:', err.message);
+                    }
+                }
+            }
             return res.status(response.status).json({ error: 'Failed to fetch audio' });
         }
 

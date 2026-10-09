@@ -18,7 +18,8 @@ const SearchTab = () => {
   const settings = useSettingsContext();
   const preferences = usePreferencesContext();
 
-  const { groqApiKey, audioSourcePriority } = settings.state;
+  const { groqApiKey, audioSourcePriority, definitionLanguage } = settings.state;
+  const { setDefinitionLanguage } = settings.actions;
   const { preferredAccent } = preferences.state;
 
   const {
@@ -126,6 +127,8 @@ const SearchTab = () => {
           setQuery={search.actions.setQuery}
           onSearch={search.actions.handleSearch}
           onChangeSource={search.actions.handleSearchWithSource}
+          definitionLanguage={definitionLanguage}
+          onSetDefinitionLanguage={setDefinitionLanguage}
           relatedContext={relatedContext}
           audioPriority={audioSourcePriority}
         />

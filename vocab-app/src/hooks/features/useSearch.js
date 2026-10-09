@@ -201,7 +201,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
     }
   }, [apiKeys?.groqKey, definitionLanguage]);
 
-  const runSearch = useCallback(async ({ searchTerm, forceSource }) => {
+  const runSearch = useCallback(async ({ searchTerm, forceSource, targetLangOverride }) => {
     activeSearchWordRef.current = searchTerm;
     updateSearchHistory(searchTerm);
     setSuggestions([]);
@@ -213,6 +213,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
     setAiError(null);
 
     const lowerQuery = searchTerm.toLowerCase();
+    const activeTargetLang = targetLangOverride || definitionLanguage;
 
     const updateResult = (result) => {
       setSearchResult(result);
@@ -272,7 +273,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
             const { data, source: aiSource } = await fetchDefinition({
               groqKey: apiKeys.groqKey,
               word: lowerQuery,
-              targetLang: definitionLanguage
+              targetLang: activeTargetLang
             });
             const res = toSearchResultFromAi(data, aiSource);
             updateResult(res);
@@ -289,7 +290,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
           }
         } else {
           try {
-            const data = await fetchDictionaryEntry(lowerQuery, source, definitionLanguage);
+            const data = await fetchDictionaryEntry(lowerQuery, source, activeTargetLang);
             if (data) {
               const normalized = normalizeEntries(data);
               const isValid = normalized.length > 0 || (data.source === 'Google Translate' && data.definition);
@@ -347,7 +348,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
     }
   }, [apiKeys, createSourceFallback, onRequireApiKeys, onSearchStart, settings?.state?.dictionaryPriority, updateSearchHistory, relatedContext, definitionLanguage, triggerAutoMnemonic]);
 
-  const handleSearch = useCallback(async (e) => {
+  const handleSearch = useCallback(async (e, targetLangOverride) => {
     if (e && e.preventDefault) e.preventDefault();
 
     const searchTerm = (typeof e === 'string' ? e : query).trim();
@@ -357,14 +358,14 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       setQuerySilently(searchTerm);
     }
 
-    await runSearch({ searchTerm, forceSource: null });
+    await runSearch({ searchTerm, forceSource: null, targetLangOverride });
   }, [query, runSearch, setQuerySilently]);
 
-  const handleSearchWithSource = useCallback(async (word, source) => {
+  const handleSearchWithSource = useCallback(async (word, source, targetLangOverride) => {
     const searchTerm = (word || query).trim();
     if (!searchTerm) return;
     setQuerySilently(searchTerm);
-    await runSearch({ searchTerm, forceSource: source });
+    await runSearch({ searchTerm, forceSource: source, targetLangOverride });
   }, [query, runSearch, setQuerySilently]);
 
   const generateAiMnemonic = useCallback(async () => {

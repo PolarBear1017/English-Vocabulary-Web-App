@@ -62,6 +62,9 @@
   "card": {
     "switchSource": "Switch source",
     "current": "Current",
+    "defLang": "Definition Language",
+    "defZhTwShort": "繁中",
+    "defEnShort": "EN",
     "relatedWords": "Related Words",
     "relatedTo": "(Related to {{word}})",
     "viewFullDefinition": "View full definition",

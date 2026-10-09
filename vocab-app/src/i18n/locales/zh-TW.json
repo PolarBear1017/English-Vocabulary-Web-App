@@ -60,6 +60,9 @@
   "card": {
     "switchSource": "切換來源",
     "current": "目前",
+    "defLang": "釋義語言",
+    "defZhTwShort": "繁中",
+    "defEnShort": "EN",
     "relatedWords": "相關單字",
     "relatedTo": "({{word}} 的相關字)",
     "viewFullDefinition": "查看完整解釋",

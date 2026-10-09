@@ -48,6 +48,8 @@ const SearchResultCard = ({
   setQuery,
   onSearch,
   onChangeSource,
+  definitionLanguage,
+  onSetDefinitionLanguage,
   relatedContext,
   audioPriority
 }) => {
@@ -490,15 +492,27 @@ const SearchResultCard = ({
     setSaveStep('selecting');
   }, []);
 
-  const handleChangeSource = useCallback(async (source) => {
+  const handleChangeSource = useCallback(async (source, targetLang) => {
     if (!onChangeSource || !searchResult?.word) return;
     setIsSwitchingSource(true);
     try {
-      await onChangeSource(searchResult.word, source);
+      await onChangeSource(searchResult.word, source, targetLang);
     } finally {
       setIsSwitchingSource(false);
     }
   }, [onChangeSource, searchResult?.word]);
+
+  const handleChangeDefinitionLanguage = useCallback(async (lang) => {
+    if (!lang || lang === definitionLanguage) return;
+    onSetDefinitionLanguage?.(lang);
+    if (!searchResult?.word || !onChangeSource) return;
+    setIsSwitchingSource(true);
+    try {
+      await onChangeSource(searchResult.word, searchResult.source, lang);
+    } finally {
+      setIsSwitchingSource(false);
+    }
+  }, [definitionLanguage, onSetDefinitionLanguage, onChangeSource, searchResult?.word, searchResult?.source]);
 
   const handleAddDefinition = useCallback((newDefinition) => {
     // Ensure examples array exists for rendering
@@ -548,6 +562,8 @@ const SearchResultCard = ({
         availableSources={['Cambridge', 'Cambridge Learner', 'Yahoo', 'Google Translate', 'Groq AI']}
         onChangeSource={handleChangeSource}
         isSwitchingSource={isSwitchingSource}
+        definitionLanguage={definitionLanguage}
+        onChangeDefinitionLanguage={handleChangeDefinitionLanguage}
         relatedContext={relatedContext}
         audioPriority={audioPriority}
         playAudioShortcut={playAudioShortcut}

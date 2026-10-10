@@ -563,6 +563,8 @@ const SearchResultCard = ({
 
   const headerStep = saveStep;
   const isSelectingView = saveStep === 'selecting';
+  const canGoBack = Array.isArray(searchTrail) && searchTrail.length > 1;
+  const previousWord = canGoBack ? searchTrail[searchTrail.length - 2] : null;
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -589,6 +591,8 @@ const SearchResultCard = ({
           relatedContext={relatedContext}
           audioPriority={audioPriority}
           playAudioShortcut={playAudioShortcut}
+          previousWord={previousWord}
+          onBackInTrail={onBackInTrail}
         />
       </div>
 
@@ -612,7 +616,7 @@ const SearchResultCard = ({
                 return next;
               });
             }}
-            onSearchCollocation={onSearch}
+            onSearchCollocation={onSelectRelatedWord || onSearch}
           />
         </div>
 

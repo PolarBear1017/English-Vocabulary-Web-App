@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { ExternalLink, Volume2, Sparkles, ChevronDown, Languages, Loader2 } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Volume2, Sparkles, ChevronDown, Languages, Loader2 } from 'lucide-react';
 import ProficiencyDots from '../common/ProficiencyDots';
 import { getAudioUrl } from '../../services/speechService';
 import { useTranslation } from 'react-i18next';
@@ -42,7 +42,9 @@ const SearchResultHeader = ({
   onChangeDefinitionLanguage,
   relatedContext,
   audioPriority,
-  playAudioShortcut = 'Tab'
+  playAudioShortcut = 'Tab',
+  previousWord = null,
+  onBackInTrail = null
 }) => {
   const { t } = useTranslation();
   const shortcutLabel = playAudioShortcut || 'Tab';
@@ -152,6 +154,20 @@ const SearchResultHeader = ({
 
   return (
     <div className="p-6 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white rounded-t-2xl">
+      {previousWord && onBackInTrail && (
+        <div className="mb-3">
+          <button
+            type="button"
+            onClick={onBackInTrail}
+            className="group inline-flex items-center gap-1.5 text-xs text-blue-600 hover:text-blue-700 font-medium transition cursor-pointer"
+          >
+            <ArrowLeft className="w-3.5 h-3.5 transition-transform group-hover:-translate-x-0.5" />
+            <span>
+              {t('card.backToPrevious', '回到上一字')}: <span className="underline font-semibold">{previousWord}</span>
+            </span>
+          </button>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-4">
         <div className="flex-1 min-w-0">
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 flex flex-wrap items-center gap-3">

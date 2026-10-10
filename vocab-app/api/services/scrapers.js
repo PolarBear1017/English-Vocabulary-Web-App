@@ -67,7 +67,13 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
             .find('.examp')
             .map((_, el) => {
                 const $el = $(el);
-                const collocation = $el.find('.lu').text().trim();
+                let collocation = $el.find('.lu').text().trim();
+                if (!collocation) {
+                    const phraseTitle = $el.closest('.phrase-block, .idiom-block, .pr.phrase').find('.phrase-title, .idiom-title, .idm-title').first().text().trim();
+                    if (phraseTitle) {
+                        collocation = phraseTitle;
+                    }
+                }
                 const eg = $el.find('.eg').text().trim();
                 const trans = $el.find('.trans').text().trim();
 
@@ -115,7 +121,13 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
         let fallbackExampleObj = null;
 
         if (firstExEl.length > 0) {
-            const collocation = firstExEl.find('.lu').text().trim();
+            let collocation = firstExEl.find('.lu').text().trim();
+            if (!collocation) {
+                const phraseTitle = firstExEl.closest('.phrase-block, .idiom-block, .pr.phrase').find('.phrase-title, .idiom-title, .idm-title').first().text().trim();
+                if (phraseTitle) {
+                    collocation = phraseTitle;
+                }
+            }
             const eg = firstExEl.find('.eg').text().trim();
             const trans = firstExEl.find('.trans').text().trim();
             let text = eg;

@@ -48,9 +48,11 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
       : [])
   ];
 
+  const rafIdRef = useRef(null);
+
   // 滾動監聽 (Scrollspy)
   useEffect(() => {
-    const handleScroll = () => {
+    const checkScrollPosition = () => {
       if (isClickScrollingRef.current) return;
 
       const mainEl = document.querySelector('main');
@@ -62,28 +64,68 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
         mainEl?.scrollTop || 0
       );
 
-      if (scrollY < 80) {
+      // 1. 如果在最頂端 (小於 100px)
+      if (scrollY < 100) {
         setActiveSection('top');
         return;
       }
 
-      // 檢查各區塊頂部距離
-      const offsets = navItems.map((item) => {
-        if (item.id === 'top') return { id: 'top', top: 0 };
-        const el = document.getElementById(item.targetId);
-        if (!el) return { id: item.id, top: Infinity };
-        const rect = el.getBoundingClientRect();
-        return { id: item.id, top: rect.top };
-      });
+      // 2. 如果滾動到最底部，直接判定為最後一個區塊
+      const scrollHeight = Math.max(
+        document.documentElement?.scrollHeight || 0,
+        document.body?.scrollHeight || 0,
+        mainEl?.scrollHeight || 0
+      );
+      const clientHeight = Math.max(
+        window.innerHeight || 0,
+        mainEl?.clientHeight || 0
+      );
 
-      // 找出最靠近視窗上半部的區塊
-      const candidate = offsets
-        .filter((o) => o.top <= 260)
-        .sort((a, b) => b.top - a.top)[0];
-
-      if (candidate) {
-        setActiveSection(candidate.id);
+      if (scrollHeight > 0 && scrollY + clientHeight >= scrollHeight - 50) {
+        const lastItem = navItems[navItems.length - 1];
+        if (lastItem) {
+          setActiveSection(lastItem.id);
+          return;
+        }
       }
+
+      // 3. 視窗檢測線 (距離視窗上方約 30% 或 200px)
+      const triggerY = Math.min(220, window.innerHeight * 0.35);
+      let currentSection = 'top';
+
+      for (const item of navItems) {
+        if (item.id === 'top') {
+          const el = document.getElementById(item.targetId);
+          if (el) {
+            const rect = el.getBoundingClientRect();
+            if (rect.bottom > triggerY) {
+              currentSection = 'top';
+              break;
+            }
+          }
+          continue;
+        }
+
+        const el = document.getElementById(item.targetId);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+
+        // 該區塊的頂部已經跨過觸發線，且底部仍在觸發線下方 (正在瀏覽該區塊)
+        if (rect.top <= triggerY && rect.bottom > triggerY) {
+          currentSection = item.id;
+          break;
+        } else if (rect.top <= triggerY) {
+          // 若已經滾過該區塊頂部，暫定為該區塊
+          currentSection = item.id;
+        }
+      }
+
+      setActiveSection(currentSection);
+    };
+
+    const handleScroll = () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
+      rafIdRef.current = requestAnimationFrame(checkScrollPosition);
     };
 
     const mainEl = document.querySelector('main');
@@ -91,9 +133,10 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
     if (mainEl) {
       mainEl.addEventListener('scroll', handleScroll, { passive: true });
     }
-    handleScroll();
+    checkScrollPosition();
 
     return () => {
+      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener('scroll', handleScroll);
       if (mainEl) {
         mainEl.removeEventListener('scroll', handleScroll);

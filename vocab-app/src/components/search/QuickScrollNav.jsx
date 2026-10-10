@@ -48,11 +48,9 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
       : [])
   ];
 
-  const rafIdRef = useRef(null);
-
-  // 滾動監聽 (Scrollspy)
+  // 滾動監聽 (Scrollspy) - 視線焦點線 (視窗上方 35%) + 頂部/底部保護
   useEffect(() => {
-    const checkScrollPosition = () => {
+    const handleScroll = () => {
       if (isClickScrollingRef.current) return;
 
       const mainEl = document.querySelector('main');
@@ -64,24 +62,21 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
         mainEl?.scrollTop || 0
       );
 
-      // 1. 如果在最頂端 (小於 100px)
-      if (scrollY < 100) {
+      // 1. 回到頂部保護：滾動高度小於 80px 直接高亮 top
+      if (scrollY < 80) {
         setActiveSection('top');
         return;
       }
 
-      // 2. 如果滾動到最底部，直接判定為最後一個區塊
-      const scrollHeight = Math.max(
+      // 2. 滾到底部保護：視窗已達頁面底部時，自動高亮最後一個區塊
+      const docHeight = Math.max(
         document.documentElement?.scrollHeight || 0,
-        document.body?.scrollHeight || 0,
-        mainEl?.scrollHeight || 0
+        document.body?.scrollHeight || 0
       );
-      const clientHeight = Math.max(
-        window.innerHeight || 0,
-        mainEl?.clientHeight || 0
-      );
+      const isWindowBottom = (window.innerHeight + window.scrollY) >= docHeight - 60;
+      const isMainBottom = mainEl && (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 60);
 
-      if (scrollHeight > 0 && scrollY + clientHeight >= scrollHeight - 50) {
+      if (isWindowBottom || isMainBottom) {
         const lastItem = navItems[navItems.length - 1];
         if (lastItem) {
           setActiveSection(lastItem.id);
@@ -89,43 +84,22 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
         }
       }
 
-      // 3. 視窗檢測線 (距離視窗上方約 30% 或 200px)
-      const triggerY = Math.min(220, window.innerHeight * 0.35);
-      let currentSection = 'top';
+      // 3. 視線焦點線 (視窗頂部 35% 處)：循序掃描最後一個頂部越過焦點線的區塊
+      const focusLine = window.innerHeight * 0.35;
+      const contentItems = navItems.filter((item) => item.id !== 'top');
 
-      for (const item of navItems) {
-        if (item.id === 'top') {
-          const el = document.getElementById(item.targetId);
-          if (el) {
-            const rect = el.getBoundingClientRect();
-            if (rect.bottom > triggerY) {
-              currentSection = 'top';
-              break;
-            }
-          }
-          continue;
-        }
-
+      let currentId = 'top';
+      for (const item of contentItems) {
         const el = document.getElementById(item.targetId);
-        if (!el) continue;
-        const rect = el.getBoundingClientRect();
-
-        // 該區塊的頂部已經跨過觸發線，且底部仍在觸發線下方 (正在瀏覽該區塊)
-        if (rect.top <= triggerY && rect.bottom > triggerY) {
-          currentSection = item.id;
-          break;
-        } else if (rect.top <= triggerY) {
-          // 若已經滾過該區塊頂部，暫定為該區塊
-          currentSection = item.id;
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          if (rect.top <= focusLine) {
+            currentId = item.id;
+          }
         }
       }
 
-      setActiveSection(currentSection);
-    };
-
-    const handleScroll = () => {
-      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
-      rafIdRef.current = requestAnimationFrame(checkScrollPosition);
+      setActiveSection(currentId);
     };
 
     const mainEl = document.querySelector('main');
@@ -133,10 +107,9 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
     if (mainEl) {
       mainEl.addEventListener('scroll', handleScroll, { passive: true });
     }
-    checkScrollPosition();
+    handleScroll();
 
     return () => {
-      if (rafIdRef.current) cancelAnimationFrame(rafIdRef.current);
       window.removeEventListener('scroll', handleScroll);
       if (mainEl) {
         mainEl.removeEventListener('scroll', handleScroll);

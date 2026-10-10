@@ -171,8 +171,8 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
       aria-label={t('card.jumpTo', '快速跳轉導航')}
       className="fixed right-3 sm:right-6 top-1/2 -translate-y-1/2 z-40 select-none animate-in fade-in duration-300"
     >
-      {/* iOS 18 控制中心風格極簡毛玻璃滑動切換列 */}
-      <div className="bg-slate-900/10 dark:bg-black/30 backdrop-blur-2xl border border-slate-200/50 dark:border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.12)] rounded-full px-1.5 py-3 flex flex-col items-center gap-3 transition-all">
+      {/* iOS 18 控制中心風格極簡毛玻璃滑動切換列 (固定深色毛玻璃 + 白色圖標) */}
+      <div className="bg-black/30 backdrop-blur-2xl border border-white/10 shadow-[0_4px_24px_rgba(0,0,0,0.12)] rounded-full px-1.5 py-3 flex flex-col items-center gap-3 transition-all">
         {navItems.map((item) => {
           const isActive = activeSection === item.id;
           const isHovered = hoveredSection === item.id;
@@ -183,9 +183,9 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
             <div key={item.id} className="relative flex items-center">
               {/* iOS 浮出標籤預覽 Tooltip (左側彈出，手機與觸控螢幕隱藏，僅電腦版顯示) */}
               {isHovered && (
-                <div className="hidden md:flex absolute right-full mr-2.5 px-2.5 py-1 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 text-[11px] font-medium rounded-lg shadow-lg backdrop-blur-md whitespace-nowrap pointer-events-none transition-all animate-in fade-in slide-in-from-right-1 duration-150 items-center">
+                <div className="hidden md:flex absolute right-full mr-2.5 px-2.5 py-1 bg-slate-900/90 text-white text-[11px] font-medium rounded-lg shadow-lg backdrop-blur-md whitespace-nowrap pointer-events-none transition-all animate-in fade-in slide-in-from-right-1 duration-150 items-center">
                   <span>{label}</span>
-                  <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-900/90 dark:border-l-white/95" />
+                  <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-900/90" />
                 </div>
               )}
 
@@ -203,10 +203,10 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
                 {isActive ? (
                   <span
                     data-testid="active-indicator"
-                    className="w-3.5 h-3.5 rounded-full bg-slate-900 dark:bg-white shadow-[0_1px_4px_rgba(0,0,0,0.25)] dark:shadow-[0_0_12px_rgba(255,255,255,0.85)] transition-all transform scale-105"
+                    className="w-3.5 h-3.5 rounded-full bg-white shadow-[0_0_12px_rgba(255,255,255,0.85)] transition-all transform scale-105"
                   />
                 ) : (
-                  <Icon className="w-4 h-4 text-slate-400 dark:text-white/45 group-hover:text-slate-800 dark:group-hover:text-white group-hover:scale-110 transition-all" />
+                  <Icon className="w-4 h-4 text-white/45 group-hover:text-white group-hover:scale-110 transition-all" />
                 )}
               </button>
             </div>

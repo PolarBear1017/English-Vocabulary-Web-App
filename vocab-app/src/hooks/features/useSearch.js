@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AI_ERROR_CODES, fetchDefinition, fetchMnemonic } from '../../services/aiService';
-import { fetchDictionaryEntry, fetchSuggestions } from '../../services/dictionaryService';
+import { fetchDictionaryEntry, fetchSuggestions, fetchRelatedWords } from '../../services/dictionaryService';
 import { MOCK_DICTIONARY_DB } from '../../utils/mockData';
 import {
   toSearchResultFromAi,
@@ -56,6 +56,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
   const [searchHistory, setSearchHistory] = useState(() => loadSearchHistory());
   const [saveButtonFeedback, setSaveButtonFeedback] = useState(false);
   const [relatedContext, setRelatedContext] = useState(null);
+  const [searchTrail, setSearchTrail] = useState([]);
 
   const ignoreNextQueryUpdate = useRef(false);
   const searchInputRef = useRef(null);
@@ -201,6 +202,33 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
     }
   }, [apiKeys?.groqKey, definitionLanguage]);
 
+  const triggerWordRelations = useCallback(async (word, existingFamily = null, existingSimilar = []) => {
+    if (!word || word.trim().length < 2) return;
+    const clean = word.trim().toLowerCase();
+
+    const hasFamily = existingFamily && Object.values(existingFamily).some((arr) => Array.isArray(arr) && arr.length > 0);
+    const hasSimilar = Array.isArray(existingSimilar) && existingSimilar.length > 0;
+    if (hasFamily && hasSimilar) return;
+
+    try {
+      const rel = await fetchRelatedWords(clean);
+      if (!rel) return;
+
+      if (activeSearchWordRef.current.trim().toLowerCase() === clean) {
+        setSearchResult((prev) => {
+          if (!prev || prev.word.trim().toLowerCase() !== clean) return prev;
+          return {
+            ...prev,
+            wordFamily: prev.wordFamily || rel.wordFamily,
+            similar: (Array.isArray(prev.similar) && prev.similar.length > 0) ? prev.similar : rel.synonyms
+          };
+        });
+      }
+    } catch (e) {
+      console.warn('[WordRelations] fetch failed:', e);
+    }
+  }, []);
+
   const runSearch = useCallback(async ({ searchTerm, forceSource, targetLangOverride }) => {
     activeSearchWordRef.current = searchTerm;
     updateSearchHistory(searchTerm);
@@ -217,6 +245,7 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
 
     const updateResult = (result) => {
       setSearchResult(result);
+      triggerWordRelations(result.word, result.wordFamily, result.similar);
 
       if (result.translatedFrom) {
         if (result.alternatives?.length > 0) {
@@ -358,8 +387,35 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       setQuerySilently(searchTerm);
     }
 
+    setSearchTrail([searchTerm]);
     await runSearch({ searchTerm, forceSource: null, targetLangOverride });
   }, [query, runSearch, setQuerySilently]);
+
+  const handleSelectRelatedWord = useCallback(async (targetWord) => {
+    const term = (targetWord || '').trim();
+    if (!term) return;
+
+    setSearchTrail((prev) => {
+      const current = activeSearchWordRef.current.trim();
+      const base = prev.length > 0 ? prev : (current ? [current] : []);
+      if (base[base.length - 1]?.toLowerCase() === term.toLowerCase()) {
+        return base;
+      }
+      return [...base, term];
+    });
+
+    setQuerySilently(term);
+    await runSearch({ searchTerm: term, forceSource: null });
+  }, [runSearch, setQuerySilently]);
+
+  const handleBackInTrail = useCallback(async () => {
+    if (searchTrail.length <= 1) return;
+    const nextTrail = searchTrail.slice(0, -1);
+    const prevWord = nextTrail[nextTrail.length - 1];
+    setSearchTrail(nextTrail);
+    setQuerySilently(prevWord);
+    await runSearch({ searchTerm: prevWord, forceSource: null });
+  }, [searchTrail, runSearch, setQuerySilently]);
 
   const handleSearchWithSource = useCallback(async (word, source, targetLangOverride) => {
     const searchTerm = (word || query).trim();
@@ -422,7 +478,8 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       searchError,
       suggestions,
       saveButtonFeedback,
-      relatedContext
+      relatedContext,
+      searchTrail
     },
     derived: {
       normalizedEntries
@@ -433,6 +490,8 @@ const useSearch = ({ apiKeys, settings, definitionLanguage: propDefLang, onSearc
       setSearchResult: setSearchResultAndClearContext,
       setSuggestions,
       handleSearch,
+      handleSelectRelatedWord,
+      handleBackInTrail,
       handleSearchWithSource,
       generateAiMnemonic,
       triggerSaveButtonFeedback,

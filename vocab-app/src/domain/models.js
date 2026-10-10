@@ -66,6 +66,7 @@ const createSearchResult = (data = {}) => ({
   example: data.example || '',
   entries: Array.isArray(data.entries) ? data.entries : [],
   similar: Array.isArray(data.similar) ? data.similar : [],
+  wordFamily: data.wordFamily || null,
   alternatives: Array.isArray(data.alternatives) ? data.alternatives : [],
   translatedFrom: data.translatedFrom || null,
   originalQuery: data.originalQuery || null,

@@ -51,7 +51,11 @@ const SearchResultCard = ({
   definitionLanguage,
   onSetDefinitionLanguage,
   relatedContext,
-  audioPriority
+  audioPriority,
+  savedWordsSet,
+  searchTrail,
+  onSelectRelatedWord,
+  onBackInTrail
 }) => {
   const { t } = useTranslation();
   const [saveStep, setSaveStep] = useState('idle');
@@ -630,11 +634,19 @@ const SearchResultCard = ({
 
         {saveStep === 'idle' && (
           <SearchSimilarList
+            wordFamily={searchResult.wordFamily}
             similarWords={searchResult.similar}
+            savedWordsSet={savedWordsSet}
+            historyTrail={searchTrail}
             onSelect={(word) => {
-              setQuery(word);
-              onSearch({ preventDefault: () => { } });
+              if (onSelectRelatedWord) {
+                onSelectRelatedWord(word);
+              } else {
+                setQuery(word);
+                onSearch({ preventDefault: () => { } }, word);
+              }
             }}
+            onBack={onBackInTrail}
           />
         )}
 

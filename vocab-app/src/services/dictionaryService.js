@@ -96,4 +96,154 @@ const fetchSuggestions = async (query, options = {}) => {
   return sorted.slice(0, limit);
 };
 
-export { fetchDictionaryEntry, fetchSuggestions };
+const getWordStems = (word) => {
+  const w = word.toLowerCase().trim();
+  const stems = new Set([w]);
+
+  let base = w;
+  if (base.endsWith('ingly')) base = base.slice(0, -5);
+  else if (base.endsWith('ation')) base = base.slice(0, -5);
+  else if (base.endsWith('ition')) base = base.slice(0, -5);
+  else if (base.endsWith('sion')) base = base.slice(0, -4);
+  else if (base.endsWith('tion')) base = base.slice(0, -4);
+  else if (base.endsWith('ment')) base = base.slice(0, -4);
+  else if (base.endsWith('ness')) base = base.slice(0, -4);
+  else if (base.endsWith('able')) base = base.slice(0, -4);
+  else if (base.endsWith('ible')) base = base.slice(0, -4);
+  else if (base.endsWith('fully')) base = base.slice(0, -5);
+  else if (base.endsWith('ful')) base = base.slice(0, -3);
+  else if (base.endsWith('ive')) base = base.slice(0, -3);
+  else if (base.endsWith('ing')) base = base.slice(0, -3);
+  else if (base.endsWith('ed')) base = base.slice(0, -2);
+  else if (base.endsWith('ly')) base = base.slice(0, -2);
+  else if (base.endsWith('ity')) base = base.slice(0, -3);
+  else if (base.endsWith('ty')) base = base.slice(0, -2);
+  else if (base.endsWith('er') || base.endsWith('or')) base = base.slice(0, -2);
+  else if (base.endsWith('e') && base.length > 3) base = base.slice(0, -1);
+
+  if (base.length >= 3) {
+    stems.add(base);
+    if (base.endsWith('d')) {
+      stems.add(base.slice(0, -1) + 's');
+    } else if (base.endsWith('s')) {
+      stems.add(base.slice(0, -1) + 'd');
+    }
+  }
+
+  return Array.from(stems);
+};
+
+const filterDistinctForms = (words) => {
+  const seen = new Set();
+  const result = [];
+  for (const w of words) {
+    const lower = w.toLowerCase();
+    if (seen.has(lower)) continue;
+    // 避免重複放入純複數形
+    if (lower.endsWith('s') && seen.has(lower.slice(0, -1))) continue;
+    if (lower.endsWith('es') && seen.has(lower.slice(0, -2))) continue;
+    seen.add(lower);
+    result.push(lower);
+    if (result.length >= 4) break;
+  }
+  return result;
+};
+
+const fetchRelatedWords = async (word, options = {}) => {
+  if (!word || typeof word !== 'string' || word.trim().length < 2) {
+    return {
+      wordFamily: { noun: [], verb: [], adjective: [], adverb: [] },
+      synonyms: []
+    };
+  }
+
+  const { signal } = options;
+  const cleanWord = word.trim().toLowerCase();
+  const stems = getWordStems(cleanWord);
+
+  try {
+    const stemPromises = stems.map((s) =>
+      fetch(`https://api.datamuse.com/words?sp=${encodeURIComponent(s + '*')}&md=p&max=60`, { signal })
+        .then((res) => (res.ok ? res.json() : []))
+        .catch(() => [])
+    );
+
+    const synonymsPromise = fetch(`https://api.datamuse.com/words?rel_syn=${encodeURIComponent(cleanWord)}&max=10`, { signal })
+      .then((res) => (res.ok ? res.json() : []))
+      .catch(() => []);
+
+    const [stemResults, rawSynonyms] = await Promise.all([
+      Promise.all(stemPromises),
+      synonymsPromise
+    ]);
+
+    const allStemItems = stemResults.flat();
+    allStemItems.sort((a, b) => (b.score || 0) - (a.score || 0));
+
+    const rawFamily = { noun: [], verb: [], adjective: [], adverb: [] };
+
+    allStemItems.forEach((item) => {
+      const w = (item.word || '').trim().toLowerCase();
+      if (!w || w.includes(' ') || w.length < 3) return;
+      const score = item.score !== undefined ? item.score : 500;
+      const tags = item.tags || [];
+
+      if (tags.includes('n') && (score > 100 || w === cleanWord)) {
+        rawFamily.noun.push(w);
+      }
+      if (tags.includes('v') && !w.endsWith('ed') && !w.endsWith('ing') && !w.endsWith('s') && (score > 100 || w === cleanWord)) {
+        rawFamily.verb.push(w);
+      }
+      if (tags.includes('adj') && !w.endsWith('ed') && !w.endsWith('ing') && (score > 100 || w === cleanWord)) {
+        rawFamily.adjective.push(w);
+      }
+      if (tags.includes('adv') && score > 5) {
+        rawFamily.adverb.push(w);
+      }
+    });
+
+    const wordFamily = {
+      noun: filterDistinctForms(rawFamily.noun),
+      verb: filterDistinctForms(rawFamily.verb),
+      adjective: filterDistinctForms(rawFamily.adjective),
+      adverb: filterDistinctForms(rawFamily.adverb)
+    };
+
+    let synonyms = [];
+    let synData = Array.isArray(rawSynonyms) ? rawSynonyms : [];
+
+    if (synData.length === 0) {
+      try {
+        const mlRes = await fetch(`https://api.datamuse.com/words?ml=${encodeURIComponent(cleanWord)}&max=8`, { signal });
+        if (mlRes.ok) {
+          synData = await mlRes.json();
+        }
+      } catch (_) {}
+    }
+
+    if (Array.isArray(synData)) {
+      synData.forEach((item) => {
+        const w = (item.word || '').trim().toLowerCase();
+        if (w && w !== cleanWord && !synonyms.includes(w)) {
+          synonyms.push(w);
+        }
+      });
+    }
+
+    return {
+      wordFamily,
+      synonyms: synonyms.slice(0, 8)
+    };
+  } catch (error) {
+    if (error.name === 'AbortError' || signal?.aborted) return null;
+    console.warn('fetchRelatedWords failed', error);
+    return {
+      wordFamily: { noun: [], verb: [], adjective: [], adverb: [] },
+      synonyms: []
+    };
+  }
+};
+
+export { fetchDictionaryEntry, fetchSuggestions, fetchRelatedWords };
+
+

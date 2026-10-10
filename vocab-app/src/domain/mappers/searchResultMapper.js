@@ -10,7 +10,8 @@ const toSearchResultFromDictionary = (data) => {
     audioUrl: data.audioUrl || null,
     usAudioUrl: data.usAudioUrl || data.audioUrl || null,
     ukAudioUrl: data.ukAudioUrl || null,
-    similar: [],
+    similar: Array.isArray(data.similar) ? data.similar : [],
+    wordFamily: data.wordFamily || null,
     mnemonics: null,
     isAiGenerated: false,
     source: data.source || 'Cambridge'
@@ -33,6 +34,8 @@ const toSearchResultFromAi = (data, source) => {
     audioUrl: null,
     usAudioUrl: null,
     ukAudioUrl: null,
+    similar: Array.isArray(data.similar) ? data.similar : (Array.isArray(data.synonyms) ? data.synonyms : []),
+    wordFamily: data.wordFamily || null,
     mnemonics: data.mnemonics ?? null,
     isAiGenerated: true,
     source

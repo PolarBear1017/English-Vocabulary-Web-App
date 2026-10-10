@@ -112,6 +112,13 @@ If you need quotation marks, use fullwidth brackets like 「」 or 『』 instea
   "translation": "${isEn ? 'Core concise English definition' : '核心定義（可用繁體中文簡述）'}",
   "examples": ["Example sentence 1", "Example sentence 2"],
   "practicalTips": "${isEn ? 'Common collocations or nuance tips in English' : '常見搭配或使用情境（繁中）'}",
+  "wordFamily": {
+    "noun": ["noun forms or empty array"],
+    "verb": ["verb forms or empty array"],
+    "adjective": ["adjective forms or empty array"],
+    "adverb": ["adverb forms or empty array"]
+  },
+  "synonyms": ["3 to 6 common and natural synonyms"],
   "memoryZone": {
     "prefix": "${isEn ? 'prefix or empty (format: prefix-)' : '字首或無 (格式: prefix-)'}",
     "prefixMeaning": "${isEn ? 'meaning of prefix' : '字首意思'}",

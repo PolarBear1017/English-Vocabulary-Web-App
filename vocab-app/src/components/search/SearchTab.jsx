@@ -131,6 +131,10 @@ const SearchTab = () => {
           onSetDefinitionLanguage={setDefinitionLanguage}
           relatedContext={relatedContext}
           audioPriority={audioSourcePriority}
+          savedWordsSet={library.derived.index.wordByText}
+          searchTrail={search.state.searchTrail}
+          onSelectRelatedWord={search.actions.handleSelectRelatedWord}
+          onBackInTrail={search.actions.handleBackInTrail}
         />
       )}
     </div>

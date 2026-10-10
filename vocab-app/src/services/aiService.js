@@ -139,7 +139,9 @@ const normalizeDefinition = (word, data) => {
     translation: data.translation || '',
     examples: Array.isArray(data.examples) ? data.examples : (data.example ? [data.example] : []),
     practicalTips: data.practicalTips || data.practical_tips || '',
-    memoryZone: data.memoryZone || data.memory_zone || ''
+    memoryZone: data.memoryZone || data.memory_zone || '',
+    wordFamily: data.wordFamily || data.word_family || null,
+    synonyms: Array.isArray(data.synonyms) ? data.synonyms : (Array.isArray(data.similar) ? data.similar : [])
   };
 };
 

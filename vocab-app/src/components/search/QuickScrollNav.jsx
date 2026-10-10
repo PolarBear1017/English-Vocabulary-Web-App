@@ -135,6 +135,34 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
     }, 800);
   }, []);
 
+  const isTouchActiveRef = useRef(false);
+  const touchEndTimeoutRef = useRef(null);
+
+  const handleTouchStart = (itemId) => {
+    isTouchActiveRef.current = true;
+    if (touchEndTimeoutRef.current) clearTimeout(touchEndTimeoutRef.current);
+    setHoveredSection(itemId);
+  };
+
+  const handleTouchEnd = () => {
+    setHoveredSection(null);
+    if (touchEndTimeoutRef.current) clearTimeout(touchEndTimeoutRef.current);
+    // 延遲重設以阻擋觸控後瀏覽器模擬的 mouseEnter 事件
+    touchEndTimeoutRef.current = setTimeout(() => {
+      isTouchActiveRef.current = false;
+    }, 500);
+  };
+
+  const handleMouseEnter = (itemId) => {
+    if (isTouchActiveRef.current) return;
+    setHoveredSection(itemId);
+  };
+
+  const handleMouseLeave = () => {
+    if (isTouchActiveRef.current) return;
+    setHoveredSection(null);
+  };
+
   return (
     <aside
       aria-label={t('card.jumpTo', '快速跳轉導航')}
@@ -163,8 +191,11 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
                 type="button"
                 data-target={item.targetId}
                 onClick={() => scrollToSection(item)}
-                onMouseEnter={() => setHoveredSection(item.id)}
-                onMouseLeave={() => setHoveredSection(null)}
+                onTouchStart={() => handleTouchStart(item.id)}
+                onTouchEnd={handleTouchEnd}
+                onTouchCancel={handleTouchEnd}
+                onMouseEnter={() => handleMouseEnter(item.id)}
+                onMouseLeave={handleMouseLeave}
                 title={label}
                 aria-label={label}
                 className="relative w-6 h-6 rounded-full flex items-center justify-center transition-all cursor-pointer group"

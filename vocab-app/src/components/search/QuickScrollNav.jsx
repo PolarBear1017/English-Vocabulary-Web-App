@@ -154,31 +154,15 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
     }, 800);
   }, []);
 
-  const isTouchActiveRef = useRef(false);
-  const touchEndTimeoutRef = useRef(null);
-
-  const handleTouchStart = (itemId) => {
-    isTouchActiveRef.current = true;
-    if (touchEndTimeoutRef.current) clearTimeout(touchEndTimeoutRef.current);
-    setHoveredSection(itemId);
-  };
-
-  const handleTouchEnd = () => {
-    setHoveredSection(null);
-    if (touchEndTimeoutRef.current) clearTimeout(touchEndTimeoutRef.current);
-    // 延遲重設以阻擋觸控後瀏覽器模擬的 mouseEnter 事件
-    touchEndTimeoutRef.current = setTimeout(() => {
-      isTouchActiveRef.current = false;
-    }, 500);
-  };
-
   const handleMouseEnter = (itemId) => {
-    if (isTouchActiveRef.current) return;
+    // 觸控螢幕或不支援 hover 的裝置不顯示氣泡
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none)').matches) {
+      return;
+    }
     setHoveredSection(itemId);
   };
 
   const handleMouseLeave = () => {
-    if (isTouchActiveRef.current) return;
     setHoveredSection(null);
   };
 
@@ -197,9 +181,9 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
 
           return (
             <div key={item.id} className="relative flex items-center">
-              {/* iOS 浮出標籤預覽 Tooltip (左側彈出) */}
+              {/* iOS 浮出標籤預覽 Tooltip (左側彈出，手機與觸控螢幕隱藏，僅電腦版顯示) */}
               {isHovered && (
-                <div className="absolute right-full mr-2.5 px-2.5 py-1 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 text-[11px] font-medium rounded-lg shadow-lg backdrop-blur-md whitespace-nowrap pointer-events-none transition-all animate-in fade-in slide-in-from-right-1 duration-150 flex items-center">
+                <div className="hidden md:flex absolute right-full mr-2.5 px-2.5 py-1 bg-slate-900/90 dark:bg-white/95 text-white dark:text-slate-900 text-[11px] font-medium rounded-lg shadow-lg backdrop-blur-md whitespace-nowrap pointer-events-none transition-all animate-in fade-in slide-in-from-right-1 duration-150 items-center">
                   <span>{label}</span>
                   <div className="absolute left-full top-1/2 -translate-y-1/2 border-4 border-transparent border-l-slate-900/90 dark:border-l-white/95" />
                 </div>
@@ -210,9 +194,6 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
                 type="button"
                 data-target={item.targetId}
                 onClick={() => scrollToSection(item)}
-                onTouchStart={() => handleTouchStart(item.id)}
-                onTouchEnd={handleTouchEnd}
-                onTouchCancel={handleTouchEnd}
                 onMouseEnter={() => handleMouseEnter(item.id)}
                 onMouseLeave={handleMouseLeave}
                 title={label}

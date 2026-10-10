@@ -8,6 +8,7 @@ import SearchSimilarList from './SearchSimilarList';
 import SearchMnemonic from './SearchMnemonic';
 import FolderSelectionList from './FolderSelectionList';
 import AddDefinitionModal from './AddDefinitionModal';
+import QuickScrollNav from './QuickScrollNav';
 import { normalizeEntries } from '../../utils/data';
 import { getAudioUrl } from '../../services/speechService';
 import { useSettingsContext } from '../../contexts/SettingsContext';
@@ -565,62 +566,68 @@ const SearchResultCard = ({
 
   return (
     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <SearchResultHeader
-        searchResult={searchResult}
-        preferredAccent={preferredAccent}
-        onAccentChange={setPreferredAccent}
-        preferredSearchAudio={preferredSearchAudio}
-        onSpeak={onSpeak}
-        savedWordInSearch={savedWordInSearch}
-        saveButtonFeedback={saveButtonFeedback}
-        saveStep={headerStep}
-        onStartSave={handleStartSave}
-        onCancelSave={handleCancelSave}
-        onNextSave={handleNextSave}
-        onBackSave={handleEditDefinitions}
-        onSearchFullDefinition={(altWord) => onSearch(altWord || searchResult.word)}
-        availableSources={['Cambridge', 'Cambridge Learner', 'Yahoo', 'Google Translate', 'Groq AI']}
-        onChangeSource={handleChangeSource}
-        isSwitchingSource={isSwitchingSource}
-        definitionLanguage={definitionLanguage}
-        onChangeDefinitionLanguage={handleChangeDefinitionLanguage}
-        relatedContext={relatedContext}
-        audioPriority={audioPriority}
-        playAudioShortcut={playAudioShortcut}
-      />
+      <div id="search-section-header">
+        <SearchResultHeader
+          searchResult={searchResult}
+          preferredAccent={preferredAccent}
+          onAccentChange={setPreferredAccent}
+          preferredSearchAudio={preferredSearchAudio}
+          onSpeak={onSpeak}
+          savedWordInSearch={savedWordInSearch}
+          saveButtonFeedback={saveButtonFeedback}
+          saveStep={headerStep}
+          onStartSave={handleStartSave}
+          onCancelSave={handleCancelSave}
+          onNextSave={handleNextSave}
+          onBackSave={handleEditDefinitions}
+          onSearchFullDefinition={(altWord) => onSearch(altWord || searchResult.word)}
+          availableSources={['Cambridge', 'Cambridge Learner', 'Yahoo', 'Google Translate', 'Groq AI']}
+          onChangeSource={handleChangeSource}
+          isSwitchingSource={isSwitchingSource}
+          definitionLanguage={definitionLanguage}
+          onChangeDefinitionLanguage={handleChangeDefinitionLanguage}
+          relatedContext={relatedContext}
+          audioPriority={audioPriority}
+          playAudioShortcut={playAudioShortcut}
+        />
+      </div>
 
       <div className={`p-6 space-y-6${isSelectingView ? ' max-h-[70vh] overflow-y-auto' : ''}`}>
-        {saveStep === 'idle' && (
-          <SearchMnemonic
-            mnemonics={searchResult.mnemonics}
-            groqApiKey={groqApiKey}
-            aiLoading={aiLoading}
-            onGenerate={onGenerateMnemonic}
-            isOpen={isMnemonicOpen}
-            onToggleOpen={() => setIsMnemonicOpen(prev => !prev)}
+        <div id="search-section-definitions">
+          <SearchResultEntries
+            normalizedEntries={orderedEntries}
+            searchWord={searchResult.word}
+            selectedEntryIndices={selectedEntryIndices}
+            onToggleEntry={handleToggleEntry}
+            onToggleAll={handleToggleAll}
+            allSelected={selectedEntryIndices === null}
+            readOnly={!isSelectingView}
+            onDeleteEntry={(entry) => {
+              setCustomDefinitions(prev => prev.filter(d => 
+                getEntryKey(d) !== getEntryKey(entry)
+              ));
+              setDeletedCustomDefs(prev => {
+                const next = new Set(prev);
+                next.add(getEntryKey(entry));
+                return next;
+              });
+            }}
+            onSearchCollocation={onSearch}
           />
-        )}
+        </div>
 
-        <SearchResultEntries
-          normalizedEntries={orderedEntries}
-          searchWord={searchResult.word}
-          selectedEntryIndices={selectedEntryIndices}
-          onToggleEntry={handleToggleEntry}
-          onToggleAll={handleToggleAll}
-          allSelected={selectedEntryIndices === null}
-          readOnly={!isSelectingView}
-          onDeleteEntry={(entry) => {
-            setCustomDefinitions(prev => prev.filter(d => 
-              getEntryKey(d) !== getEntryKey(entry)
-            ));
-            setDeletedCustomDefs(prev => {
-              const next = new Set(prev);
-              next.add(getEntryKey(entry));
-              return next;
-            });
-          }}
-          onSearchCollocation={onSearch}
-        />
+        {saveStep === 'idle' && (
+          <div id="search-section-mnemonic">
+            <SearchMnemonic
+              mnemonics={searchResult.mnemonics}
+              groqApiKey={groqApiKey}
+              aiLoading={aiLoading}
+              onGenerate={onGenerateMnemonic}
+              isOpen={isMnemonicOpen}
+              onToggleOpen={() => setIsMnemonicOpen(prev => !prev)}
+            />
+          </div>
+        )}
 
         {isSelectingView && (
           <button
@@ -633,20 +640,41 @@ const SearchResultCard = ({
         )}
 
         {saveStep === 'idle' && (
-          <SearchSimilarList
-            wordFamily={searchResult.wordFamily}
-            similarWords={searchResult.similar}
-            savedWordsSet={savedWordsSet}
-            historyTrail={searchTrail}
-            onSelect={(word) => {
-              if (onSelectRelatedWord) {
-                onSelectRelatedWord(word);
-              } else {
-                setQuery(word);
-                onSearch({ preventDefault: () => { } }, word);
-              }
-            }}
-            onBack={onBackInTrail}
+          <div id="search-section-relations">
+            <SearchSimilarList
+              currentWord={searchResult.word}
+              verbForms={searchResult.verbForms}
+              wordFamily={searchResult.wordFamily}
+              similarWords={searchResult.similar}
+              savedWordsSet={savedWordsSet}
+              historyTrail={searchTrail}
+              onSelect={(word) => {
+                if (onSelectRelatedWord) {
+                  onSelectRelatedWord(word);
+                } else {
+                  setQuery(word);
+                  onSearch({ preventDefault: () => { } }, word);
+                }
+              }}
+              onBack={onBackInTrail}
+            />
+          </div>
+        )}
+
+        {saveStep === 'idle' && (
+          <QuickScrollNav
+            hasMnemonic={Boolean(searchResult.mnemonics || groqApiKey)}
+            hasRelations={Boolean(
+              (searchResult.verbForms && searchResult.verbForms.length > 0) ||
+              (searchResult.wordFamily && (
+                searchResult.wordFamily.nouns?.length > 0 ||
+                searchResult.wordFamily.verbs?.length > 0 ||
+                searchResult.wordFamily.adjectives?.length > 0 ||
+                searchResult.wordFamily.adverbs?.length > 0 ||
+                searchResult.wordFamily.others?.length > 0
+              )) ||
+              (searchResult.similar && searchResult.similar.length > 0)
+            )}
           />
         )}
 

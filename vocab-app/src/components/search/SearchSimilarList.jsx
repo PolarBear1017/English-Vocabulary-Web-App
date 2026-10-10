@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Bookmark, Sparkles } from 'lucide-react';
+import { getVerbForms } from '../../utils/verbForms';
 
 const POS_CONFIG = {
   noun: {
@@ -30,6 +31,8 @@ const POS_CONFIG = {
 };
 
 const SearchSimilarList = ({
+  currentWord = null,
+  verbForms = null,
   wordFamily = null,
   similarWords = [],
   savedWordsSet = null,
@@ -46,7 +49,15 @@ const SearchSimilarList = ({
   const hasSimilar = safeSimilar.length > 0;
   const canGoBack = Array.isArray(historyTrail) && historyTrail.length > 1;
 
-  if (!hasFamily && !hasSimilar && !canGoBack) {
+  const resolvedVerbForms = useMemo(() => {
+    if (verbForms && verbForms.present && verbForms.past) {
+      return verbForms;
+    }
+    const target = currentWord || (canGoBack ? historyTrail[historyTrail.length - 1] : null);
+    return target ? getVerbForms(target) : null;
+  }, [verbForms, currentWord, canGoBack, historyTrail]);
+
+  if (!hasFamily && !hasSimilar && !canGoBack && !resolvedVerbForms) {
     return null;
   }
 
@@ -70,7 +81,63 @@ const SearchSimilarList = ({
         </div>
       )}
 
-      {/* 2. 詞性變化 (Word Family) */}
+      {/* 2. 動詞三態 (Verb Forms) - 獨立 Category */}
+      {resolvedVerbForms && (
+        <div className="space-y-2.5">
+          <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-500" />
+            <span>{t('card.verbForms', '動詞三態')}</span>
+          </div>
+
+          <div className="p-2.5 sm:p-3 rounded-xl border border-indigo-200/90 bg-indigo-50/35">
+            <div className="flex flex-wrap items-center gap-3">
+              {[
+                {
+                  key: 'present',
+                  labelKey: 'card.presentTense',
+                  fallbackLabel: '現在式',
+                  word: resolvedVerbForms.present
+                },
+                {
+                  key: 'past',
+                  labelKey: 'card.pastTense',
+                  fallbackLabel: '過去式',
+                  word: resolvedVerbForms.past
+                },
+                {
+                  key: 'pastParticiple',
+                  labelKey: 'card.pastParticiple',
+                  fallbackLabel: '過去分詞',
+                  word: resolvedVerbForms.pastParticiple
+                }
+              ].map((item, idx) => {
+                const isSaved = savedWordsSet?.has(item.word?.toLowerCase());
+                return (
+                  <div key={item.key} className="flex items-center gap-1.5">
+                    {idx > 0 && <span className="text-indigo-300 text-xs mr-0.5 hidden sm:inline">→</span>}
+                    <span className="text-[11px] font-bold px-1.5 py-0.5 rounded border bg-indigo-100/90 text-indigo-800 border-indigo-300 shadow-2xs">
+                      {t(item.labelKey, item.fallbackLabel)}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => onSelect(item.word)}
+                      title={isSaved ? `${item.word} (${t('card.savedInLibrary', '已在單字庫中')})` : item.word}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-white hover:bg-white/95 hover:border-slate-300 border border-slate-200/90 rounded-lg text-xs font-semibold text-slate-700 hover:text-blue-600 transition shadow-2xs cursor-pointer"
+                    >
+                      <span>{item.word}</span>
+                      {isSaved && (
+                        <Bookmark className="w-2.5 h-2.5 text-blue-500 fill-blue-500 shrink-0" />
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 3. 詞性變化 (Word Family) */}
       {hasFamily && (
         <div className="space-y-2.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-slate-500 uppercase tracking-wider">
@@ -119,7 +186,7 @@ const SearchSimilarList = ({
         </div>
       )}
 
-      {/* 3. 相似字 (Similar Words) */}
+      {/* 4. 相似字 (Similar Words) */}
       {hasSimilar && (
         <div className="space-y-2">
           <div className="text-xs font-bold text-slate-500 uppercase tracking-wider">

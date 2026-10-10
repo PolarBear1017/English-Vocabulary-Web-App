@@ -40,6 +40,24 @@ describe('SearchSimilarList Component', () => {
     expect(html).toContain('product');
   });
 
+  it('renders verb forms category with present, past, and past participle correctly', () => {
+    const html = renderToStaticMarkup(
+      <SearchSimilarList
+        currentWord="eat"
+        wordFamily={{ noun: [], verb: [], adjective: [], adverb: [] }}
+        similarWords={[]}
+        savedWordsSet={new Set(['eat', 'eaten'])}
+        onSelect={() => {}}
+        onBack={() => {}}
+      />
+    );
+
+    // 驗證三態欄位
+    expect(html).toContain('eat');
+    expect(html).toContain('ate');
+    expect(html).toContain('eaten');
+  });
+
   it('renders null when there is no word family, no similar words, and no history', () => {
     const html = renderToStaticMarkup(
       <SearchSimilarList

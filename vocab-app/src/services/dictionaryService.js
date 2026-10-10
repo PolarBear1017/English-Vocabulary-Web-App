@@ -102,22 +102,30 @@ const getWordStems = (word) => {
 
   let base = w;
   if (base.endsWith('ingly')) base = base.slice(0, -5);
-  else if (base.endsWith('ation')) base = base.slice(0, -5);
-  else if (base.endsWith('ition')) base = base.slice(0, -5);
-  else if (base.endsWith('sion')) base = base.slice(0, -4);
-  else if (base.endsWith('tion')) base = base.slice(0, -4);
-  else if (base.endsWith('ment')) base = base.slice(0, -4);
-  else if (base.endsWith('ness')) base = base.slice(0, -4);
-  else if (base.endsWith('able')) base = base.slice(0, -4);
-  else if (base.endsWith('ible')) base = base.slice(0, -4);
   else if (base.endsWith('fully')) base = base.slice(0, -5);
-  else if (base.endsWith('ful')) base = base.slice(0, -3);
-  else if (base.endsWith('ive')) base = base.slice(0, -3);
-  else if (base.endsWith('ing')) base = base.slice(0, -3);
-  else if (base.endsWith('ed')) base = base.slice(0, -2);
-  else if (base.endsWith('ly')) base = base.slice(0, -2);
-  else if (base.endsWith('ity')) base = base.slice(0, -3);
-  else if (base.endsWith('ty')) base = base.slice(0, -2);
+  else if (base.endsWith('ically')) base = base.slice(0, -6);
+  else if (base.endsWith('ently') || base.endsWith('antly')) {
+    stems.add(base.slice(0, -3)); // conveniently -> convenien
+    base = base.slice(0, -5);
+  }
+  else if (base.endsWith('ation') || base.endsWith('ition')) base = base.slice(0, -5);
+  else if (base.endsWith('sion') || base.endsWith('tion')) base = base.slice(0, -4);
+  else if (base.endsWith('ment') || base.endsWith('ness')) base = base.slice(0, -4);
+  else if (base.endsWith('able') || base.endsWith('ible')) base = base.slice(0, -4);
+  else if (base.endsWith('ence') || base.endsWith('ance')) {
+    stems.add(base.slice(0, -2)); // convenience -> convenien
+    base = base.slice(0, -4); // difference -> differ
+  }
+  else if (base.endsWith('ency') || base.endsWith('ancy')) {
+    stems.add(base.slice(0, -2)); // frequency -> frequen, efficiency -> efficien
+    base = base.slice(0, -4);
+  }
+  else if ((base.endsWith('ent') || base.endsWith('ant')) && base.length > 4) {
+    stems.add(base.slice(0, -1)); // convenient -> convenien
+    base = base.slice(0, -3); // dependent -> depend
+  }
+  else if (base.endsWith('ful') || base.endsWith('ive') || base.endsWith('ing') || base.endsWith('ity')) base = base.slice(0, -3);
+  else if (base.endsWith('ed') || base.endsWith('ly') || base.endsWith('ty')) base = base.slice(0, -2);
   else if (base.endsWith('er') || base.endsWith('or')) base = base.slice(0, -2);
   else if (base.endsWith('e') && base.length > 3) base = base.slice(0, -1);
 

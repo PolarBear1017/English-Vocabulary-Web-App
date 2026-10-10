@@ -84,4 +84,32 @@ describe('fetchRelatedWords', () => {
     expect(result.wordFamily.adjective.length).toBeGreaterThan(0);
     expect(result.synonyms.length).toBeGreaterThan(0);
   });
+
+  it('correctly derives convenient and conveniently from convenience', async () => {
+    const mockItems = [
+      { word: 'convenient', tags: ['adj'], score: 14000 },
+      { word: 'conveniently', tags: ['adv'], score: 6000 },
+      { word: 'convenience', tags: ['n'], score: 5000 },
+      { word: 'conveniency', tags: ['n'], score: 2000 }
+    ];
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation((url) => {
+      const urlStr = String(url);
+      if (urlStr.includes('sp=')) {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(mockItems)
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve([])
+      });
+    });
+
+    const result = await fetchRelatedWords('convenience');
+    expect(result.wordFamily.adjective).toContain('convenient');
+    expect(result.wordFamily.adverb).toContain('conveniently');
+    expect(result.wordFamily.noun).toContain('convenience');
+  });
 });

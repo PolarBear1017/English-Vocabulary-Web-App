@@ -26,6 +26,7 @@ const ReviewSession = ({
   primaryReviewEntry,
   clozeExampleMain,
   clozeTranslation,
+  clozeCollocation,
   preferredReviewAudio,
   preferredAccent,
   setPreferredAccent,
@@ -70,6 +71,7 @@ const ReviewSession = ({
           <ClozeFront
             clozeExampleMain={clozeExampleMain}
             clozeTranslation={clozeTranslation}
+            clozeCollocation={clozeCollocation}
             currentReviewWord={currentReviewWord}
             userAnswer={userAnswer}
             answerHint={answerHint}

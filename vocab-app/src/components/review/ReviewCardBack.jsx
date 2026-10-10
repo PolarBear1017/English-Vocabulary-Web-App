@@ -1,8 +1,8 @@
 import React from 'react';
 import { Volume2, Sparkles } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { splitExampleLines } from '../../utils/data';
-import { highlightWord } from '../../utils/text';
+import { parseExampleItem, splitExampleLines } from '../../utils/data';
+import { highlightWord, highlightWithCollocation } from '../../utils/text';
 
 
 const ReviewCardBack = ({
@@ -97,22 +97,34 @@ const ReviewCardBack = ({
                         {entry.examples && entry.examples.length > 0 && (
                             <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">
                                 {entry.examples.map((example, exampleIndex) => {
-                                    const lines = splitExampleLines(example);
+                                    const { collocation, lines } = parseExampleItem(example);
                                     return (
-                                        <p key={`${index}-review-ex-${exampleIndex}`} className="text-gray-700">
-                                            {lines.map((line, lineIndex) => {
-                                                const isCjkLine = /[\u4e00-\u9fff]/.test(line);
-                                                const highlightTarget = isCjkLine
-                                                    ? (entry.translation || currentReviewWord.translation || '')
-                                                    : (currentReviewWord.word || '');
-                                                return (
-                                                    <React.Fragment key={`${index}-review-ex-${exampleIndex}-line-${lineIndex}`}>
-                                                        {highlightWord(line, highlightTarget)}
-                                                        {lineIndex < lines.length - 1 && <br />}
-                                                    </React.Fragment>
-                                                );
-                                            })}
-                                        </p>
+                                        <div key={`${index}-review-ex-${exampleIndex}`} className="space-y-1">
+                                            {collocation && (
+                                                <div>
+                                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 text-[11px] font-semibold bg-amber-100/90 text-amber-800 rounded-full border border-amber-200/80 shadow-2xs">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+                                                        {t('card.collocation', '搭配')}: {collocation}
+                                                    </span>
+                                                </div>
+                                            )}
+                                            <p className="text-gray-700 leading-relaxed">
+                                                {lines.map((line, lineIndex) => {
+                                                    const isCjkLine = /[\u4e00-\u9fff]/.test(line);
+                                                    const highlightTarget = isCjkLine
+                                                        ? (entry.translation || currentReviewWord.translation || '')
+                                                        : (currentReviewWord.word || '');
+                                                    return (
+                                                        <React.Fragment key={`${index}-review-ex-${exampleIndex}-line-${lineIndex}`}>
+                                                            {!isCjkLine
+                                                                ? highlightWithCollocation(line, highlightTarget, collocation)
+                                                                : highlightWord(line, highlightTarget)}
+                                                            {lineIndex < lines.length - 1 && <br />}
+                                                        </React.Fragment>
+                                                    );
+                                                })}
+                                            </p>
+                                        </div>
                                     );
                                 })}
                             </div>

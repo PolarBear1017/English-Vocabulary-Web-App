@@ -15,6 +15,30 @@ const highlightWord = (text, word) => {
 
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+const highlightWithCollocation = (text, word, collocation) => {
+  if (!text) return text;
+  if (!collocation || !collocation.trim()) return highlightWord(text, word);
+
+  const escaped = escapeRegex(collocation.trim());
+  const regex = new RegExp(`(${escaped})`, 'gi');
+  const parts = text.split(regex);
+
+  return parts.map((part, index) => {
+    if (regex.test(part)) {
+      return (
+        <span
+          key={`colloc-${index}`}
+          className="border-b-2 border-amber-400 bg-amber-100/60 text-amber-900 px-1 py-0.5 rounded font-medium inline-block my-0.5"
+          title={`常用搭配: ${collocation}`}
+        >
+          {highlightWord(part, word)}
+        </span>
+      );
+    }
+    return <React.Fragment key={`colloc-plain-${index}`}>{highlightWord(part, word)}</React.Fragment>;
+  });
+};
+
 const getClozeValidAnswers = (sentence, targetWord) => {
   if (!targetWord) return { validAnswers: [], contextMatches: [] };
   const normalizedTarget = targetWord.trim();
@@ -114,4 +138,42 @@ const formatClozeSentence = (sentence, targetWord) => {
   return sentence.replace(new RegExp(escapedTarget, 'gi'), '________');
 };
 
-export { highlightWord, formatClozeSentence, getClozeValidAnswers };
+const renderClozeWithCollocation = (sentence, targetWord, collocation) => {
+  if (!sentence) return '';
+  const clozeFormatted = formatClozeSentence(sentence, targetWord);
+  if (!collocation || !collocation.trim()) {
+    return clozeFormatted;
+  }
+
+  const clozeOfCollocation = formatClozeSentence(collocation.trim(), targetWord);
+  const escaped = escapeRegex(clozeOfCollocation);
+  const regex = new RegExp(`(${escaped})`, 'gi');
+
+  if (!regex.test(clozeFormatted)) {
+    return clozeFormatted;
+  }
+
+  const parts = clozeFormatted.split(regex);
+  return parts.map((part, index) => {
+    if (regex.test(part)) {
+      return (
+        <span
+          key={`cloze-colloc-${index}`}
+          className="border-b-2 border-amber-400 bg-amber-100/70 text-amber-950 px-1.5 py-0.5 rounded-md font-semibold inline-block mx-0.5 shadow-2xs"
+          title={`搭配詞組合: ${collocation}`}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={`cloze-part-${index}`}>{part}</React.Fragment>;
+  });
+};
+
+export {
+  highlightWord,
+  highlightWithCollocation,
+  formatClozeSentence,
+  renderClozeWithCollocation,
+  getClozeValidAnswers
+};

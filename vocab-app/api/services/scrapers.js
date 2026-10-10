@@ -65,7 +65,25 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
 
         const examples = $(block)
             .find('.examp')
-            .map((_, el) => $(el).text().trim())
+            .map((_, el) => {
+                const $el = $(el);
+                const collocation = $el.find('.lu').text().trim();
+                const eg = $el.find('.eg').text().trim();
+                const trans = $el.find('.trans').text().trim();
+
+                let text = eg;
+                if (!text) {
+                    const clone = $el.clone();
+                    clone.find('.lu, .trans').remove();
+                    text = clone.text().trim();
+                }
+                if (!text) return null;
+
+                const exObj = { text };
+                if (trans) exObj.translation = trans;
+                if (collocation) exObj.collocation = collocation;
+                return exObj;
+            })
             .get()
             .filter(Boolean);
 
@@ -75,11 +93,15 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
         if (!entryPos) entryPos = $(block).closest('.pr').find('.pos').first().text();
         if (!entryPos) entryPos = pos; // Fallback to the top-level POS
 
+        const primaryExample = examples[0]
+            ? (typeof examples[0] === 'string' ? examples[0] : (examples[0].translation ? `${examples[0].text}\n${examples[0].translation}` : examples[0].text))
+            : '';
+
         if (definitionText) {
             entries.push({
                 definition: definitionText,
                 translation: translationText,
-                example: examples[0] || '',
+                example: primaryExample,
                 examples,
                 pos: entryPos
             });
@@ -89,14 +111,35 @@ const parseCambridgeHtml = (html, word, source = 'Cambridge') => {
     if (entries.length === 0) {
         const definition = $('.def').first().text().replace(':', '').trim();
         const translation = $('.trans').first().text().trim();
-        const example = $('.examp').first().text().trim();
+        const firstExEl = $('.examp').first();
+        let fallbackExampleObj = null;
+
+        if (firstExEl.length > 0) {
+            const collocation = firstExEl.find('.lu').text().trim();
+            const eg = firstExEl.find('.eg').text().trim();
+            const trans = firstExEl.find('.trans').text().trim();
+            let text = eg;
+            if (!text) {
+                const clone = firstExEl.clone();
+                clone.find('.lu, .trans').remove();
+                text = clone.text().trim();
+            }
+            if (text) {
+                fallbackExampleObj = { text };
+                if (trans) fallbackExampleObj.translation = trans;
+                if (collocation) fallbackExampleObj.collocation = collocation;
+            }
+        }
 
         if (definition) {
+            const fallbackStr = fallbackExampleObj
+                ? (fallbackExampleObj.translation ? `${fallbackExampleObj.text}\n${fallbackExampleObj.translation}` : fallbackExampleObj.text)
+                : '';
             entries.push({
                 definition,
                 translation,
-                example,
-                examples: example ? [example] : []
+                example: fallbackStr,
+                examples: fallbackExampleObj ? [fallbackExampleObj] : []
             });
         }
     }

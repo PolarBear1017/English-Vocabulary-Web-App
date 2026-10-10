@@ -293,17 +293,33 @@ const SearchResultCard = ({
   }, []);
 
   const handleSaveWord = useCallback((folderId, overrideWord = null) => {
-    const cleanText = (value) => (value || '')
-      .replace(/\s*\n\s*/g, '\n')
-      .trim();
+    const cleanExample = (value) => {
+      if (!value) return '';
+      if (typeof value === 'object') {
+        const cleaned = {
+          text: (value.text || '').replace(/\s*\n\s*/g, ' ').trim()
+        };
+        if (value.translation) cleaned.translation = value.translation.trim();
+        if (value.collocation) cleaned.collocation = value.collocation.trim();
+        return cleaned;
+      }
+      return (value || '')
+        .replace(/\s*\n\s*/g, '\n')
+        .trim();
+    };
+
     const selectedDefinitions = selectedEntries.map((entry) => {
       const fallbackExample = entry.example ? [entry.example] : [];
       const rawExamples = Array.isArray(entry.examples) ? entry.examples : fallbackExample;
+      const primaryEx = typeof entry.example === 'object'
+        ? (entry.example.translation ? `${entry.example.text}\n${entry.example.translation}` : entry.example.text)
+        : (entry.example || '').replace(/\s*\n\s*/g, '\n').trim();
+
       return {
         definition: entry.definition || '',
         translation: entry.translation || '',
-        example: cleanText(entry.example),
-        examples: rawExamples.map(cleanText).filter(Boolean),
+        example: primaryEx,
+        examples: rawExamples.map(cleanExample).filter(Boolean),
         pos: entry.pos || searchResult.pos || ''
       };
     });
@@ -599,6 +615,7 @@ const SearchResultCard = ({
               return next;
             });
           }}
+          onSearchCollocation={onSearch}
         />
 
         {isSelectingView && (

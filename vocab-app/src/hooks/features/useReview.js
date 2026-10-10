@@ -7,6 +7,7 @@ import {
   normalizeEntries,
   getReviewTimestamp,
   isReviewDue,
+  parseExampleItem,
   splitExampleLines
 } from '../../utils/data';
 import { getClozeValidAnswers } from '../../utils/text.jsx';
@@ -97,9 +98,12 @@ const useReview = ({
   }, [currentReviewWord, reviewQueue.length]);
   const primaryReviewEntry = currentReviewEntries[0] || {};
   const clozeExample = primaryReviewEntry.example || currentReviewWord.example || '';
-  const clozeExampleLines = splitExampleLines(clozeExample);
-  const clozeExampleMain = clozeExampleLines[0] || clozeExample;
+  const parsedCloze = parseExampleItem(clozeExample);
+  const clozeCollocation = parsedCloze.collocation || null;
+  const clozeExampleLines = parsedCloze.lines;
+  const clozeExampleMain = parsedCloze.text || clozeExampleLines[0] || '';
   const clozeTranslation = (() => {
+    if (parsedCloze.translation) return parsedCloze.translation;
     if (clozeExampleLines.length > 1) return clozeExampleLines[1];
     return primaryReviewEntry.translation || currentReviewWord.translation || '';
   })();
@@ -501,6 +505,7 @@ const useReview = ({
       primaryReviewEntry,
       clozeExampleMain,
       clozeTranslation,
+      clozeCollocation,
       preferredReviewAudio,
       allFoldersSelected,
       selectedFolderLabel

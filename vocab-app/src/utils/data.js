@@ -57,19 +57,57 @@ const mapGradeToFsrsRating = (grade) => {
 
 const formatDate = (date, locale = 'zh-TW') => new Date(date).toLocaleDateString(locale);
 
+const parseExampleItem = (example) => {
+  if (!example) return { text: '', translation: '', collocation: null, lines: [] };
+
+  if (typeof example === 'object') {
+    const text = (example.text || '').trim();
+    const translation = (example.translation || '').trim();
+    const collocation = (example.collocation || '').trim() || null;
+    const lines = [text, translation].filter(Boolean);
+    return { text, translation, collocation, lines };
+  }
+
+  let str = String(example).trim();
+  if (!str) return { text: '', translation: '', collocation: null, lines: [] };
+
+  let translation = '';
+  if (str.includes('\n')) {
+    const parts = str.split('\n').map(s => s.trim()).filter(Boolean);
+    str = parts[0] || '';
+    translation = parts.slice(1).join('\n');
+  } else {
+    const cjkMatch = str.match(/[\u4e00-\u9fff]/);
+    if (cjkMatch && cjkMatch.index > 0) {
+      translation = str.slice(cjkMatch.index).trim();
+      str = str.slice(0, cjkMatch.index).trim();
+    }
+  }
+
+  let text = str;
+  let collocation = null;
+
+  // Auto-detect Cambridge legacy pattern: "<collocation> <Sentence containing collocation>"
+  // Handles legacy strings like "sheer hell Work is sheer hell at the moment."
+  const match = str.match(/^([a-z0-9\s'’\-\(\)]+?)\s+((?:["'‘“\s]*)[A-Z][\s\S]*)$/);
+  if (match) {
+    const prefix = match[1].trim();
+    const restSentence = match[2].trim();
+    const normPrefix = prefix.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+    const normRest = restSentence.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
+
+    if (normPrefix.length >= 2 && normRest.includes(normPrefix)) {
+      collocation = prefix;
+      text = restSentence;
+    }
+  }
+
+  const lines = [text, translation].filter(Boolean);
+  return { text, translation, collocation, lines };
+};
+
 const splitExampleLines = (example = '') => {
-  const trimmed = example.trim();
-  if (!trimmed) return [];
-  if (trimmed.includes('\n')) {
-    return trimmed.split('\n').map(line => line.trim()).filter(Boolean);
-  }
-  const cjkMatch = trimmed.match(/[\u4e00-\u9fff]/);
-  if (cjkMatch && cjkMatch.index > 0) {
-    const english = trimmed.slice(0, cjkMatch.index).trim();
-    const chinese = trimmed.slice(cjkMatch.index).trim();
-    if (english && chinese) return [english, chinese];
-  }
-  return [trimmed];
+  return parseExampleItem(example).lines;
 };
 
 const parseReviewDate = (value) => {
@@ -139,6 +177,7 @@ export {
   serializeFsrsCard,
   mapGradeToFsrsRating,
   formatDate,
+  parseExampleItem,
   splitExampleLines,
   parseReviewDate,
   getReviewTimestamp,

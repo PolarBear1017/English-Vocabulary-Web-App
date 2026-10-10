@@ -1,11 +1,12 @@
 import React from 'react';
 import { Lightbulb } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { formatClozeSentence } from '../../../utils/text';
+import { formatClozeSentence, renderClozeWithCollocation } from '../../../utils/text';
 
 const ClozeFront = ({
     clozeExampleMain,
     clozeTranslation,
+    clozeCollocation,
     currentReviewWord,
     userAnswer,
     answerHint,
@@ -18,8 +19,16 @@ const ClozeFront = ({
 
     return (
         <div className="space-y-6 w-full">
+            {clozeCollocation && (
+                <div className="flex justify-center -mb-2">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 text-xs font-semibold bg-amber-50 text-amber-800 rounded-full border border-amber-200/90 shadow-2xs">
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+                        {t('card.collocation', '搭配')}: {formatClozeSentence(clozeCollocation, currentReviewWord.word)}
+                    </span>
+                </div>
+            )}
             <div className="text-xl text-gray-700 leading-relaxed">
-                {formatClozeSentence(clozeExampleMain, currentReviewWord.word)}
+                {renderClozeWithCollocation(clozeExampleMain, currentReviewWord.word, clozeCollocation)}
             </div>
             <div className="text-sm text-gray-500">{clozeTranslation}</div>
             {currentReviewWord.pos && (

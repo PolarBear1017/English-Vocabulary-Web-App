@@ -1,8 +1,8 @@
 import React from 'react';
-import { Check, Volume2, Trash2 } from 'lucide-react';
+import { Check, Volume2, Trash2, Search } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { splitExampleLines } from '../../utils/data';
-import { highlightWord } from '../../utils/text.jsx';
+import { parseExampleItem, splitExampleLines } from '../../utils/data';
+import { highlightWord, highlightWithCollocation } from '../../utils/text.jsx';
 import { speak } from '../../services/speechService';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 
@@ -14,7 +14,8 @@ const SearchResultEntries = ({
   onToggleAll,
   allSelected,
   readOnly = false,
-  onDeleteEntry
+  onDeleteEntry,
+  onSearchCollocation
 }) => {
   const { t } = useTranslation();
   const { state: { audioSpeed } } = useSettingsContext();
@@ -107,28 +108,53 @@ const SearchResultEntries = ({
               {entry.examples && entry.examples.length > 0 && (
                 <div className="mt-3 bg-amber-50 border border-amber-100 rounded-lg p-3 space-y-2">
                   {entry.examples.map((example, exampleIndex) => {
-                    const lines = splitExampleLines(example);
+                    const { text, collocation, lines } = parseExampleItem(example);
+                    const textToSpeak = text || lines[0] || '';
+
                     return (
-                      <div key={`${index}-ex-${exampleIndex}`} className="flex items-start gap-2 group">
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const textToSpeak = lines[0] || example;
-                            speak(textToSpeak, null, { rate: audioSpeed || 1.0 });
-                          }}
-                          className="mt-0.5 p-1 text-gray-300 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors focus:opacity-100"
-                          title={t('card.playExampleAudio')}
-                        >
-                          <Volume2 className="w-4 h-4" />
-                        </button>
-                        <p className="text-gray-700 flex-1">
-                          {lines.map((line, lineIndex) => (
-                            <React.Fragment key={`${index}-ex-${exampleIndex}-line-${lineIndex}`}>
-                              {highlightWord(line, searchWord)}
-                              {lineIndex < lines.length - 1 && <br />}
-                            </React.Fragment>
-                          ))}
-                        </p>
+                      <div key={`${index}-ex-${exampleIndex}`} className="space-y-1">
+                        {collocation && (
+                          <div className="pl-7">
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (onSearchCollocation) onSearchCollocation(collocation);
+                              }}
+                              className="inline-flex items-center gap-1 px-2.5 py-0.5 text-[11px] font-semibold bg-amber-100/90 hover:bg-amber-200 text-amber-800 hover:text-amber-900 rounded-full border border-amber-200/80 shadow-2xs transition-all cursor-pointer group"
+                              title={`${t('common.search', '搜尋')} "${collocation}"`}
+                            >
+                              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block group-hover:scale-125 transition-transform" />
+                              {t('card.collocation', '搭配')}: {collocation}
+                              <Search className="w-2.5 h-2.5 opacity-60 group-hover:opacity-100 ml-0.5" />
+                            </button>
+                          </div>
+                        )}
+                        <div className="flex items-start gap-2 group">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              speak(textToSpeak, null, { rate: audioSpeed || 1.0 });
+                            }}
+                            className="mt-0.5 p-1 text-gray-300 hover:text-amber-600 hover:bg-amber-100 rounded-full transition-colors focus:opacity-100"
+                            title={t('card.playExampleAudio')}
+                          >
+                            <Volume2 className="w-4 h-4" />
+                          </button>
+                          <p className="text-gray-700 flex-1 leading-relaxed">
+                            {lines.map((line, lineIndex) => {
+                              const isEnglishSentence = lineIndex === 0;
+                              return (
+                                <React.Fragment key={`${index}-ex-${exampleIndex}-line-${lineIndex}`}>
+                                  {isEnglishSentence
+                                    ? highlightWithCollocation(line, searchWord, collocation)
+                                    : highlightWord(line, searchWord)}
+                                  {lineIndex < lines.length - 1 && <br />}
+                                </React.Fragment>
+                              );
+                            })}
+                          </p>
+                        </div>
                       </div>
                     );
                   })}

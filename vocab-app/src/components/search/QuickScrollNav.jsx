@@ -154,6 +154,44 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
     }, 800);
   }, []);
 
+  // 鍵盤上下快捷鍵切換區塊 (ArrowUp / ArrowDown, 支援 J/K)
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // 若正在輸入欄位中，不搶佔按鍵
+      const target = event.target;
+      const tagName = target?.tagName?.toLowerCase();
+      const isTyping =
+        tagName === 'input' ||
+        tagName === 'textarea' ||
+        tagName === 'select' ||
+        target?.isContentEditable;
+      if (isTyping) return;
+
+      const isUp = event.key === 'ArrowUp' || event.key === 'k';
+      const isDown = event.key === 'ArrowDown' || event.key === 'j';
+
+      if (!isUp && !isDown) return;
+
+      event.preventDefault();
+
+      const currentIndex = navItems.findIndex((item) => item.id === activeSection);
+      let targetIndex = currentIndex;
+
+      if (isUp) {
+        targetIndex = currentIndex > 0 ? currentIndex - 1 : 0;
+      } else if (isDown) {
+        targetIndex = currentIndex < navItems.length - 1 ? currentIndex + 1 : navItems.length - 1;
+      }
+
+      if (targetIndex !== currentIndex && navItems[targetIndex]) {
+        scrollToSection(navItems[targetIndex]);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeSection, navItems, scrollToSection]);
+
   const handleMouseEnter = (itemId) => {
     // 觸控螢幕或不支援 hover 的裝置不顯示氣泡
     if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none)').matches) {

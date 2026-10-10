@@ -1,5 +1,13 @@
 import React, { useState } from 'react';
-import { Keyboard, RotateCcw, Info, Volume2 } from 'lucide-react';
+import {
+  Keyboard,
+  RotateCcw,
+  Info,
+  Volume2,
+  Search,
+  BookOpen,
+  Book,
+} from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useSettingsContext } from '../../contexts/SettingsContext';
 
@@ -41,6 +49,78 @@ const SettingsShortcuts = () => {
     setIsRecording(false);
   };
 
+  const shortcutGroups = [
+    {
+      id: 'search',
+      title: t('settings.shortcutGroupSearch', '單字查詢與導航'),
+      icon: Search,
+      items: [
+        {
+          label: t('settings.shortcutSearchSubmit', '搜尋框：送出查詢單字'),
+          combinations: [['Enter']],
+        },
+        {
+          label: t('settings.shortcutSearchSave', '查詢結果：快速開始儲存單字'),
+          combinations: [['Enter']],
+        },
+        {
+          label: t('settings.shortcutFolderConfirm', '資料夾選單：確認儲存至選定資料夾'),
+          combinations: [['Enter']],
+        },
+        {
+          label: t('settings.shortcutFolderCancel', '資料夾選單：取消並關閉選單'),
+          combinations: [['Esc']],
+        },
+        {
+          label: t('settings.shortcutNavTrackNext', '側邊軌道：跳轉至下一個區塊'),
+          combinations: [['↓'], ['J']],
+        },
+        {
+          label: t('settings.shortcutNavTrackPrev', '側邊軌道：跳轉至上一個區塊'),
+          combinations: [['↑'], ['K']],
+        },
+        {
+          label: t('settings.shortcutToggleDefinition', '自訂釋義：切換勾選目前選取的釋義'),
+          combinations: [['Space'], ['Enter']],
+        },
+      ],
+    },
+    {
+      id: 'review',
+      title: t('settings.shortcutGroupReview', '複習測驗'),
+      icon: BookOpen,
+      items: [
+        {
+          label: t('settings.shortcutReviewFlip', '翻開卡片 / 送出答案'),
+          combinations: [['Space'], ['Enter']],
+        },
+        {
+          label: t('settings.shortcutReviewRating', '翻牌後評分 (1: Again ~ 4: Easy)'),
+          combinations: [['1', '2', '3', '4']],
+        },
+      ],
+    },
+    {
+      id: 'library',
+      title: t('settings.shortcutGroupLibrary', '單字庫瀏覽'),
+      icon: Book,
+      items: [
+        {
+          label: t('settings.shortcutLibraryPrev', '切換上一個單字'),
+          combinations: [['←'], ['H']],
+        },
+        {
+          label: t('settings.shortcutLibraryNext', '切換下一個單字'),
+          combinations: [['→'], ['L']],
+        },
+        {
+          label: t('settings.shortcutLibraryClose', '關閉單字詳情彈窗'),
+          combinations: [['Esc']],
+        },
+      ],
+    },
+  ];
+
   return (
     <div className="space-y-6 animate-in fade-in duration-300">
       <div>
@@ -62,7 +142,7 @@ const SettingsShortcuts = () => {
             </div>
             <div>
               <div className="font-semibold text-gray-800">
-                {t('settings.shortcutPlayAudio', '播放/重聽單字發音')}
+                {t('settings.shortcutPlayAudio', '播放 / 重聽單字發音')}
               </div>
               <div className="text-xs text-gray-500 mt-0.5">
                 {t('settings.shortcutPlayAudioDesc', '在查詢結果、單字詳情、聽寫模式與複習卡背時一鍵播放。')}
@@ -107,36 +187,63 @@ const SettingsShortcuts = () => {
       </div>
 
       {/* Preset shortcuts overview */}
-      <div className="bg-gray-50 p-5 rounded-2xl border border-gray-200 space-y-3">
-        <div className="flex items-center gap-2 text-sm font-bold text-gray-700">
-          <Info className="w-4 h-4 text-blue-500" />
-          {t('settings.presetShortcutsTitle', '其他內建快捷鍵一覽')}
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <Info className="w-5 h-5 text-blue-600" />
+          <h3 className="text-base font-bold text-gray-800">
+            {t('settings.presetShortcutsTitle', '全站內建快捷鍵一覽')}
+          </h3>
         </div>
-        <div className="space-y-2 text-xs text-gray-600">
-          <div className="flex items-center justify-between py-1 border-b border-gray-200/60">
-            <span>{t('settings.shortcutReviewFlip', '複習模式：送出答案 / 翻開卡片')}</span>
-            <kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded text-gray-700 font-mono font-medium">Enter</kbd>
-          </div>
-          <div className="flex items-center justify-between py-1 border-b border-gray-200/60">
-            <span>{t('settings.shortcutReviewRating', '翻牌後評分 (1: Again ~ 4: Easy)')}</span>
-            <div className="flex gap-1 font-mono">
-              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-gray-700">1</kbd>
-              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-gray-700">2</kbd>
-              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-gray-700">3</kbd>
-              <kbd className="px-1.5 py-0.5 bg-white border border-gray-300 rounded text-gray-700">4</kbd>
-            </div>
-          </div>
-          <div className="flex items-center justify-between py-1 border-b border-gray-200/60">
-            <span>{t('settings.shortcutLibraryNav', '單字詳情卡片：切換上一個 / 下一個單字')}</span>
-            <div className="flex gap-1 font-mono">
-              <kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded text-gray-700">←</kbd>
-              <kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded text-gray-700">→</kbd>
-            </div>
-          </div>
-          <div className="flex items-center justify-between py-1">
-            <span>{t('settings.shortcutSearchSave', '單字查詢結果：快速開始儲存')}</span>
-            <kbd className="px-2 py-0.5 bg-white border border-gray-300 rounded text-gray-700 font-mono font-medium">Enter</kbd>
-          </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {shortcutGroups.map((group) => {
+            const GroupIcon = group.icon;
+            return (
+              <div
+                key={group.id}
+                className={`bg-white p-5 rounded-2xl border border-gray-200 shadow-sm space-y-3 ${
+                  group.id === 'search' ? 'md:col-span-2' : ''
+                }`}
+              >
+                <div className="flex items-center gap-2 text-sm font-bold text-gray-800 pb-2 border-b border-gray-100">
+                  <div className="w-6 h-6 rounded-lg bg-gray-100 text-gray-600 flex items-center justify-center shrink-0">
+                    <GroupIcon className="w-3.5 h-3.5" />
+                  </div>
+                  <span>{group.title}</span>
+                </div>
+
+                <div className="divide-y divide-gray-100 text-xs">
+                  {group.items.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between py-2.5 gap-4"
+                    >
+                      <span className="text-gray-600 leading-snug">{item.label}</span>
+                      <div className="flex items-center gap-1.5 shrink-0 font-mono">
+                        {item.combinations.map((combo, cIdx) => (
+                          <React.Fragment key={cIdx}>
+                            {cIdx > 0 && (
+                              <span className="text-gray-300 text-xs select-none">/</span>
+                            )}
+                            <div className="flex items-center gap-1">
+                              {combo.map((k) => (
+                                <kbd
+                                  key={k}
+                                  className="px-2 py-0.5 min-w-[24px] text-center bg-gray-50 border border-gray-200 rounded-md text-gray-700 font-medium shadow-xs"
+                                >
+                                  {k}
+                                </kbd>
+                              ))}
+                            </div>
+                          </React.Fragment>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

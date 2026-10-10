@@ -68,13 +68,16 @@ const QuickScrollNav = ({ hasMnemonic = true, hasRelations = true }) => {
         return;
       }
 
-      // 2. 滾到底部保護：視窗已達頁面底部時，自動高亮最後一個區塊
+      // 2. 滾到底部保護：僅在容器確實有超出高度可滾動且已滑到底部時觸發
       const docHeight = Math.max(
         document.documentElement?.scrollHeight || 0,
         document.body?.scrollHeight || 0
       );
-      const isWindowBottom = (window.innerHeight + window.scrollY) >= docHeight - 60;
-      const isMainBottom = mainEl && (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 60);
+      const canWindowScroll = docHeight > (window.innerHeight + 80);
+      const isWindowBottom = canWindowScroll && ((window.innerHeight + window.scrollY) >= docHeight - 60);
+
+      const canMainScroll = mainEl && (mainEl.scrollHeight > mainEl.clientHeight + 80);
+      const isMainBottom = canMainScroll && (mainEl.scrollTop + mainEl.clientHeight >= mainEl.scrollHeight - 60);
 
       if (isWindowBottom || isMainBottom) {
         const lastItem = navItems[navItems.length - 1];

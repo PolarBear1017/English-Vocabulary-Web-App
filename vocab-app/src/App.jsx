@@ -26,7 +26,7 @@ export default function VocabularyApp() {
 
   return (
     <AppProviders app={app}>
-      <div className="flex flex-col md:flex-row min-h-screen bg-gray-50 text-gray-800 font-sans pb-16 md:pb-0">
+      <div className="flex flex-col md:flex-row min-h-screen md:h-screen md:overflow-hidden bg-gray-50 text-gray-800 font-sans pb-16 md:pb-0">
         <Navigation />
         <main className="flex-1 overflow-y-auto p-4 md:p-8">
           <ActivePage />
